@@ -1,0 +1,19 @@
+[package]
+name = "ck-embed"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+ck-core = { path = "../ck-core" }
+
+anyhow = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+
+fastembed = { workspace = true, optional = true }
+
+[features]
+default = ["fastembed"]
+fastembed = ["dep:fastembed"]

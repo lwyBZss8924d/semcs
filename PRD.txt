@@ -1,0 +1,270 @@
+# PRD + Engineering Plan: **ck — Semantic Grep by Embedding**
+
+---
+
+## Overview
+
+**ck (seek)** is a Rust-based drop-in replacement for `grep`, extended with semantic and vector search capabilities. It fingerprints files, stores span embeddings, and allows both regex and semantic queries over text/code.
+
+Just as **uv** modernized `pip`, **ck** modernizes `grep`: fast, lightweight, agent-friendly, and extensible.
+
+---
+
+## Goals
+
+* **Agent Friendly**: Output is consistent, simple, and structured (grep-like text OR JSON). Claude, GPT, and other LLMs can consume results without fragile parsing.
+* **Drop-in Replacement**: Matches grep CLI flags and defaults; regex queries behave identically.
+* **Hybrid Search**: Fuse regex/BM25 with embedding similarity via Reciprocal Rank Fusion (RRF).
+* **Code-Aware Chunking**: Default span segmentation + language-aware chunkers (Python → TypeScript → others).
+* **Rust-First Implementation**: High performance, portable, no runtime deps.
+* **Modular & Extensible**: Pluggable ANN index backends, embedders, and chunkers.
+* **Self-contained**: Sidecar `.ck/` directory at repo root, fully removable, reproducible, idempotent.
+
+---
+
+## Non-Goals
+
+* Not a full IDE or static analyzer.
+* Not distributed search (local-first focus).
+* Not a binary/large file searcher (text/code focus only).
+
+---
+
+## Target Users
+
+* **LLM Agents** — primary consumers, via JSON. Use `ck` to “see” code semantically.
+* **Developers** — command-line users who need grep-like familiarity with semantic upgrades.
+
+---
+
+## Key Features
+
+### 1. Drop-in grep compatibility
+
+* Core flags supported: `-n`, `-C`, `-A`, `-B`, `-R`, `-i`, `-F`, `-w`, `-h`, `-H`.
+* Context handling matches grep semantics: `-C N` sets symmetric context; `-A N`/`-B N` control after/before independently.
+* Filename printing follows grep conventions and can be forced with `-H` or suppressed with `-h`.
+* Regex searches provide deterministic ordering (by file path, then line number) and apply `--topk` after sorting.
+* Exit codes align with grep: 0 if matches found, 1 if none, 2 on error.
+* Note: Additional common flags like `-v`, `-l`, `-c`, `-q` are candidates for future milestones.
+
+### 2. Span Fingerprinting & Indexing
+
+* Sidecar `.ck/` at repo root, mirrors repo layout (`foo.rs` → `.ck/foo.rs.ck`).
+* **File-level hashing** (blake3 or sha256).
+* Lifecycle:
+
+  * `ck index path/` → build/update incrementally (only rebuild files whose hash changed).
+  * `ck search --reindex` → idempotently update any hash misses before querying.
+  * `ck clean` → wipe sidecar fully (safe to rebuild).
+* **CI Guidance**: Recommend **regen per build**; `.ck/` is a cache artifact, not checked into VCS.
+* **Concurrency**: atomic replace via `.tmp` + rename, file-level granularity.
+
+### 3. Code-Aware Chunking
+
+* Default: overlapping spans (256–512 tokens, configurable).
+* Language-aware chunkers via tree-sitter:
+
+  * Python: functions, classes.
+  * TypeScript: functions, exports, classes.
+* Fallback: generic text spans (ensures all languages supported).
+
+### 4. Hybrid Search
+
+* Regex or semantic query (or both).
+* Ranking via **Reciprocal Rank Fusion (RRF)** \[Cormack & Clarke 2009].
+* Deterministic and robust across scoring sources.
+* LLM/agent consumption:
+
+  * Default returns all results.
+  * Optional `--topk N` to bound results for agent payload size.
+* CLI examples:
+
+  ```bash
+  ck --sem "retry with exponential backoff" src/
+  ck --regex "httpClient" src/
+  ck --hybrid --topk=100 "connection pool"
+  ```
+
+### 5. Agent-Friendly Output
+
+* Default (grep-like):
+
+  ```
+  src/retry.py:42: async def retry_with_backoff(...  # score=3.21
+  ```
+* JSON mode (`--json-v1`):
+
+  ```json
+  {
+    "file": "src/retry.py",
+    "span": {"byte_start": 12288, "byte_end": 12960, "line_start": 40, "line_end": 55},
+    "lang": "python",
+    "symbol": "retry_with_backoff",
+    "score": 3.21,
+    "signals": {"lex_rank": 10, "vec_rank": 5, "rrf_score": 0.82},
+    "preview": "async def retry_with_backoff(...",
+    "model": "BAAI/bge-small-en-v1.5"
+  }
+  ```
+* NDJSON streaming mode for large repos.
+* Schema versioned (`--json-v1`, future `--json-v2`).
+* JSON schema checked into repo and validated in CI.
+
+### 6. Rust-First Stack
+
+* **Lexical search:** Tantivy (BM25).
+* **ANN:**
+
+  * Default: pure-Rust HNSW (lightweight, portable).
+  * Optional: FAISS backend (feature-gated) for IVF/PQ/GPU.
+* **Embeddings:**
+
+  * Default: fastembed (CPU-fast ONNX models; e.g. BGE-small, MiniLM).
+  * Optional: Candle backend (Rust-native inference).
+  * Optional: API backend (OpenAI/HF Inference compatible).
+  * Version-pinned models for reproducibility.
+  * **Scope:** English-only baseline (multilingual deferred).
+* **Chunking:** tree-sitter grammars + fallback generic spans.
+* **Index storage:** memmap2 + serde/bincode sidecars.
+
+### 7. Modular Embedder & ANN APIs
+
+```rust
+pub trait Embedder {
+    fn id(&self) -> &'static str;
+    fn dim(&self) -> usize;
+    fn embed(&mut self, texts: &[String]) -> Result<Vec<Vec<f32>>>;
+}
+
+pub trait AnnIndex {
+    fn build(vectors: &[Vec<f32>]) -> Result<Self> where Self: Sized;
+    fn search(&self, q: &[f32], topk: usize) -> Vec<(u32, f32)>;
+    fn add(&mut self, id: u32, v: &[f32]);
+    fn save(&self, path: &Path) -> Result<()>;
+    fn load(path: &Path) -> Result<Self> where Self: Sized;
+}
+```
+
+* Incremental add/update supported (`ck add file.rs`).
+* ANN backend chosen at build (hnsw default, faiss optional).
+* Model registry (`models.toml`) + per-project config (`ck.toml`).
+
+---
+
+## User Stories
+
+* As an agent, I can `ck --json "find exponential backoff logic"` and get structured spans I can edit or extend.
+* As a dev, I can run `ck -n "httpClient" src/` and see identical results to grep.
+* As a dev, I can run `ck --sem "database connection pool"` and discover functions not matching literal keywords.
+* As a system, I can update `.ck` indexes incrementally after a file changes.
+
+---
+
+## Technical Requirements
+
+* Language: Rust (2021+).
+* Perf targets:
+
+  * Index 1M LOC repo in < 2 minutes (parallelized).
+  * Query top-100 in < 500ms.
+  * Index size: ≤ 2× source (with quantization).
+* Extensibility: new chunker < 500 LOC; new embedder < 200 LOC.
+
+---
+
+## Success Metrics
+
+* **Drop-in adoption:** can replace `grep` in scripts with no breakage.
+* **Agent usability:** JSON mode works out-of-box for Claude/GPT.
+* **Performance:** sub-500ms queries, lightweight indexes.
+* **Extensibility:** new chunker < 500 LOC; new embedder < 200 LOC.
+* **Index hygiene:** `ck clean && ck index` → byte-for-byte reproducibility.
+
+---
+
+## Cargo Workspace Layout
+
+```
+ck/
+├── ck-cli/       # end-user binary
+├── ck-core/      # shared core logic
+├── ck-index/     # index builder (sidecars, hashes)
+├── ck-search/    # query engine (BM25 + ANN + RRF fusion)
+├── ck-chunk/     # span segmentation + tree-sitter
+├── ck-embed/     # embedders (fastembed, Candle, API)
+├── ck-ann/       # ANN backends (HNSW, FAISS)
+└── ck-models/    # model registry + config
+```
+
+---
+
+## Milestones
+
+### **M0 — Foundations**
+
+* Workspace scaffolding.
+* Regex-focused CLI with grep parity for core flags (`-n`, `-C/-A/-B`, `-R`, `-i`, `-F`, `-w`, `-h`, `-H`).
+* Deterministic output ordering and grep-like exit codes.
+* `.ck/` sidecar spec defined (file-level hash).
+* Benchmarks: regex parity with `grep` on supported features.
+
+### **M1 — Lexical Search**
+
+* Tantivy BM25 integration.
+* CLI: `ck --lex query`.
+* Respects `recursive` flag consistently and reuses nearest existing `.ck` index by walking up from the search path.
+
+### **M2 — Semantic Embeddings**
+
+* Fastembed integration.
+* Quantized fp16 storage.
+* ANN HNSW backend.
+* CLI: `ck --sem query`.
+* Respects `recursive` flag consistently and reuses nearest existing `.ck` index by walking up from the search path.
+
+### **M3 — Hybrid Search**
+
+* Reciprocal Rank Fusion integration.
+* `--topk` flag for controlling payload size (applied after deterministic sort for regex results).
+* Deterministic mode for CI.
+
+### **M4 — Code-Aware Chunking**
+
+* Overlapping spans + tree-sitter Python/TS.
+* Fallback chunker.
+
+### **M5 — Agent-Friendly Output**
+
+* JSON v1 schema (stable, versioned, validated in CI).
+* Output format remains grep-like for text mode; JSON includes scores and spans.
+* NDJSON streaming.
+
+### **M6 — Extensibility & Cleanup**
+
+* FAISS + Candle optional backends.
+* Model registry + per-project `ck.toml`.
+* `ck clean` + robust lifecycle.
+
+---
+
+## Open Questions → Decisions
+
+* ✅ Pure Rust HNSW default, FAISS optional.
+* ✅ fastembed default, Candle/API optional.
+* ✅ JSON schema versioning.
+* ✅ Sidecar `.ck/` is cache-only, not committed to VCS.
+* ✅ Hybrid fusion via Reciprocal Rank Fusion (RRF).
+* ✅ File-level hash indexing; reindex on-demand with `--reindex`.
+* ✅ Exclusion patterns accept glob syntax (component and path-level) consistent with ripgrep-style globs.
+* ⚠️ Defaults include common directory excludes (e.g., `.git`, `node_modules`); `--no-default-excludes` disables these.
+
+---
+
+## Branding
+
+**ck — seek code, semantically.**
+c = see, k = seek.
+Unix-y minimalism; short, verb-friendly: “just ck it.”
+
+---

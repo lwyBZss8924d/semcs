@@ -1,0 +1,354 @@
+use std::path::{Path, PathBuf};
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum CkError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    
+    #[error("Regex error: {0}")]
+    Regex(#[from] regex::Error),
+    
+    #[error("Serialization error: {0}")]
+    Serialization(#[from] bincode::Error),
+    
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
+    
+    #[error("Index error: {0}")]
+    Index(String),
+    
+    #[error("Search error: {0}")]
+    Search(String),
+    
+    #[error("Embedding error: {0}")]
+    Embedding(String),
+    
+    #[error("Other error: {0}")]
+    Other(String),
+}
+
+pub type Result<T> = std::result::Result<T, CkError>;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Span {
+    pub byte_start: usize,
+    pub byte_end: usize,
+    pub line_start: usize,
+    pub line_end: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileMetadata {
+    pub path: PathBuf,
+    pub hash: String,
+    pub last_modified: u64,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchResult {
+    pub file: PathBuf,
+    pub span: Span,
+    pub score: f32,
+    pub preview: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lang: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JsonSearchResult {
+    pub file: String,
+    pub span: Span,
+    pub lang: Option<String>,
+    pub symbol: Option<String>,
+    pub score: f32,
+    pub signals: SearchSignals,
+    pub preview: String,
+    pub model: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchSignals {
+    pub lex_rank: Option<usize>,
+    pub vec_rank: Option<usize>,
+    pub rrf_score: f32,
+}
+
+#[derive(Debug, Clone)]
+pub enum SearchMode {
+    Regex,
+    Lexical,
+    Semantic,
+    Hybrid,
+}
+
+#[derive(Debug, Clone)]
+pub struct SearchOptions {
+    pub mode: SearchMode,
+    pub query: String,
+    pub path: PathBuf,
+    pub top_k: Option<usize>,
+    pub threshold: Option<f32>,
+    pub case_insensitive: bool,
+    pub whole_word: bool,
+    pub fixed_string: bool,
+    pub line_numbers: bool,
+    pub context_lines: usize,
+    pub before_context_lines: usize,
+    pub after_context_lines: usize,
+    pub recursive: bool,
+    pub json_output: bool,
+    pub reindex: bool,
+    pub show_scores: bool,
+    pub show_filenames: bool,
+    pub exclude_patterns: Vec<String>,
+}
+
+impl Default for SearchOptions {
+    fn default() -> Self {
+        Self {
+            mode: SearchMode::Regex,
+            query: String::new(),
+            path: PathBuf::from("."),
+            top_k: None,
+            threshold: None,
+            case_insensitive: false,
+            whole_word: false,
+            fixed_string: false,
+            line_numbers: false,
+            context_lines: 0,
+            before_context_lines: 0,
+            after_context_lines: 0,
+            recursive: true,
+            json_output: false,
+            reindex: false,
+            show_scores: false,
+            show_filenames: false,
+            exclude_patterns: get_default_exclude_patterns(),
+        }
+    }
+}
+
+/// Get default exclusion patterns for directories that should be skipped during search.
+/// These are common cache, build, and system directories that rarely contain user code.
+pub fn get_default_exclude_patterns() -> Vec<String> {
+    vec![
+        // ck's own index directory
+        ".ck".to_string(),
+        
+        // AI/ML model cache directories
+        ".fastembed_cache".to_string(),
+        ".cache".to_string(),
+        "__pycache__".to_string(),
+        
+        // Version control
+        ".git".to_string(),
+        ".svn".to_string(),
+        ".hg".to_string(),
+        
+        // Build directories
+        "target".to_string(),        // Rust
+        "build".to_string(),         // Various
+        "dist".to_string(),          // JavaScript/Python
+        "node_modules".to_string(),  // JavaScript
+        ".gradle".to_string(),       // Java
+        ".mvn".to_string(),          // Maven
+        "bin".to_string(),           // Various
+        "obj".to_string(),           // .NET
+        
+        // IDE/Editor directories
+        ".vscode".to_string(),
+        ".idea".to_string(),
+        ".eclipse".to_string(),
+        
+        // Temporary directories
+        "tmp".to_string(),
+        "temp".to_string(),
+        ".tmp".to_string(),
+    ]
+}
+
+pub fn get_sidecar_path(repo_root: &Path, file_path: &Path) -> PathBuf {
+    let relative = file_path.strip_prefix(repo_root).unwrap_or(file_path);
+    let mut sidecar = repo_root.join(".ck");
+    sidecar.push(relative);
+    sidecar.set_extension(format!("{}.ck", relative.extension().unwrap_or_default().to_string_lossy()));
+    sidecar
+}
+
+pub fn compute_file_hash(path: &Path) -> Result<String> {
+    let data = std::fs::read(path)?;
+    let hash = blake3::hash(&data);
+    Ok(hash.to_hex().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_span_creation() {
+        let span = Span {
+            byte_start: 0,
+            byte_end: 10,
+            line_start: 1,
+            line_end: 2,
+        };
+        
+        assert_eq!(span.byte_start, 0);
+        assert_eq!(span.byte_end, 10);
+        assert_eq!(span.line_start, 1);
+        assert_eq!(span.line_end, 2);
+    }
+
+    #[test]
+    fn test_search_options_default() {
+        let options = SearchOptions::default();
+        assert!(matches!(options.mode, SearchMode::Regex));
+        assert_eq!(options.query, "");
+        assert_eq!(options.path, PathBuf::from("."));
+        assert_eq!(options.top_k, None);
+        assert_eq!(options.threshold, None);
+        assert!(!options.case_insensitive);
+        assert!(!options.whole_word);
+        assert!(!options.fixed_string);
+        assert!(!options.line_numbers);
+        assert_eq!(options.context_lines, 0);
+        assert!(options.recursive);
+        assert!(!options.json_output);
+        assert!(!options.reindex);
+        assert!(!options.show_scores);
+        assert!(!options.show_filenames);
+    }
+
+    #[test]
+    fn test_file_metadata_serialization() {
+        let metadata = FileMetadata {
+            path: PathBuf::from("test.txt"),
+            hash: "abc123".to_string(),
+            last_modified: 1234567890,
+            size: 1024,
+        };
+
+        let json = serde_json::to_string(&metadata).unwrap();
+        let deserialized: FileMetadata = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(metadata.path, deserialized.path);
+        assert_eq!(metadata.hash, deserialized.hash);
+        assert_eq!(metadata.last_modified, deserialized.last_modified);
+        assert_eq!(metadata.size, deserialized.size);
+    }
+
+    #[test]
+    fn test_search_result_serialization() {
+        let result = SearchResult {
+            file: PathBuf::from("test.txt"),
+            span: Span {
+                byte_start: 0,
+                byte_end: 10,
+                line_start: 1,
+                line_end: 1,
+            },
+            score: 0.95,
+            preview: "hello world".to_string(),
+            lang: Some("rust".to_string()),
+            symbol: Some("main".to_string()),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: SearchResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(result.file, deserialized.file);
+        assert_eq!(result.score, deserialized.score);
+        assert_eq!(result.preview, deserialized.preview);
+        assert_eq!(result.lang, deserialized.lang);
+        assert_eq!(result.symbol, deserialized.symbol);
+    }
+
+    #[test]
+    fn test_get_sidecar_path() {
+        let repo_root = PathBuf::from("/home/user/project");
+        let file_path = PathBuf::from("/home/user/project/src/main.rs");
+        
+        let sidecar = get_sidecar_path(&repo_root, &file_path);
+        let expected = PathBuf::from("/home/user/project/.ck/src/main.rs.ck");
+        
+        assert_eq!(sidecar, expected);
+    }
+
+    #[test]
+    fn test_get_sidecar_path_no_extension() {
+        let repo_root = PathBuf::from("/project");
+        let file_path = PathBuf::from("/project/README");
+        
+        let sidecar = get_sidecar_path(&repo_root, &file_path);
+        let expected = PathBuf::from("/project/.ck/README..ck");
+        
+        assert_eq!(sidecar, expected);
+    }
+
+    #[test]
+    fn test_compute_file_hash() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+        
+        fs::write(&file_path, "hello world").unwrap();
+        
+        let hash1 = compute_file_hash(&file_path).unwrap();
+        let hash2 = compute_file_hash(&file_path).unwrap();
+        
+        // Same content should produce same hash
+        assert_eq!(hash1, hash2);
+        assert!(!hash1.is_empty());
+        
+        // Different content should produce different hash
+        fs::write(&file_path, "hello rust").unwrap();
+        let hash3 = compute_file_hash(&file_path).unwrap();
+        assert_ne!(hash1, hash3);
+    }
+
+    #[test]
+    fn test_compute_file_hash_nonexistent() {
+        let result = compute_file_hash(&PathBuf::from("nonexistent.txt"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_json_search_result_serialization() {
+        let signals = SearchSignals {
+            lex_rank: Some(1),
+            vec_rank: Some(2),
+            rrf_score: 0.85,
+        };
+
+        let result = JsonSearchResult {
+            file: "test.txt".to_string(),
+            span: Span {
+                byte_start: 0,
+                byte_end: 5,
+                line_start: 1,
+                line_end: 1,
+            },
+            lang: Some("txt".to_string()),
+            symbol: None,
+            score: 0.95,
+            signals,
+            preview: "hello".to_string(),
+            model: "bge-small".to_string(),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: JsonSearchResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(result.file, deserialized.file);
+        assert_eq!(result.score, deserialized.score);
+        assert_eq!(result.signals.rrf_score, deserialized.signals.rrf_score);
+        assert_eq!(result.model, deserialized.model);
+    }
+}
