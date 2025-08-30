@@ -75,7 +75,7 @@ struct Cli {
     #[arg(short = 'n', long = "line-number", help = "Show line numbers")]
     line_numbers: bool,
     
-    #[arg(short = 'h', help = "Suppress filenames in output")]
+    #[arg(long = "no-filename", help = "Suppress filenames in output")]
     no_filenames: bool,
     
     #[arg(short = 'H', help = "Always print filenames")]
