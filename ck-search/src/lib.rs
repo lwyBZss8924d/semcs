@@ -98,18 +98,31 @@ fn search_file(regex: &Regex, file_path: &Path, options: &SearchOptions) -> Resu
     let lines: Vec<&str> = content.lines().collect();
     let mut results = Vec::new();
     
+    // If full_section is enabled, try to parse the file and find code sections
+    let code_sections = if options.full_section {
+        extract_code_sections(file_path, &content)
+    } else {
+        None
+    };
+    
     for (line_idx, line) in lines.iter().enumerate() {
         let line_number = line_idx + 1;
         
         if regex.is_match(line) {
-            let before = options.before_context_lines.max(options.context_lines);
-            let after = options.after_context_lines.max(options.context_lines);
-            let preview = if before > 0 || after > 0 {
-                let start_idx = line_idx.saturating_sub(before);
-                let end_idx = (line_idx + after + 1).min(lines.len());
-                lines[start_idx..end_idx].join("\n")
+            let preview = if options.full_section {
+                // Try to find the containing code section
+                if let Some(ref sections) = code_sections {
+                    if let Some(section) = find_containing_section(sections, line_idx) {
+                        section.clone()
+                    } else {
+                        // Fall back to context lines if no section found
+                        get_context_preview(&lines, line_idx, options)
+                    }
+                } else {
+                    get_context_preview(&lines, line_idx, options)
+                }
             } else {
-                line.to_string()
+                get_context_preview(&lines, line_idx, options)
             };
             
             results.push(SearchResult {
@@ -193,7 +206,11 @@ async fn lexical_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
             .unwrap_or("");
         
         let file_path = PathBuf::from(path_text);
-        let preview = content_text.lines().take(3).collect::<Vec<_>>().join("\n");
+        let preview = if options.full_section {
+            content_text.to_string()
+        } else {
+            content_text.lines().take(3).collect::<Vec<_>>().join("\n")
+        };
         
         raw_results.push((_score, SearchResult {
             file: file_path,
@@ -316,7 +333,11 @@ async fn build_tantivy_index(options: &SearchOptions) -> Result<Vec<SearchResult
             .unwrap_or("");
         
         let file_path = PathBuf::from(path_text);
-        let preview = content_text.lines().take(3).collect::<Vec<_>>().join("\n");
+        let preview = if options.full_section {
+            content_text.to_string()
+        } else {
+            content_text.lines().take(3).collect::<Vec<_>>().join("\n")
+        };
         
         raw_results.push((_score, SearchResult {
             file: file_path,
@@ -427,7 +448,12 @@ async fn semantic_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
                 }
             }
             
-            let preview = content.lines().take(3).collect::<Vec<_>>().join("\n");
+            // If full_section is enabled and this is a code section, return the full content
+            let preview = if options.full_section {
+                content.clone()
+            } else {
+                content.lines().take(3).collect::<Vec<_>>().join("\n")
+            };
             
             results.push(SearchResult {
                 file: file_path.clone(),
@@ -540,7 +566,12 @@ async fn build_semantic_index(options: &SearchOptions) -> Result<Vec<SearchResul
                 }
             }
             
-            let preview = content.lines().take(3).collect::<Vec<_>>().join("\n");
+            // If full_section is enabled and this is a code section, return the full content
+            let preview = if options.full_section {
+                content.clone()
+            } else {
+                content.lines().take(3).collect::<Vec<_>>().join("\n")
+            };
             
             results.push(SearchResult {
                 file: file_path.clone(),
@@ -739,6 +770,66 @@ async fn ensure_index_updated(path: &Path, force_reindex: bool) -> Result<()> {
     }
     
     Ok(())
+}
+
+fn get_context_preview(lines: &[&str], line_idx: usize, options: &SearchOptions) -> String {
+    let before = options.before_context_lines.max(options.context_lines);
+    let after = options.after_context_lines.max(options.context_lines);
+    
+    if before > 0 || after > 0 {
+        let start_idx = line_idx.saturating_sub(before);
+        let end_idx = (line_idx + after + 1).min(lines.len());
+        lines[start_idx..end_idx].join("\n")
+    } else {
+        lines[line_idx].to_string()
+    }
+}
+
+fn extract_code_sections(file_path: &Path, content: &str) -> Option<Vec<(usize, usize, String)>> {
+    // Detect language for tree-sitter parsing
+    let lang = match file_path.extension().and_then(|s| s.to_str()) {
+        Some("py") => Some("python"),
+        Some("js") => Some("javascript"),
+        Some("ts") | Some("tsx") => Some("typescript"),
+        _ => return None,
+    };
+    
+    // Parse the file with tree-sitter and extract function/class sections
+    if let Ok(chunks) = ck_chunk::chunk_text(content, lang) {
+        let sections: Vec<(usize, usize, String)> = chunks
+            .into_iter()
+            .filter(|chunk| matches!(
+                chunk.chunk_type,
+                ck_chunk::ChunkType::Function | 
+                ck_chunk::ChunkType::Class | 
+                ck_chunk::ChunkType::Method
+            ))
+            .map(|chunk| {
+                (
+                    chunk.span.line_start - 1,  // Convert to 0-based index
+                    chunk.span.line_end - 1,
+                    chunk.text,
+                )
+            })
+            .collect();
+        
+        if sections.is_empty() {
+            None
+        } else {
+            Some(sections)
+        }
+    } else {
+        None
+    }
+}
+
+fn find_containing_section(sections: &[(usize, usize, String)], line_idx: usize) -> Option<&String> {
+    for (start, end, text) in sections {
+        if line_idx >= *start && line_idx <= *end {
+            return Some(text);
+        }
+    }
+    None
 }
 
 #[cfg(test)]

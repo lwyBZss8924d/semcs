@@ -50,6 +50,10 @@ Find code by concept, not keywords. Searches understand synonyms, related terms,
 ck --sem "retry logic"           # finds backoff, circuit breakers
 ck --sem "user authentication"   # finds login, auth, credentials  
 ck --sem "data validation"       # finds sanitization, type checking
+
+# Get complete functions/classes containing matches (NEW!)
+ck --sem --full-section "error handling"  # returns entire functions
+ck --full-section "async def" src/        # works with regex too
 ```
 
 ### ⚡ **Drop-in grep Compatibility**
@@ -58,6 +62,7 @@ All your muscle memory works. Same flags, same behavior, same output format.
 ```bash
 ck -i "warning" *.log              # Case-insensitive  
 ck -n -A 3 -B 1 "error" src/       # Line numbers + context
+ck --no-filename "TODO" src/        # Suppress filenames (grep -h equivalent)
 ck -r --exclude "*.test.js" "bug"  # Recursive with exclusions
 ck "pattern" file1.txt file2.txt   # Multiple files
 ```
@@ -77,6 +82,7 @@ Perfect JSON output for LLMs, scripts, and automation.
 ```bash
 ck --json --sem "error handling" src/ | jq '.file'
 ck --json --topk 5 "TODO" . | jq -r '.preview'
+ck --json --full-section --sem "database" . | jq -r '.preview'  # Complete functions
 ```
 
 ### 📁 **Smart File Filtering**
@@ -138,6 +144,10 @@ ck --sem --threshold 0.7 "query"
 
 # Low-confidence hybrid matches (good for exploration)
 ck --hybrid --threshold 0.01 "concept"
+
+# Get complete code sections instead of snippets (NEW!)
+ck --sem --full-section "database queries"
+ck --full-section "class.*Error" src/     # Complete classes
 ```
 
 ### Top-K Results
@@ -168,18 +178,27 @@ ck add new_file.rs
 
 **Text Formats:** Source code, Markdown, JSON, YAML, XML, HTML, CSS, shell scripts, SQL, and plain text.
 
-**Smart Exclusions:** Automatically skips `.git`, `node_modules`, `target/`, `build/`, `dist/`, `__pycache__/`, `.fastembed_cache`, and other common build/cache directories.
+**Smart Exclusions:** Automatically skips `.git`, `node_modules`, `target/`, `build/`, `dist/`, `__pycache__/`, `.fastembed_cache`, `.venv`, `venv`, and other common build/cache/virtual environment directories.
 
 ## Installation
 
-### From Source (Current)
+### Quick Install Script
+```bash
+# Automated installation with PATH setup
+./install.sh
+```
+
+### Manual Installation
 ```bash
 git clone https://github.com/your-org/ck
 cd ck
 cargo build --release
-```
 
-The binary will be at `./target/release/ck`. Add it to your PATH or create an alias.
+# Choose one:
+sudo cp target/release/ck /usr/local/bin/    # System-wide
+cp target/release/ck ~/.local/bin/           # User-local
+cp target/release/ck /opt/homebrew/bin/      # Homebrew (macOS)
+```
 
 ### Package Managers (Planned)
 ```bash
@@ -299,10 +318,24 @@ embedding_model = "BAAI/bge-small-en-v1.5"
 
 ## Performance
 
-- **Indexing:** ~1M LOC in under 2 minutes
+- **Indexing:** ~1M LOC in under 2 minutes (with smart exclusions)
 - **Search:** Sub-500ms queries on typical codebases  
 - **Index size:** ~2x source code size with compression
 - **Memory:** Efficient streaming for large repositories
+- **File filtering:** Automatic exclusion of virtual environments and build artifacts
+
+## Testing
+
+Run the comprehensive test suite:
+```bash
+# Full test suite (40+ tests)
+./test_ck.sh
+
+# Quick smoke test (14 core tests)
+./test_ck_simple.sh
+```
+
+Tests cover grep compatibility, semantic search, index management, file filtering, and more.
 
 ## Contributing
 
@@ -332,7 +365,8 @@ cargo test
 - ✅ Threshold filtering and relevance scoring
 
 ### Near-term (v0.2-0.3)  
-- 🚧 Language-specific chunking (Python, TypeScript, etc.)
+- ✅ Language-specific chunking (Python, TypeScript, JavaScript)
+- ✅ Complete code section extraction (--full-section)
 - 🚧 Incremental index updates
 - 🚧 Configuration file support
 - 🚧 Package manager distributions
@@ -364,7 +398,7 @@ A: Typically 1-3x the size of your source code, depending on content. The `.ck/`
 A: Yes. Indexing is a one-time cost, and searches are sub-second even on large projects. Regex searches require no indexing and are as fast as grep.
 
 **Q: Can I use it in scripts/automation?**  
-A: Absolutely. The `--json` flag provides structured output perfect for automated processing.
+A: Absolutely. The `--json` flag provides structured output perfect for automated processing. Use `--full-section` to get complete functions for AI analysis.
 
 **Q: What about privacy/security?**  
 A: Everything runs locally. No code or queries are sent to external services. The embedding model is downloaded once and cached locally.

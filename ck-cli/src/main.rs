@@ -137,6 +137,9 @@ struct Cli {
     
     #[arg(long = "no-default-excludes", help = "Disable default directory exclusions (like .git, node_modules, etc.)")]
     no_default_excludes: bool,
+    
+    #[arg(long = "full-section", help = "Return complete code sections (functions/classes) instead of just matching lines. Uses tree-sitter to identify semantic boundaries. Supported: Python, JavaScript, TypeScript")]
+    full_section: bool,
 }
 
 #[derive(Subcommand)]
@@ -473,6 +476,7 @@ fn build_options(cli: &Cli, reindex: bool) -> SearchOptions {
         show_scores: cli.show_scores,
         show_filenames: false, // Will be set by caller
         exclude_patterns,
+        full_section: cli.full_section,
     }
 }
 

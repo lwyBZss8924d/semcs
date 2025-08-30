@@ -106,6 +106,7 @@ pub struct SearchOptions {
     pub show_scores: bool,
     pub show_filenames: bool,
     pub exclude_patterns: Vec<String>,
+    pub full_section: bool,
 }
 
 impl Default for SearchOptions {
@@ -129,6 +130,7 @@ impl Default for SearchOptions {
             show_scores: false,
             show_filenames: false,
             exclude_patterns: get_default_exclude_patterns(),
+            full_section: false,
         }
     }
 }
@@ -159,6 +161,13 @@ pub fn get_default_exclude_patterns() -> Vec<String> {
         ".mvn".to_string(),          // Maven
         "bin".to_string(),           // Various
         "obj".to_string(),           // .NET
+        
+        // Python virtual environments
+        "venv".to_string(),
+        ".venv".to_string(),
+        "env".to_string(),
+        ".env".to_string(),
+        "virtualenv".to_string(),
         
         // IDE/Editor directories
         ".vscode".to_string(),

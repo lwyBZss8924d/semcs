@@ -1,5 +1,5 @@
 use anyhow::Result;
-use ck_core::{CkError, FileMetadata, Span, compute_file_hash, get_sidecar_path};
+use ck_core::{CkError, FileMetadata, Span, compute_file_hash, get_sidecar_path, get_default_exclude_patterns};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -20,6 +20,7 @@ pub struct ChunkEntry {
     pub span: Span,
     pub text: String,
     pub embedding: Option<Vec<f32>>,
+    pub chunk_type: Option<String>, // "function", "class", "method", or None for generic
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,6 +47,20 @@ impl Default for IndexManifest {
     }
 }
 
+fn should_exclude_path(path: &Path, exclude_patterns: &[String]) -> bool {
+    for component in path.components() {
+        if let std::path::Component::Normal(name) = component {
+            let name_str = name.to_string_lossy();
+            for pattern in exclude_patterns {
+                if name_str == pattern.as_str() {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 pub async fn index_directory(path: &Path) -> Result<()> {
     let index_dir = path.join(".ck");
     fs::create_dir_all(&index_dir)?;
@@ -53,9 +68,13 @@ pub async fn index_directory(path: &Path) -> Result<()> {
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
     
+    let exclude_patterns = get_default_exclude_patterns();
     let files: Vec<PathBuf> = WalkDir::new(path)
         .into_iter()
-        .filter_entry(|e| !e.path().starts_with(&index_dir))
+        .filter_entry(|e| {
+            !e.path().starts_with(&index_dir) && 
+            !should_exclude_path(e.path(), &exclude_patterns)
+        })
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
         .filter(|e| is_text_file(e.path()))
@@ -123,9 +142,13 @@ pub async fn update_index(path: &Path) -> Result<()> {
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
     
+    let exclude_patterns = get_default_exclude_patterns();
     let files: Vec<PathBuf> = WalkDir::new(path)
         .into_iter()
-        .filter_entry(|e| !e.path().starts_with(&index_dir))
+        .filter_entry(|e| {
+            !e.path().starts_with(&index_dir) && 
+            !should_exclude_path(e.path(), &exclude_patterns)
+        })
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
         .filter(|e| is_text_file(e.path()))
@@ -194,9 +217,13 @@ pub fn cleanup_index(path: &Path) -> Result<CleanupStats> {
     let mut manifest = load_or_create_manifest(&manifest_path)?;
     
     // Find all current files in the repository
+    let exclude_patterns = get_default_exclude_patterns();
     let current_files: HashSet<PathBuf> = WalkDir::new(path)
         .into_iter()
-        .filter_entry(|e| !e.path().starts_with(&index_dir))
+        .filter_entry(|e| {
+            !e.path().starts_with(&index_dir) && 
+            !should_exclude_path(e.path(), &exclude_patterns)
+        })
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
         .filter(|e| is_text_file(e.path()))
@@ -325,9 +352,13 @@ pub async fn smart_update_index(path: &Path, force_rebuild: bool) -> Result<Upda
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
     
+    let exclude_patterns = get_default_exclude_patterns();
     let current_files: Vec<PathBuf> = WalkDir::new(path)
         .into_iter()
-        .filter_entry(|e| !e.path().starts_with(&index_dir))
+        .filter_entry(|e| {
+            !e.path().starts_with(&index_dir) && 
+            !should_exclude_path(e.path(), &exclude_patterns)
+        })
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
         .filter(|e| is_text_file(e.path()))
@@ -414,14 +445,32 @@ fn index_single_file(file_path: &Path, repo_root: &Path) -> Result<IndexEntry> {
         size: metadata.len(),
     };
     
-    let chunks = ck_chunk::chunk_text(&content, None)?;
+    // Detect language for tree-sitter parsing
+    let lang = match file_path.extension().and_then(|s| s.to_str()) {
+        Some("py") => Some("python"),
+        Some("js") => Some("javascript"),
+        Some("ts") | Some("tsx") => Some("typescript"),
+        _ => None,
+    };
+    
+    let chunks = ck_chunk::chunk_text(&content, lang)?;
     
     let chunk_entries: Vec<ChunkEntry> = chunks
         .into_iter()
-        .map(|chunk| ChunkEntry {
-            span: chunk.span,
-            text: chunk.text,
-            embedding: None,
+        .map(|chunk| {
+            let chunk_type_str = match chunk.chunk_type {
+                ck_chunk::ChunkType::Function => Some("function".to_string()),
+                ck_chunk::ChunkType::Class => Some("class".to_string()),
+                ck_chunk::ChunkType::Method => Some("method".to_string()),
+                ck_chunk::ChunkType::Module => Some("module".to_string()),
+                ck_chunk::ChunkType::Text => None,
+            };
+            ChunkEntry {
+                span: chunk.span,
+                text: chunk.text,
+                embedding: None,
+                chunk_type: chunk_type_str,
+            }
         })
         .collect();
     
