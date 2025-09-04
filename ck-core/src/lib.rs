@@ -185,7 +185,11 @@ pub fn get_sidecar_path(repo_root: &Path, file_path: &Path) -> PathBuf {
     let relative = file_path.strip_prefix(repo_root).unwrap_or(file_path);
     let mut sidecar = repo_root.join(".ck");
     sidecar.push(relative);
-    sidecar.set_extension(format!("{}.ck", relative.extension().unwrap_or_default().to_string_lossy()));
+    let ext = relative
+        .extension()
+        .map(|e| format!("{}.ck", e.to_string_lossy()))
+        .unwrap_or_else(|| "ck".to_string());
+    sidecar.set_extension(ext);
     sidecar
 }
 
@@ -297,7 +301,7 @@ mod tests {
         let file_path = PathBuf::from("/project/README");
         
         let sidecar = get_sidecar_path(&repo_root, &file_path);
-        let expected = PathBuf::from("/project/.ck/README..ck");
+        let expected = PathBuf::from("/project/.ck/README.ck");
         
         assert_eq!(sidecar, expected);
     }
