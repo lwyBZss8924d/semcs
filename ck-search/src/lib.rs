@@ -4,7 +4,6 @@ use globset::{Glob, GlobSet, GlobSetBuilder};
 use regex::{Regex, RegexBuilder};
 use std::collections::HashMap;
 use std::fs;
-use std::io;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 use rayon::prelude::*;
@@ -14,6 +13,8 @@ use tantivy::schema::{Schema, STORED, TEXT, Value};
 use tantivy::{doc, Index, ReloadPolicy, TantivyDocument};
 use ck_ann::AnnIndex;
 use std::path::PathBuf as StdPathBuf;
+
+pub type SearchProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 fn find_nearest_index_root(path: &Path) -> Option<StdPathBuf> {
     let mut current = if path.is_file() { path.parent().unwrap_or(path) } else { path };
     loop {
@@ -28,6 +29,10 @@ fn find_nearest_index_root(path: &Path) -> Option<StdPathBuf> {
 }
 
 pub async fn search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
+    search_with_progress(options, None).await
+}
+
+pub async fn search_with_progress(options: &SearchOptions, progress_callback: Option<SearchProgressCallback>) -> Result<Vec<SearchResult>> {
     // Auto-update index if needed (unless it's regex-only mode)
     if !matches!(options.mode, SearchMode::Regex) {
         ensure_index_updated(&options.path, options.reindex).await?;
@@ -36,8 +41,8 @@ pub async fn search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
     match options.mode {
         SearchMode::Regex => regex_search(options),
         SearchMode::Lexical => lexical_search(options).await,
-        SearchMode::Semantic => semantic_search(options).await,
-        SearchMode::Hybrid => hybrid_search(options).await,
+        SearchMode::Semantic => semantic_search_with_progress(options, progress_callback).await,
+        SearchMode::Hybrid => hybrid_search_with_progress(options, progress_callback).await,
     }
 }
 
@@ -168,7 +173,7 @@ async fn lexical_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
     let mut schema_builder = Schema::builder();
     let content_field = schema_builder.add_text_field("content", TEXT | STORED);
     let path_field = schema_builder.add_text_field("path", TEXT | STORED);
-    let schema = schema_builder.build();
+    let _schema = schema_builder.build();
     
     let index = Index::open_in_dir(&tantivy_index_path)
         .map_err(|e| CkError::Index(format!("Failed to open tantivy index: {}", e)))?;
@@ -295,7 +300,7 @@ async fn build_tantivy_index(options: &SearchOptions) -> Result<Vec<SearchResult
     let mut schema_builder = Schema::builder();
     let content_field = schema_builder.add_text_field("content", TEXT | STORED);
     let path_field = schema_builder.add_text_field("path", TEXT | STORED);
-    let schema = schema_builder.build();
+    let _schema = schema_builder.build();
     
     let index = Index::open_in_dir(&tantivy_index_path)
         .map_err(|e| CkError::Index(format!("Failed to open tantivy index: {}", e)))?;
@@ -378,7 +383,12 @@ async fn build_tantivy_index(options: &SearchOptions) -> Result<Vec<SearchResult
     Ok(results)
 }
 
+#[allow(dead_code)]
 async fn semantic_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
+    semantic_search_with_progress(options, None).await
+}
+
+async fn semantic_search_with_progress(options: &SearchOptions, progress_callback: Option<SearchProgressCallback>) -> Result<Vec<SearchResult>> {
     // Handle both files and directories and reuse nearest existing .ck index up the tree
     let index_root = find_nearest_index_root(&options.path).unwrap_or_else(|| {
         if options.path.is_file() {
@@ -397,7 +407,7 @@ async fn semantic_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
     let embeddings_path = index_dir.join("embeddings.json");
     
     if !ann_index_path.exists() || !embeddings_path.exists() {
-        return build_semantic_index(options).await;
+        return build_semantic_index_with_progress(options, progress_callback).await;
     }
     
     // Load the ANN index
@@ -408,7 +418,21 @@ async fn semantic_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
     let file_embeddings: Vec<(PathBuf, String)> = serde_json::from_str(&embeddings_data)?;
     
     // Create embedder and embed the query
-    let mut embedder = ck_embed::create_embedder(Some("BAAI/bge-small-en-v1.5"))?;
+    if let Some(ref callback) = progress_callback {
+        callback("Loading embedding model...");
+    }
+    
+    let mut embedder = if let Some(ref callback) = progress_callback {
+        let _cb = callback.as_ref();
+        let model_cb = Box::new(|msg: &str| {
+            // Note: We can't directly use the callback here due to lifetime issues
+            // For now, we'll just use println! until we can restructure this better
+            println!("Model: {}", msg);
+        }) as ck_embed::ModelDownloadCallback;
+        ck_embed::create_embedder_with_progress(Some("BAAI/bge-small-en-v1.5"), Some(model_cb))?
+    } else {
+        ck_embed::create_embedder(Some("BAAI/bge-small-en-v1.5"))?
+    };
     let query_embeddings = embedder.embed(&[options.query.clone()])?;
     
     if query_embeddings.is_empty() {
@@ -474,7 +498,12 @@ async fn semantic_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
     Ok(results)
 }
 
+#[allow(dead_code)]
 async fn build_semantic_index(options: &SearchOptions) -> Result<Vec<SearchResult>> {
+    build_semantic_index_with_progress(options, None).await
+}
+
+async fn build_semantic_index_with_progress(options: &SearchOptions, progress_callback: Option<SearchProgressCallback>) -> Result<Vec<SearchResult>> {
     // Handle both files and directories by finding the appropriate directory for indexing
     let index_root = if options.path.is_file() {
         options.path.parent().unwrap_or(&options.path)
@@ -488,15 +517,52 @@ async fn build_semantic_index(options: &SearchOptions) -> Result<Vec<SearchResul
     
     fs::create_dir_all(&index_dir)?;
     
+    if let Some(ref callback) = progress_callback {
+        callback("Building semantic index (no index found)...");
+    }
+    
+    // Always print this important message, even in quiet mode for indexing operations
+    println!("Building semantic index (no existing index found)...");
+    
     // Collect files and their content
     let files = collect_files(&index_root, true, &options.exclude_patterns)?;
+    
+    if let Some(ref callback) = progress_callback {
+        callback(&format!("Found {} files to index", files.len()));
+    }
+    println!("Found {} files to embed and index", files.len());
+    
     let mut file_embeddings = Vec::new();
     let mut embeddings = Vec::new();
     
-    let mut embedder = ck_embed::create_embedder(Some("BAAI/bge-small-en-v1.5"))?;
+    // Create embedder with progress callback
+    if let Some(ref callback) = progress_callback {
+        callback("Loading embedding model...");
+    }
     
-    for file_path in &files {
+    let model_callback = if progress_callback.is_some() {
+        Some(Box::new(|msg: &str| {
+            println!("Model: {}", msg);
+        }) as ck_embed::ModelDownloadCallback)
+    } else {
+        None
+    };
+    
+    let mut embedder = ck_embed::create_embedder_with_progress(Some("BAAI/bge-small-en-v1.5"), model_callback)?;
+    
+    if let Some(ref callback) = progress_callback {
+        callback("Generating embeddings for code chunks...");
+    }
+    
+    for (file_idx, file_path) in files.iter().enumerate() {
         if let Ok(content) = fs::read_to_string(file_path) {
+            if let Some(ref callback) = progress_callback {
+                let file_name = file_path.file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| file_path.to_string_lossy().to_string());
+                callback(&format!("Processing {}/{}: {}", file_idx + 1, files.len(), file_name));
+            }
+            
             // Chunk the content for better embeddings
             let chunks = ck_chunk::chunk_text(&content, detect_language(file_path).as_deref())?;
             
@@ -510,6 +576,11 @@ async fn build_semantic_index(options: &SearchOptions) -> Result<Vec<SearchResul
         }
     }
     
+    if let Some(ref callback) = progress_callback {
+        callback(&format!("Built {} embeddings, creating search index...", embeddings.len()));
+    }
+    println!("Generated {} embeddings, building search index...", embeddings.len());
+    
     // Build ANN index
     let index = ck_ann::SimpleIndex::build(&embeddings)?;
     index.save(&ann_index_path)?;
@@ -517,6 +588,11 @@ async fn build_semantic_index(options: &SearchOptions) -> Result<Vec<SearchResul
     // Save file embeddings metadata
     let embeddings_json = serde_json::to_string(&file_embeddings)?;
     fs::write(&embeddings_path, embeddings_json)?;
+    
+    if let Some(ref callback) = progress_callback {
+        callback("Semantic index built successfully, running search...");
+    }
+    println!("Semantic index built successfully!");
     
     // After building, search again - inline to avoid recursion
     let ann_index = ck_ann::SimpleIndex::load(&ann_index_path)?;
@@ -592,9 +668,21 @@ async fn build_semantic_index(options: &SearchOptions) -> Result<Vec<SearchResul
     Ok(results)
 }
 
+#[allow(dead_code)]
 async fn hybrid_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
+    hybrid_search_with_progress(options, None).await
+}
+
+async fn hybrid_search_with_progress(options: &SearchOptions, progress_callback: Option<SearchProgressCallback>) -> Result<Vec<SearchResult>> {
+    if let Some(ref callback) = progress_callback {
+        callback("Running regex search...");
+    }
     let regex_results = regex_search(options)?;
-    let semantic_results = semantic_search(options).await?;
+    
+    if let Some(ref callback) = progress_callback {
+        callback("Running semantic search...");
+    }
+    let semantic_results = semantic_search_with_progress(options, progress_callback).await?;
     
     let mut combined = HashMap::new();
     

@@ -1,13 +1,14 @@
 use anyhow::Result;
-use ck_core::{CkError, FileMetadata, Span, compute_file_hash, get_sidecar_path, get_default_exclude_patterns};
+use ck_core::{FileMetadata, Span, compute_file_hash, get_sidecar_path, get_default_exclude_patterns};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
-use tokio::task;
 use walkdir::WalkDir;
 use rayon::prelude::*;
+
+pub type ProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexEntry {
@@ -332,6 +333,10 @@ pub fn get_index_stats(path: &Path) -> Result<IndexStats> {
 }
 
 pub async fn smart_update_index(path: &Path, force_rebuild: bool) -> Result<UpdateStats> {
+    smart_update_index_with_progress(path, force_rebuild, None).await
+}
+
+pub async fn smart_update_index_with_progress(path: &Path, force_rebuild: bool, progress_callback: Option<ProgressCallback>) -> Result<UpdateStats> {
     let index_dir = path.join(".ck");
     let mut stats = UpdateStats::default();
     
@@ -402,6 +407,11 @@ pub async fn smart_update_index(path: &Path, force_rebuild: bool) -> Result<Upda
     let updates: Vec<(PathBuf, IndexEntry)> = files_to_update
         .par_iter()
         .filter_map(|file_path| {
+            if let Some(ref callback) = progress_callback {
+                if let Some(file_name) = file_path.file_name() {
+                    callback(&file_name.to_string_lossy());
+                }
+            }
             match index_single_file(file_path, path) {
                 Ok(entry) => Some((file_path.clone(), entry)),
                 Err(e) => {
@@ -431,7 +441,7 @@ pub async fn smart_update_index(path: &Path, force_rebuild: bool) -> Result<Upda
     Ok(stats)
 }
 
-fn index_single_file(file_path: &Path, repo_root: &Path) -> Result<IndexEntry> {
+fn index_single_file(file_path: &Path, _repo_root: &Path) -> Result<IndexEntry> {
     let content = fs::read_to_string(file_path)?;
     let hash = compute_file_hash(file_path)?;
     let metadata = fs::metadata(file_path)?;

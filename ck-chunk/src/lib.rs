@@ -19,11 +19,29 @@ pub enum ChunkType {
 }
 
 pub fn chunk_text(text: &str, language: Option<&str>) -> Result<Vec<Chunk>> {
-    match language {
-        Some("python") => chunk_python(text),
-        Some("typescript") | Some("javascript") => chunk_typescript(text),
-        _ => chunk_generic(text),
+    tracing::debug!("Chunking text with language: {:?}, length: {} chars", language, text.len());
+    
+    let result = match language {
+        Some("python") => {
+            tracing::debug!("Using Python tree-sitter parser");
+            chunk_python(text)
+        },
+        Some("typescript") | Some("javascript") => {
+            tracing::debug!("Using TypeScript/JavaScript tree-sitter parser");
+            chunk_typescript(text)
+        },
+        _ => {
+            tracing::debug!("Using generic chunking strategy");
+            chunk_generic(text)
+        },
+    };
+    
+    match &result {
+        Ok(chunks) => tracing::debug!("Successfully created {} chunks", chunks.len()),
+        Err(e) => tracing::warn!("Chunking failed: {}", e),
     }
+    
+    result
 }
 
 fn chunk_generic(text: &str) -> Result<Vec<Chunk>> {

@@ -99,14 +99,14 @@ fn test_index_command() {
     
     // Test index creation
     let output = Command::new("../target/debug/ck")
-        .args(&["index", temp_dir.path().to_str().unwrap()])
-        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .args(&["--index", "."])
+        .current_dir(temp_dir.path())
         .output()
         .expect("Failed to run ck index");
     
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.contains("Indexing complete"));
+    assert!(stdout.contains("Indexed"));
     
     // Check that .ck directory was created
     assert!(temp_dir.path().join(".ck").exists());
@@ -126,7 +126,7 @@ fn test_semantic_search() {
     
     // First create an index
     let output = Command::new("../target/debug/ck")
-        .args(&["index", temp_dir.path().to_str().unwrap()])
+        .args(&["--index", temp_dir.path().to_str().unwrap()])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()
         .expect("Failed to run ck index");
@@ -161,7 +161,7 @@ fn test_lexical_search() {
     
     // Create index
     let output = Command::new("../target/debug/ck")
-        .args(&["index", temp_dir.path().to_str().unwrap()])
+        .args(&["--index", temp_dir.path().to_str().unwrap()])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()
         .expect("Failed to run ck index");
@@ -188,7 +188,7 @@ fn test_hybrid_search() {
     
     // Create index
     let output = Command::new("../target/debug/ck")
-        .args(&["index", temp_dir.path().to_str().unwrap()])
+        .args(&["--index", temp_dir.path().to_str().unwrap()])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()
         .expect("Failed to run ck index");
@@ -275,7 +275,7 @@ fn test_clean_command() {
     
     // Create index first
     let output = Command::new("../target/debug/ck")
-        .args(&["index", temp_dir.path().to_str().unwrap()])
+        .args(&["--index", temp_dir.path().to_str().unwrap()])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()
         .expect("Failed to run ck index");
@@ -285,7 +285,7 @@ fn test_clean_command() {
     
     // Clean index
     let output = Command::new("../target/debug/ck")
-        .args(&["clean", temp_dir.path().to_str().unwrap()])
+        .args(&["--clean", temp_dir.path().to_str().unwrap()])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()
         .expect("Failed to run ck clean");
@@ -298,7 +298,7 @@ fn test_clean_command() {
 #[test]
 fn test_error_handling() {
     // Test with nonexistent directory
-    let output = Command::new("../target/debug/ck")
+    let _output = Command::new("../target/debug/ck")
         .args(&["test", "/nonexistent/directory"])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()

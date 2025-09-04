@@ -1,6 +1,5 @@
 use anyhow::Result;
-use ck_core::CkError;
-use std::sync::Arc;
+use std::path::PathBuf;
 
 pub trait Embedder: Send + Sync {
     fn id(&self) -> &'static str;
@@ -8,16 +7,25 @@ pub trait Embedder: Send + Sync {
     fn embed(&mut self, texts: &[String]) -> Result<Vec<Vec<f32>>>;
 }
 
+pub type ModelDownloadCallback = Box<dyn Fn(&str) + Send + Sync>;
+
 pub fn create_embedder(model_name: Option<&str>) -> Result<Box<dyn Embedder>> {
+    create_embedder_with_progress(model_name, None)
+}
+
+pub fn create_embedder_with_progress(model_name: Option<&str>, progress_callback: Option<ModelDownloadCallback>) -> Result<Box<dyn Embedder>> {
     let model = model_name.unwrap_or("BAAI/bge-small-en-v1.5");
     
     #[cfg(feature = "fastembed")]
     {
-        Ok(Box::new(FastEmbedder::new(model)?))
+        Ok(Box::new(FastEmbedder::new_with_progress(model, progress_callback)?))
     }
     
     #[cfg(not(feature = "fastembed"))]
     {
+        if let Some(callback) = progress_callback {
+            callback("Using dummy embedder (no model download required)");
+        }
         Ok(Box::new(DummyEmbedder::new()))
     }
 }
@@ -52,13 +60,16 @@ impl Embedder for DummyEmbedder {
 #[cfg(feature = "fastembed")]
 pub struct FastEmbedder {
     model: fastembed::TextEmbedding,
-    model_id: String,
     dim: usize,
 }
 
 #[cfg(feature = "fastembed")]
 impl FastEmbedder {
     pub fn new(model_name: &str) -> Result<Self> {
+        Self::new_with_progress(model_name, None)
+    }
+    
+    pub fn new_with_progress(model_name: &str, progress_callback: Option<ModelDownloadCallback>) -> Result<Self> {
         use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
         
         let model = match model_name {
@@ -67,10 +78,31 @@ impl FastEmbedder {
             _ => EmbeddingModel::BGESmallENV15,
         };
         
+        // Configure permanent model cache directory
+        let model_cache_dir = Self::get_model_cache_dir()?;
+        std::fs::create_dir_all(&model_cache_dir)?;
+        
+        if let Some(ref callback) = progress_callback {
+            callback(&format!("Initializing model: {}", model_name));
+            
+            // Check if model already exists
+            let model_exists = Self::check_model_exists(&model_cache_dir, model_name);
+            if !model_exists {
+                callback(&format!("Downloading model {} to {}", model_name, model_cache_dir.display()));
+            } else {
+                callback(&format!("Using cached model: {}", model_name));
+            }
+        }
+        
         let init_options = InitOptions::new(model.clone())
-            .with_show_download_progress(true);
+            .with_show_download_progress(progress_callback.is_some())
+            .with_cache_dir(model_cache_dir);
         
         let embedding = TextEmbedding::try_new(init_options)?;
+        
+        if let Some(ref callback) = progress_callback {
+            callback("Model loaded successfully");
+        }
         
         let dim = match model {
             EmbeddingModel::BGESmallENV15 => 384,
@@ -80,9 +112,30 @@ impl FastEmbedder {
         
         Ok(Self {
             model: embedding,
-            model_id: model_name.to_string(),
             dim,
         })
+    }
+    
+    fn get_model_cache_dir() -> Result<PathBuf> {
+        // Use platform-appropriate cache directory
+        let cache_dir = if let Some(cache_home) = std::env::var_os("XDG_CACHE_HOME") {
+            PathBuf::from(cache_home).join("ck")
+        } else if let Some(home) = std::env::var_os("HOME") {
+            PathBuf::from(home).join(".cache").join("ck")
+        } else if let Some(appdata) = std::env::var_os("LOCALAPPDATA") {
+            PathBuf::from(appdata).join("ck").join("cache")
+        } else {
+            // Fallback to current directory if no home found
+            PathBuf::from(".ck_models")
+        };
+        
+        Ok(cache_dir.join("models"))
+    }
+    
+    fn check_model_exists(cache_dir: &PathBuf, model_name: &str) -> bool {
+        // Simple heuristic - check if model directory exists
+        let model_dir = cache_dir.join(model_name.replace("/", "_"));
+        model_dir.exists()
     }
 }
 
