@@ -11,7 +11,7 @@ pub struct StatusReporter {
 impl StatusReporter {
     pub fn new(quiet: bool) -> Self {
         Self {
-            term: Term::stdout(),
+            term: Term::stderr(),
             multi_progress: MultiProgress::new(),
             quiet,
         }

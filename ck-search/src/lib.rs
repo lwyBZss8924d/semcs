@@ -426,8 +426,8 @@ async fn semantic_search_with_progress(options: &SearchOptions, progress_callbac
         let _cb = callback.as_ref();
         let model_cb = Box::new(|msg: &str| {
             // Note: We can't directly use the callback here due to lifetime issues
-            // For now, we'll just use println! until we can restructure this better
-            println!("Model: {}", msg);
+            // For now, we'll just use eprintln! until we can restructure this better
+            eprintln!("Model: {}", msg);
         }) as ck_embed::ModelDownloadCallback;
         ck_embed::create_embedder_with_progress(Some("BAAI/bge-small-en-v1.5"), Some(model_cb))?
     } else {
@@ -522,7 +522,7 @@ async fn build_semantic_index_with_progress(options: &SearchOptions, progress_ca
     }
     
     // Always print this important message, even in quiet mode for indexing operations
-    println!("Building semantic index (no existing index found)...");
+    eprintln!("Building semantic index (no existing index found)...");
     
     // Collect files and their content
     let files = collect_files(&index_root, true, &options.exclude_patterns)?;
@@ -530,7 +530,7 @@ async fn build_semantic_index_with_progress(options: &SearchOptions, progress_ca
     if let Some(ref callback) = progress_callback {
         callback(&format!("Found {} files to index", files.len()));
     }
-    println!("Found {} files to embed and index", files.len());
+    eprintln!("Found {} files to embed and index", files.len());
     
     let mut file_embeddings = Vec::new();
     let mut embeddings = Vec::new();
@@ -542,7 +542,7 @@ async fn build_semantic_index_with_progress(options: &SearchOptions, progress_ca
     
     let model_callback = if progress_callback.is_some() {
         Some(Box::new(|msg: &str| {
-            println!("Model: {}", msg);
+            eprintln!("Model: {}", msg);
         }) as ck_embed::ModelDownloadCallback)
     } else {
         None
@@ -579,7 +579,7 @@ async fn build_semantic_index_with_progress(options: &SearchOptions, progress_ca
     if let Some(ref callback) = progress_callback {
         callback(&format!("Built {} embeddings, creating search index...", embeddings.len()));
     }
-    println!("Generated {} embeddings, building search index...", embeddings.len());
+    eprintln!("Generated {} embeddings, building search index...", embeddings.len());
     
     // Build ANN index
     let index = ck_ann::SimpleIndex::build(&embeddings)?;
@@ -592,7 +592,7 @@ async fn build_semantic_index_with_progress(options: &SearchOptions, progress_ca
     if let Some(ref callback) = progress_callback {
         callback("Semantic index built successfully, running search...");
     }
-    println!("Semantic index built successfully!");
+    eprintln!("Semantic index built successfully!");
     
     // After building, search again - inline to avoid recursion
     let ann_index = ck_ann::SimpleIndex::load(&ann_index_path)?;
