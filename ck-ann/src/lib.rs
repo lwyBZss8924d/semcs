@@ -275,12 +275,12 @@ mod tests {
 
     #[test]
     fn test_create_index() {
-        let index = create_index(None).unwrap();
+        let _index = create_index(None).unwrap();
         
         // Should create a SimpleIndex
         // We can't directly test the type, but we can test the interface
         let vectors = vec![vec![1.0, 0.0], vec![0.0, 1.0]];
-        let mut index = SimpleIndex::build(&vectors).unwrap();
+        let index = SimpleIndex::build(&vectors).unwrap();
         
         let query = vec![1.0, 0.0];
         let results = index.search(&query, 1);

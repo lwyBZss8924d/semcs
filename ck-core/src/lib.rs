@@ -105,6 +105,8 @@ pub struct SearchOptions {
     pub reindex: bool,
     pub show_scores: bool,
     pub show_filenames: bool,
+    pub files_with_matches: bool,
+    pub files_without_matches: bool,
     pub exclude_patterns: Vec<String>,
     pub full_section: bool,
 }
@@ -129,6 +131,8 @@ impl Default for SearchOptions {
             reindex: false,
             show_scores: false,
             show_filenames: false,
+            files_with_matches: false,
+            files_without_matches: false,
             exclude_patterns: get_default_exclude_patterns(),
             full_section: false,
         }

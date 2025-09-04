@@ -84,6 +84,12 @@ struct Cli {
     #[arg(short = 'H', help = "Always print filenames")]
     with_filenames: bool,
     
+    #[arg(short = 'l', long = "files-with-matches", help = "Print only names of files with matches")]
+    files_with_matches: bool,
+    
+    #[arg(short = 'L', long = "files-without-matches", help = "Print only names of files without matches")]
+    files_without_matches: bool,
+    
     #[arg(short = 'i', long = "ignore-case", help = "Case insensitive search")]
     ignore_case: bool,
     
@@ -383,6 +389,12 @@ async fn main() -> Result<()> {
         return Ok(());
     }
     
+    // Validate conflicting flags
+    if cli.files_with_matches && cli.files_without_matches {
+        eprintln!("Error: Cannot use -l and -L together");
+        std::process::exit(1);
+    }
+    
     // Default behavior: search with pattern
     if let Some(ref pattern) = cli.pattern {
         let reindex = cli.reindex;
@@ -400,10 +412,19 @@ async fn main() -> Result<()> {
         let mut show_filenames = files.len() > 1 || files.iter().any(|p| p.is_dir());
         if cli.no_filenames { show_filenames = false; }
         if cli.with_filenames { show_filenames = true; }
+        let mut any_matches = false;
         for file_path in files {
             let mut options = build_options(&cli, reindex);
             options.show_filenames = show_filenames;
-            run_search(pattern.clone(), file_path, options, &status).await?;
+            let had_matches = run_search(pattern.clone(), file_path, options, &status).await?;
+            if had_matches {
+                any_matches = true;
+            }
+        }
+        
+        // grep-like exit codes: 0 if matches found, 1 if none
+        if !any_matches {
+            std::process::exit(1);
         }
     } else {
         eprintln!("Error: No pattern specified");
@@ -457,6 +478,8 @@ fn build_options(cli: &Cli, reindex: bool) -> SearchOptions {
         reindex,
         show_scores: cli.show_scores,
         show_filenames: false, // Will be set by caller
+        files_with_matches: cli.files_with_matches,
+        files_without_matches: cli.files_without_matches,
         exclude_patterns,
         full_section: cli.full_section,
     }
@@ -591,7 +614,7 @@ fn calculate_keyword_similarity(text: &str, pattern: &str) -> f32 {
     score / pattern_words.len() as f32
 }
 
-async fn run_search(pattern: String, path: PathBuf, mut options: SearchOptions, status: &StatusReporter) -> Result<()> {
+async fn run_search(pattern: String, path: PathBuf, mut options: SearchOptions, status: &StatusReporter) -> Result<bool> {
     options.query = pattern;
     options.path = path;
     
@@ -652,7 +675,21 @@ async fn run_search(pattern: String, path: PathBuf, mut options: SearchOptions, 
             };
             println!("{}", serde_json::to_string(&json_result)?);
         }
+    } else if options.files_with_matches {
+        // For -l flag: print only unique filenames that have matches
+        let mut printed_files = std::collections::HashSet::new();
+        for result in results {
+            has_matches = true;
+            let file_path = &result.file;
+            if printed_files.insert(file_path.clone()) {
+                println!("{}", file_path.display());
+            }
+        }
+    } else if options.files_without_matches {
+        // For -L flag: just set has_matches, printing is done later
+        has_matches = !results.is_empty();
     } else {
+        // Normal output
         for result in results {
             has_matches = true;
             let score_text = if options.show_scores {
@@ -692,9 +729,10 @@ async fn run_search(pattern: String, path: PathBuf, mut options: SearchOptions, 
         }
     }
     
-    // grep-like exit codes: 0 if matches, 1 if none
-    if !has_matches { 
-        std::process::exit(1);
+    // For -L flag: if this file had no matches, print the filename
+    if options.files_without_matches && !has_matches {
+        println!("{}", options.path.display());
     }
-    Ok(())
+    
+    Ok(has_matches)
 }
