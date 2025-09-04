@@ -63,11 +63,13 @@ echo "      ck Test Suite (Simplified)"
 echo "========================================="
 echo ""
 
-# Check if binary exists
+# Check if binary exists; build if missing
 if [ ! -f "$CK_BIN" ]; then
-    echo -e "${RED}Error: ck binary not found at $CK_BIN${NC}"
-    echo "Please run: cargo build"
-    exit 1
+    echo -e "${YELLOW}ck binary not found at $CK_BIN, attempting to build...${NC}"
+    if ! cargo build >/dev/null 2>&1; then
+        echo -e "${RED}Error: build failed${NC}"
+        exit 1
+    fi
 fi
 
 echo "Using binary: $CK_BIN"

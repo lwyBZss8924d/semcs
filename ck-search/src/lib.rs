@@ -716,7 +716,11 @@ async fn hybrid_search_with_progress(options: &SearchOptions, progress_callback:
         .collect();
     
     // Sort by RRF score (highest first)
-    rrf_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+    rrf_results.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     
     if let Some(top_k) = options.top_k {
         rrf_results.truncate(top_k);
