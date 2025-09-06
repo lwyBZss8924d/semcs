@@ -46,7 +46,8 @@ Just as **uv** modernized `pip`, **ck** modernizes `grep`: fast, lightweight, ag
 * Filename printing follows grep conventions and can be forced with `-H` or suppressed with `-h`.
 * Regex searches provide deterministic ordering (by file path, then line number) and apply `--topk` after sorting.
 * Exit codes align with grep: 0 if matches found, 1 if none, 2 on error.
-* Note: Additional common flags like `-v`, `-l`, `-c`, `-q` are candidates for future milestones.
+* File listing flags: `-l`/`--files-with-matches` and `-L`/`--files-without-matches` implemented.
+* Additional flags like `-v`, `-c`, `-q` are candidates for future milestones.
 
 ### 2. Span Fingerprinting & Indexing
 
@@ -54,9 +55,10 @@ Just as **uv** modernized `pip`, **ck** modernizes `grep`: fast, lightweight, ag
 * **File-level hashing** (blake3 or sha256).
 * Lifecycle:
 
-  * `ck index path/` → build/update incrementally (only rebuild files whose hash changed).
-  * `ck search --reindex` → idempotently update any hash misses before querying.
-  * `ck clean` → wipe sidecar fully (safe to rebuild).
+  * `ck --index path/` → build/update incrementally (only rebuild files whose hash changed).
+  * `ck --reindex` → force index update before searching.
+  * `ck --clean` → wipe sidecar fully (safe to rebuild).
+  * Smart incremental updates: hash-based change detection for fast re-indexing.
 * **CI Guidance**: Recommend **regen per build**; `.ck/` is a cache artifact, not checked into VCS.
 * **Concurrency**: atomic replace via `.tmp` + rename, file-level granularity.
 
@@ -76,14 +78,15 @@ Just as **uv** modernized `pip`, **ck** modernizes `grep`: fast, lightweight, ag
 * Deterministic and robust across scoring sources.
 * LLM/agent consumption:
 
-  * Default returns all results.
-  * Optional `--topk N` to bound results for agent payload size.
+  * Intelligent defaults for semantic search: top 10 results, threshold ≥0.6.
+  * Optional `--topk N` or `--limit N` to bound results for agent payload size.
+  * Configurable threshold filtering with mode-appropriate defaults.
 * CLI examples:
 
   ```bash
-  ck --sem "retry with exponential backoff" src/
+  ck --sem "retry with exponential backoff" src/     # Uses defaults: top 10, threshold ≥0.6
   ck --regex "httpClient" src/
-  ck --hybrid --topk=100 "connection pool"
+  ck --hybrid --limit 20 "connection pool"          # --limit is alias for --topk
   ```
 
 ### 5. Agent-Friendly Output
@@ -252,13 +255,16 @@ ck/
 * ✅ `--scores` flag to show relevance scores.
 * 🚧 NDJSON streaming (not yet implemented).
 
-### **M6 — Extensibility & Cleanup** 🚧 IN PROGRESS
+### **M6 — Extensibility & Cleanup** ✅ COMPLETED
 
-* ✅ `ck clean` + robust lifecycle.
-* ✅ Index management (status, add, cleanup).
+* ✅ `ck --clean` + robust lifecycle.
+* ✅ Index management (`--status`, `--add`, `--clean-orphans`).
 * ✅ Smart exclusion patterns (build artifacts, virtual environments).
-* 🚧 FAISS + Candle optional backends.
-* 🚧 Model registry + per-project `ck.toml`.
+* ✅ File listing flags (`-l`/`-L` for grep compatibility).
+* ✅ Incremental indexing with hash-based change detection.
+* ✅ Enhanced UX with intelligent defaults and informational output.
+* 🚧 FAISS + Candle optional backends (deferred).
+* 🚧 Model registry + per-project `ck.toml` (deferred).
 
 ---
 
@@ -274,37 +280,43 @@ ck/
 * ✅ `--no-default-excludes` disables default exclusions.
 * ✅ CLI flag conflict resolved (`-h` → `--no-filename`).
 * ✅ Tree-sitter semantic chunking with `--full-section` support.
+* ✅ File listing flags (`-l`/`-L`) for grep-compatible file enumeration.
+* ✅ Incremental indexing with smart hash-based change detection.
+* ✅ Enhanced UX: intelligent defaults, `--limit` alias, informational output.
+* ✅ Clean stdout/stderr separation for reliable scripting and piping.
 
 ---
 
 ---
 
-## Current Implementation Status (v0.1.0)
+## Current Implementation Status (v0.3.1)
 
 ### ✅ **Production Ready Features**
 - **Complete grep replacement**: All major flags supported with identical behavior
-- **Semantic search**: Works with dummy embeddings (FastEmbed integration ready)
-- **Index management**: Create, update, clean, status, add single files
+- **File listing compatibility**: `-l`/`-L` flags for grep-compatible file enumeration
+- **Semantic search**: Works with FastEmbed integration and intelligent defaults (top 10, threshold ≥0.6)
+- **Incremental indexing**: Hash-based change detection for fast index updates  
+- **Index management**: Create, update, clean, status, add single files, orphan cleanup
 - **Smart exclusions**: Automatically skips virtual environments, build artifacts
 - **Multiple search modes**: regex (default), semantic, lexical (BM25), hybrid (RRF)
-- **Agent-friendly output**: JSON format with scores and spans
+- **Enhanced UX**: Intuitive `--limit` alias, informational output, clear help documentation
+- **Agent-friendly output**: JSON format with scores and spans, clean stdout/stderr separation
 - **Tree-sitter integration**: Python, JavaScript, TypeScript parsing
 - **Code section extraction**: `--full-section` flag for complete functions/classes
 - **Comprehensive testing**: 40+ tests covering all functionality
 - **Easy installation**: Automated install script with PATH setup
 
-### ⚠️ **Known Limitations**
-- **ANN Performance**: Uses brute-force cosine similarity instead of HNSW/FAISS
-- **Embedding Models**: FastEmbed feature-gated for CI; falls back to dummy embeddings
-- **Configuration**: No per-project config files yet
-- **Language Support**: Tree-sitter limited to Python/JS/TS (expandable)
+### ⚠️ **Known Limitations** 
+- **ANN Performance**: Uses brute-force cosine similarity (sufficient for most use cases, HNSW/FAISS deferred)
+- **Configuration**: No per-project config files yet (CLI flags provide full control)
+- **Language Support**: Tree-sitter limited to Python/JS/TS (easily expandable)
 
-### 🎯 **Next Priority Items**
-1. **Performance Optimization**: Implement proper HNSW or FAISS backend
-2. **Real Embeddings**: Enable FastEmbed by default, handle model downloads
-3. **Configuration System**: Support `.ck/config.toml` for per-project settings
-4. **Language Expansion**: Add Rust, Go, Java tree-sitter support
-5. **Package Distribution**: Homebrew, cargo install, apt packages
+### 🎯 **Future Considerations** (Post v1.0)
+1. **Performance Optimization**: HNSW or FAISS backends for very large codebases
+2. **Configuration System**: Support `.ck/config.toml` for per-project settings  
+3. **Language Expansion**: Add Rust, Go, Java tree-sitter support based on demand
+4. **Package Distribution**: Homebrew, cargo install, apt packages for easier installation
+5. **Advanced Features**: Multi-language semantic understanding, IDE integrations
 
 ---
 
