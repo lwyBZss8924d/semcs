@@ -1,5 +1,5 @@
 [package]
-name = "ck-search"
+name = "ck-engine"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

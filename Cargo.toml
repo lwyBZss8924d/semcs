@@ -4,7 +4,7 @@ members = [
     "ck-cli",
     "ck-core",
     "ck-index",
-    "ck-search",
+    "ck-engine",
     "ck-chunk",
     "ck-embed",
     "ck-ann",
