@@ -714,7 +714,7 @@ async fn hybrid_search_with_progress(options: &SearchOptions, progress_callback:
     if let Some(ref callback) = progress_callback {
         callback("Running semantic search...");
     }
-    let semantic_results = semantic_search_with_progress(options, progress_callback).await?;
+    let semantic_results = semantic_search_v3_with_progress(options, progress_callback).await?;
     
     let mut combined = HashMap::new();
     
