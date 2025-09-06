@@ -16,13 +16,13 @@ name = "ck"
 path = "src/main.rs"
 
 [dependencies]
-ck-core = { path = "../ck-core" }
-ck-index = { path = "../ck-index" }
-ck-engine = { path = "../ck-engine" }
-ck-chunk = { path = "../ck-chunk" }
-ck-embed = { path = "../ck-embed" }
-ck-ann = { path = "../ck-ann" }
-ck-models = { path = "../ck-models" }
+ck-core = "0.3.1"
+ck-index = "0.3.1"
+ck-engine = "0.3.1"
+ck-chunk = "0.3.1"
+ck-embed = "0.3.1"
+ck-ann = "0.3.1"
+ck-models = "0.3.1"
 
 anyhow = { workspace = true }
 clap = { workspace = true }

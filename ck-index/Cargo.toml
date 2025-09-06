@@ -10,9 +10,9 @@ keywords = ["indexing", "search", "storage"]
 categories = ["database-implementations"]
 
 [dependencies]
-ck-core = { path = "../ck-core" }
-ck-chunk = { path = "../ck-chunk" }
-ck-embed = { path = "../ck-embed" }
+ck-core = "0.3.1"
+ck-chunk = "0.3.1"
+ck-embed = "0.3.1"
 
 anyhow = { workspace = true }
 serde = { workspace = true }
