@@ -563,27 +563,6 @@ fn highlight_semantic_chunks(text: &str, pattern: &str, _options: &SearchOptions
     highlighted_tokens.join("")
 }
 
-fn split_into_sentences(text: &str) -> Vec<String> {
-    // Split on natural boundaries for both text and code
-    // For code: split on semicolons, newlines, braces
-    // For text: split on sentence endings
-    let boundary_regex = Regex::new(r"[.!?;\n}]+\s*|\s*\{\s*").unwrap();
-    
-    let parts: Vec<String> = boundary_regex.split(text)
-        .filter(|s| !s.trim().is_empty() && s.trim().len() > 5) // Filter very short fragments
-        .map(|s| s.trim().to_string())
-        .collect();
-    
-    // If we got too few parts, fall back to splitting on whitespace for longer phrases
-    if parts.len() <= 1 && text.len() > 100 {
-        let words: Vec<&str> = text.split_whitespace().collect();
-        return words.chunks(10) // Group every 10 words
-            .map(|chunk| chunk.join(" "))
-            .collect();
-    }
-    
-    parts
-}
 
 fn split_into_tokens(text: &str) -> Vec<String> {
     // Split text into meaningful tokens for heatmap highlighting
@@ -706,44 +685,6 @@ fn apply_heatmap_color(token: &str, score: f32) -> String {
     }
 }
 
-fn calculate_keyword_similarity(text: &str, pattern: &str) -> f32 {
-    let text_lower = text.to_lowercase();
-    let pattern_lower = pattern.to_lowercase();
-    
-    // Extract words from both text and pattern
-    let text_words: std::collections::HashSet<String> = text_lower
-        .split_whitespace()
-        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()))
-        .filter(|w| !w.is_empty() && w.len() > 2) // Filter out short words
-        .map(String::from)
-        .collect();
-    
-    let pattern_words: std::collections::HashSet<String> = pattern_lower
-        .split_whitespace()
-        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()))
-        .filter(|w| !w.is_empty() && w.len() > 2)
-        .map(String::from)
-        .collect();
-    
-    if pattern_words.is_empty() {
-        return 0.0;
-    }
-    
-    // Check for exact substring matches (higher weight)
-    let mut score = 0.0;
-    for pattern_word in &pattern_words {
-        if text_lower.contains(pattern_word) {
-            score += 1.0;
-        }
-    }
-    
-    // Add partial word overlap
-    let intersection_count = text_words.intersection(&pattern_words).count();
-    score += intersection_count as f32 * 0.5;
-    
-    // Normalize by pattern length
-    score / pattern_words.len() as f32
-}
 
 async fn run_search(pattern: String, path: PathBuf, mut options: SearchOptions, status: &StatusReporter) -> Result<bool> {
     options.query = pattern;

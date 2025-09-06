@@ -56,6 +56,11 @@ pub async fn search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
 }
 
 pub async fn search_with_progress(options: &SearchOptions, progress_callback: Option<SearchProgressCallback>) -> Result<Vec<SearchResult>> {
+    // Validate that the search path exists
+    if !options.path.exists() {
+        return Err(ck_core::CkError::Search(format!("Path does not exist: {}", options.path.display())).into());
+    }
+    
     // Auto-update index if needed (unless it's regex-only mode)
     if !matches!(options.mode, SearchMode::Regex) {
         let need_embeddings = matches!(options.mode, SearchMode::Semantic | SearchMode::Hybrid);

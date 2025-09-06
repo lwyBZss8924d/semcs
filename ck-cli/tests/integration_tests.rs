@@ -329,6 +329,20 @@ fn test_no_matches_stderr_message() {
 }
 
 #[test]
+fn test_nonexistent_directory_error() {
+    let output = Command::new(get_ck_binary())
+        .args(&["--sem", "test", "/nonexistent/directory"])
+        .output()
+        .expect("Failed to run ck");
+    
+    // Should fail with specific error message
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("Path does not exist"));
+    assert!(stderr.contains("/nonexistent/directory"));
+}
+
+#[test]
 fn test_error_handling() {
     // Test with nonexistent directory
     let _output = Command::new(get_ck_binary())
