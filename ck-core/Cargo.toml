@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Core types and utilities for ck semantic search tool"
+repository = "https://github.com/yourusername/ck"
+keywords = ["search", "semantic", "core"]
+categories = ["data-structures"]
 
 [dependencies]
 anyhow = { workspace = true }

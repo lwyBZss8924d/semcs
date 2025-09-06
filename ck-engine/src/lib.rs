@@ -92,7 +92,9 @@ fn regex_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
         .build()
         .map_err(|e| CkError::Regex(e))?;
     
-    let files = collect_files(&options.path, options.recursive, &options.exclude_patterns)?;
+    // Default to recursive for directories (like grep) to maintain compatibility
+    let should_recurse = options.path.is_dir() || options.recursive;
+    let files = collect_files(&options.path, should_recurse, &options.exclude_patterns)?;
     
     let results: Vec<Vec<SearchResult>> = files
         .par_iter()

@@ -1,9 +1,15 @@
 [package]
-name = "ck-cli"
+name = "ck-search"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Semantic grep by embedding - find code by meaning, not just keywords"
+repository = "https://github.com/yourusername/ck"
+homepage = "https://github.com/yourusername/ck"
+readme = "../README.md"
+keywords = ["grep", "search", "semantic", "code", "cli"]
+categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "ck"
@@ -12,7 +18,7 @@ path = "src/main.rs"
 [dependencies]
 ck-core = { path = "../ck-core" }
 ck-index = { path = "../ck-index" }
-ck-search = { path = "../ck-search" }
+ck-engine = { path = "../ck-engine" }
 ck-chunk = { path = "../ck-chunk" }
 ck-embed = { path = "../ck-embed" }
 ck-ann = { path = "../ck-ann" }

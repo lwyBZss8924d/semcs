@@ -737,12 +737,12 @@ async fn run_search(pattern: String, path: PathBuf, mut options: SearchOptions, 
             if let Some(ref pb) = spinner_clone {
                 pb.set_message(msg.to_string());
             }
-        }) as ck_search::SearchProgressCallback)
+        }) as ck_engine::SearchProgressCallback)
     } else {
         None
     };
     
-    let results = ck_search::search_with_progress(&options, search_progress_callback).await?;
+    let results = ck_engine::search_with_progress(&options, search_progress_callback).await?;
     
     if let Some(spinner) = search_spinner {
         status.finish_progress(Some(spinner), &format!("Found {} results", results.len()));
