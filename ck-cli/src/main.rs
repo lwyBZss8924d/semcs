@@ -238,7 +238,23 @@ fn should_exclude_path(path: &Path, exclude_patterns: &[String]) -> bool {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
+    if let Err(e) = run_main().await {
+        eprintln!("DETAILED ERROR: {:#}", e);
+        eprintln!("DEBUG: Error occurred in main");
+        
+        // Print the error chain for better debugging  
+        let mut source = e.source();
+        while let Some(err) = source {
+            eprintln!("CAUSED BY: {}", err);
+            source = err.source();
+        }
+        
+        std::process::exit(1);
+    }
+}
+
+async fn run_main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::from_default_env()
@@ -271,7 +287,7 @@ async fn main() -> Result<()> {
             None
         };
         
-        let stats = ck_index::smart_update_index_with_progress(&path, true, progress_callback).await?;
+        let stats = ck_index::smart_update_index_with_progress(&path, false, progress_callback, true).await?;
         status.finish_progress(indexing_progress, "Index built successfully");
         
         status.success(&format!("Indexed {} files", stats.files_indexed));
@@ -332,7 +348,7 @@ async fn main() -> Result<()> {
         status.info(&format!("Processing {}", file.display()));
         
         let add_spinner = status.create_spinner("Updating index...");
-        ck_index::index_file(&file).await?;
+        ck_index::index_file(&file, true).await?;
         status.finish_progress(add_spinner, "File indexed");
         
         status.success(&format!("Added {} to index", file.display()));
@@ -425,6 +441,7 @@ async fn main() -> Result<()> {
         
         // grep-like exit codes: 0 if matches found, 1 if none
         if !any_matches {
+            eprintln!("No matches found");
             std::process::exit(1);
         }
     } else {
@@ -734,7 +751,7 @@ async fn run_search(pattern: String, path: PathBuf, mut options: SearchOptions, 
     
     if options.reindex {
         let reindex_spinner = status.create_spinner("Updating index...");
-        ck_index::update_index(&options.path).await?;
+        ck_index::update_index(&options.path, true).await?;
         status.finish_progress(reindex_spinner, "Index updated");
     }
     

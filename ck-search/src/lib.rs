@@ -14,7 +14,30 @@ use tantivy::{doc, Index, ReloadPolicy, TantivyDocument};
 use ck_ann::AnnIndex;
 use std::path::PathBuf as StdPathBuf;
 
+mod semantic_v3;
+pub use semantic_v3::{semantic_search_v3, semantic_search_v3_with_progress};
+
 pub type SearchProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
+
+/// Extract content from a file using a span
+fn extract_content_from_span(file_path: &Path, span: &ck_core::Span) -> Result<String> {
+    let content = fs::read_to_string(file_path)?;
+    let lines: Vec<&str> = content.lines().collect();
+    
+    if span.line_start == 0 || span.line_start > lines.len() {
+        return Ok(String::new());
+    }
+    
+    let start_idx = span.line_start - 1; // Convert to 0-based
+    let end_idx = (span.line_end - 1).min(lines.len().saturating_sub(1));
+    
+    if start_idx <= end_idx {
+        Ok(lines[start_idx..=end_idx].join("\n"))
+    } else {
+        Ok(lines[start_idx].to_string())
+    }
+}
+
 fn find_nearest_index_root(path: &Path) -> Option<StdPathBuf> {
     let mut current = if path.is_file() { path.parent().unwrap_or(path) } else { path };
     loop {
@@ -35,13 +58,17 @@ pub async fn search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
 pub async fn search_with_progress(options: &SearchOptions, progress_callback: Option<SearchProgressCallback>) -> Result<Vec<SearchResult>> {
     // Auto-update index if needed (unless it's regex-only mode)
     if !matches!(options.mode, SearchMode::Regex) {
-        ensure_index_updated(&options.path, options.reindex).await?;
+        let need_embeddings = matches!(options.mode, SearchMode::Semantic | SearchMode::Hybrid);
+        ensure_index_updated(&options.path, options.reindex, need_embeddings).await?;
     }
     
     match options.mode {
         SearchMode::Regex => regex_search(options),
         SearchMode::Lexical => lexical_search(options).await,
-        SearchMode::Semantic => semantic_search_with_progress(options, progress_callback).await,
+        SearchMode::Semantic => {
+            // Use v3 semantic search (reads pre-computed embeddings from sidecars using spans)
+            semantic_search_v3_with_progress(options, progress_callback).await
+        },
         SearchMode::Hybrid => hybrid_search_with_progress(options, progress_callback).await,
     }
 }
@@ -771,17 +798,40 @@ fn collect_files(path: &Path, recursive: bool, exclude_patterns: &[String]) -> R
                 let name = e.file_name();
                 !globset.is_match(e.path()) && !globset.is_match(name)
             }) {
-            let entry = entry?;
-            if entry.file_type().is_file() && !should_exclude_path(entry.path(), exclude_patterns) {
-                files.push(entry.path().to_path_buf());
+            match entry {
+                Ok(entry) => {
+                    if entry.file_type().is_file() && !should_exclude_path(entry.path(), exclude_patterns) {
+                        files.push(entry.path().to_path_buf());
+                    }
+                }
+                Err(e) => {
+                    // Log directory traversal errors but continue processing
+                    tracing::debug!("Skipping path due to error: {}", e);
+                    continue;
+                }
             }
         }
     } else {
-        for entry in fs::read_dir(path)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_file() && !should_exclude_path(&path, exclude_patterns) {
-                files.push(path);
+        match fs::read_dir(path) {
+            Ok(read_dir) => {
+                for entry in read_dir {
+                    match entry {
+                        Ok(entry) => {
+                            let path = entry.path();
+                            if path.is_file() && !should_exclude_path(&path, exclude_patterns) {
+                                files.push(path);
+                            }
+                        }
+                        Err(e) => {
+                            tracing::debug!("Skipping directory entry due to error: {}", e);
+                            continue;
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::debug!("Cannot read directory {:?}: {}", path, e);
+                return Err(e.into());
             }
         }
     }
@@ -812,8 +862,7 @@ fn detect_language(path: &Path) -> Option<String> {
         .map(String::from)
 }
 
-async fn ensure_index_updated(path: &Path, force_reindex: bool) -> Result<()> {
-    use std::time::{Duration, SystemTime};
+async fn ensure_index_updated(path: &Path, force_reindex: bool, need_embeddings: bool) -> Result<()> {
     
     // Handle both files and directories and reuse nearest existing .ck index up the tree
     let index_root_buf = find_nearest_index_root(path).unwrap_or_else(|| {
@@ -825,12 +874,9 @@ async fn ensure_index_updated(path: &Path, force_reindex: bool) -> Result<()> {
     });
     let index_root = &index_root_buf;
     
-    let index_dir = index_root.join(".ck");
-    let manifest_path = index_dir.join("manifest.json");
-    
     // If force reindex is requested, always update
     if force_reindex {
-        let stats = ck_index::smart_update_index(index_root, false).await?;
+        let stats = ck_index::smart_update_index_with_progress(index_root, false, None, need_embeddings).await?;
         if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {
             tracing::info!("Index updated: {} files indexed, {} orphaned files removed", 
                           stats.files_indexed, stats.orphaned_files_removed);
@@ -838,27 +884,11 @@ async fn ensure_index_updated(path: &Path, force_reindex: bool) -> Result<()> {
         return Ok(());
     }
     
-    // Check if index exists
-    if !manifest_path.exists() {
-        tracing::info!("No index found, creating new index...");
-        ck_index::index_directory(index_root).await?;
-        return Ok(());
-    }
-    
-    // Check if index is stale (older than 1 minute and files have changed)
-    if let Ok(metadata) = fs::metadata(&manifest_path) {
-        if let Ok(modified) = metadata.modified() {
-            if let Ok(elapsed) = SystemTime::now().duration_since(modified) {
-                if elapsed > Duration::from_secs(60) {
-                    // Index is older than 1 minute, check for changes
-                    let stats = ck_index::smart_update_index(index_root, false).await?;
-                    if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {
-                        tracing::info!("Index updated: {} files indexed, {} orphaned files removed", 
-                                      stats.files_indexed, stats.orphaned_files_removed);
-                    }
-                }
-            }
-        }
+    // Always use smart_update_index for incremental updates (handles both new and existing indexes)
+    let stats = ck_index::smart_update_index_with_progress(index_root, false, None, need_embeddings).await?;
+    if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {
+        tracing::info!("Index updated: {} files indexed, {} orphaned files removed", 
+                      stats.files_indexed, stats.orphaned_files_removed);
     }
     
     Ok(())

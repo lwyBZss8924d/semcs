@@ -113,7 +113,8 @@ fn test_index_command() {
     
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.contains("Indexed"));
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stdout.contains("Indexed") || stdout.contains("✓ Indexed") || stderr.contains("Indexed") || stderr.contains("✓ Indexed"));
     
     // Check that .ck directory was created
     assert!(temp_dir.path().join(".ck").exists());
@@ -299,7 +300,32 @@ fn test_clean_command() {
     
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.contains("Index cleaned"));
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stdout.contains("Index cleaned") || stdout.contains("✓ Index cleaned") || stderr.contains("Index cleaned") || stderr.contains("✓ Index cleaned"));
+}
+
+#[test]
+fn test_no_matches_stderr_message() {
+    let temp_dir = TempDir::new().unwrap();
+    fs::write(temp_dir.path().join("test.txt"), "hello world").unwrap();
+    
+    // Search for pattern that won't match
+    let output = Command::new(get_ck_binary())
+        .args(&["nonexistent_pattern", temp_dir.path().to_str().unwrap()])
+        .output()
+        .expect("Failed to run ck");
+    
+    // Should exit with code 1 (no matches)
+    assert!(!output.status.success());
+    assert_eq!(output.status.code(), Some(1));
+    
+    // Should have empty stdout
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.trim().is_empty());
+    
+    // Should have stderr message explaining the exit code
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("No matches found"));
 }
 
 #[test]

@@ -19,7 +19,6 @@ pub struct IndexEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChunkEntry {
     pub span: Span,
-    pub text: String,
     pub embedding: Option<Vec<f32>>,
     pub chunk_type: Option<String>, // "function", "class", "method", or None for generic
 }
@@ -62,7 +61,8 @@ fn should_exclude_path(path: &Path, exclude_patterns: &[String]) -> bool {
     false
 }
 
-pub async fn index_directory(path: &Path) -> Result<()> {
+pub async fn index_directory(path: &Path, compute_embeddings: bool) -> Result<()> {
+    tracing::info!("index_directory called with compute_embeddings={}", compute_embeddings);
     let index_dir = path.join(".ck");
     fs::create_dir_all(&index_dir)?;
     
@@ -82,18 +82,37 @@ pub async fn index_directory(path: &Path) -> Result<()> {
         .map(|e| e.path().to_path_buf())
         .collect();
     
-    let entries: Vec<(PathBuf, IndexEntry)> = files
-        .par_iter()
-        .filter_map(|file_path| {
-            match index_single_file(file_path, path) {
-                Ok(entry) => Some((file_path.clone(), entry)),
-                Err(e) => {
-                    tracing::warn!("Failed to index {:?}: {}", file_path, e);
-                    None
+    let entries: Vec<(PathBuf, IndexEntry)> = if compute_embeddings {
+        // Sequential processing when computing embeddings (embedder not thread-safe)
+        tracing::info!("Creating embedder for {} files", files.len());
+        let mut embedder = ck_embed::create_embedder(None)?;
+        files
+            .iter()
+            .filter_map(|file_path| {
+                match index_single_file(file_path, path, Some(&mut embedder)) {
+                    Ok(entry) => Some((file_path.clone(), entry)),
+                    Err(e) => {
+                        tracing::warn!("Failed to index {:?}: {}", file_path, e);
+                        None
+                    }
                 }
-            }
-        })
-        .collect();
+            })
+            .collect()
+    } else {
+        // Parallel processing when not computing embeddings
+        files
+            .par_iter()
+            .filter_map(|file_path| {
+                match index_single_file(file_path, path, None) {
+                    Ok(entry) => Some((file_path.clone(), entry)),
+                    Err(e) => {
+                        tracing::warn!("Failed to index {:?}: {}", file_path, e);
+                        None
+                    }
+                }
+            })
+            .collect()
+    };
     
     for (file_path, entry) in entries {
         let sidecar_path = get_sidecar_path(path, &file_path);
@@ -111,7 +130,7 @@ pub async fn index_directory(path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub async fn index_file(file_path: &Path) -> Result<()> {
+pub async fn index_file(file_path: &Path, compute_embeddings: bool) -> Result<()> {
     let repo_root = find_repo_root(file_path)?;
     let index_dir = repo_root.join(".ck");
     fs::create_dir_all(&index_dir)?;
@@ -119,7 +138,12 @@ pub async fn index_file(file_path: &Path) -> Result<()> {
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
     
-    let entry = index_single_file(file_path, &repo_root)?;
+    let entry = if compute_embeddings {
+        let mut embedder = ck_embed::create_embedder(None)?;
+        index_single_file(file_path, &repo_root, Some(&mut embedder))?
+    } else {
+        index_single_file(file_path, &repo_root, None)?
+    };
     let sidecar_path = get_sidecar_path(&repo_root, file_path);
     
     save_index_entry(&sidecar_path, &entry)?;
@@ -134,10 +158,10 @@ pub async fn index_file(file_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub async fn update_index(path: &Path) -> Result<()> {
+pub async fn update_index(path: &Path, compute_embeddings: bool) -> Result<()> {
     let index_dir = path.join(".ck");
     if !index_dir.exists() {
-        return index_directory(path).await;
+        return index_directory(path, compute_embeddings).await;
     }
     
     let manifest_path = index_dir.join("manifest.json");
@@ -156,32 +180,63 @@ pub async fn update_index(path: &Path) -> Result<()> {
         .map(|e| e.path().to_path_buf())
         .collect();
     
-    let updates: Vec<(PathBuf, IndexEntry)> = files
-        .par_iter()
-        .filter_map(|file_path| {
-            let needs_update = match manifest.files.get(file_path) {
-                Some(metadata) => {
-                    match compute_file_hash(file_path) {
-                        Ok(hash) => hash != metadata.hash,
-                        Err(_) => false,
+    let updates: Vec<(PathBuf, IndexEntry)> = if compute_embeddings {
+        // Sequential processing when computing embeddings
+        let mut embedder = ck_embed::create_embedder(None)?;
+        files
+            .iter()
+            .filter_map(|file_path| {
+                let needs_update = match manifest.files.get(file_path) {
+                    Some(metadata) => {
+                        match compute_file_hash(file_path) {
+                            Ok(hash) => hash != metadata.hash,
+                            Err(_) => false,
+                        }
                     }
-                }
-                None => true,
-            };
-            
-            if needs_update {
-                match index_single_file(file_path, path) {
-                    Ok(entry) => Some((file_path.clone(), entry)),
-                    Err(e) => {
-                        tracing::warn!("Failed to index {:?}: {}", file_path, e);
-                        None
+                    None => true,
+                };
+                if needs_update {
+                    match index_single_file(file_path, path, Some(&mut embedder)) {
+                        Ok(entry) => Some((file_path.clone(), entry)),
+                        Err(e) => {
+                            tracing::warn!("Failed to index {:?}: {}", file_path, e);
+                            None
+                        }
                     }
+                } else {
+                    None
                 }
-            } else {
-                None
-            }
-        })
-        .collect();
+            })
+            .collect()
+    } else {
+        // Parallel processing when not computing embeddings
+        files
+            .par_iter()
+            .filter_map(|file_path| {
+                let needs_update = match manifest.files.get(file_path) {
+                    Some(metadata) => {
+                        match compute_file_hash(file_path) {
+                            Ok(hash) => hash != metadata.hash,
+                            Err(_) => false,
+                        }
+                    }
+                    None => true,
+                };
+                
+                if needs_update {
+                    match index_single_file(file_path, path, None) {
+                        Ok(entry) => Some((file_path.clone(), entry)),
+                        Err(e) => {
+                            tracing::warn!("Failed to index {:?}: {}", file_path, e);
+                            None
+                        }
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect()
+    };
     
     for (file_path, entry) in updates {
         let sidecar_path = get_sidecar_path(path, &file_path);
@@ -332,25 +387,26 @@ pub fn get_index_stats(path: &Path) -> Result<IndexStats> {
     Ok(stats)
 }
 
-pub async fn smart_update_index(path: &Path, force_rebuild: bool) -> Result<UpdateStats> {
-    smart_update_index_with_progress(path, force_rebuild, None).await
+pub async fn smart_update_index(path: &Path, compute_embeddings: bool) -> Result<UpdateStats> {
+    smart_update_index_with_progress(path, false, None, compute_embeddings).await
 }
 
-pub async fn smart_update_index_with_progress(path: &Path, force_rebuild: bool, progress_callback: Option<ProgressCallback>) -> Result<UpdateStats> {
+pub async fn smart_update_index_with_progress(path: &Path, force_rebuild: bool, progress_callback: Option<ProgressCallback>, compute_embeddings: bool) -> Result<UpdateStats> {
     let index_dir = path.join(".ck");
     let mut stats = UpdateStats::default();
     
     if force_rebuild {
         clean_index(path)?;
-        index_directory(path).await?;
+        index_directory(path, compute_embeddings).await?;
         let index_stats = get_index_stats(path)?;
         stats.files_indexed = index_stats.total_files;
         return Ok(stats);
     }
     
-    // First, clean up orphaned entries
-    let cleanup_stats = cleanup_index(path)?;
-    stats.orphaned_files_removed = cleanup_stats.orphaned_entries_removed;
+    // Skip cleanup during regular updates to avoid removing valid sidecar files
+    // Cleanup should only be done explicitly via --clean-orphans
+    // let cleanup_stats = cleanup_index(path)?;
+    // stats.orphaned_files_removed = cleanup_stats.orphaned_entries_removed;
     
     // Then perform incremental update
     fs::create_dir_all(&index_dir)?;
@@ -404,23 +460,46 @@ pub async fn smart_update_index_with_progress(path: &Path, force_rebuild: bool, 
     }
     
     // Second pass: index the files that need updating
-    let updates: Vec<(PathBuf, IndexEntry)> = files_to_update
-        .par_iter()
-        .filter_map(|file_path| {
-            if let Some(ref callback) = progress_callback {
-                if let Some(file_name) = file_path.file_name() {
-                    callback(&file_name.to_string_lossy());
+    let updates: Vec<(PathBuf, IndexEntry)> = if compute_embeddings {
+        // Sequential processing when computing embeddings
+        let mut embedder = ck_embed::create_embedder(None)?;
+        files_to_update
+            .iter()
+            .filter_map(|file_path| {
+                if let Some(ref callback) = progress_callback {
+                    if let Some(file_name) = file_path.file_name() {
+                        callback(&file_name.to_string_lossy());
+                    }
                 }
-            }
-            match index_single_file(file_path, path) {
-                Ok(entry) => Some((file_path.clone(), entry)),
-                Err(e) => {
-                    tracing::warn!("Failed to index {:?}: {}", file_path, e);
-                    None
+                match index_single_file(file_path, path, Some(&mut embedder)) {
+                    Ok(entry) => Some((file_path.clone(), entry)),
+                    Err(e) => {
+                        tracing::warn!("Failed to index {:?}: {}", file_path, e);
+                        None
+                    }
                 }
-            }
-        })
-        .collect();
+            })
+            .collect()
+    } else {
+        // Parallel processing when not computing embeddings
+        files_to_update
+            .par_iter()
+            .filter_map(|file_path| {
+                if let Some(ref callback) = progress_callback {
+                    if let Some(file_name) = file_path.file_name() {
+                        callback(&file_name.to_string_lossy());
+                    }
+                }
+                match index_single_file(file_path, path, None) {
+                    Ok(entry) => Some((file_path.clone(), entry)),
+                    Err(e) => {
+                        tracing::warn!("Failed to index {:?}: {}", file_path, e);
+                        None
+                    }
+                }
+            })
+            .collect()
+    };
     
     stats.files_indexed = updates.len();
     
@@ -441,7 +520,7 @@ pub async fn smart_update_index_with_progress(path: &Path, force_rebuild: bool, 
     Ok(stats)
 }
 
-fn index_single_file(file_path: &Path, _repo_root: &Path) -> Result<IndexEntry> {
+fn index_single_file(file_path: &Path, _repo_root: &Path, embedder: Option<&mut Box<dyn ck_embed::Embedder>>) -> Result<IndexEntry> {
     let content = fs::read_to_string(file_path)?;
     let hash = compute_file_hash(file_path)?;
     let metadata = fs::metadata(file_path)?;
@@ -465,9 +544,13 @@ fn index_single_file(file_path: &Path, _repo_root: &Path) -> Result<IndexEntry> 
     
     let chunks = ck_chunk::chunk_text(&content, lang)?;
     
-    let chunk_entries: Vec<ChunkEntry> = chunks
-        .into_iter()
-        .map(|chunk| {
+    let chunk_entries: Vec<ChunkEntry> = if let Some(embedder) = embedder {
+        // Compute embeddings for all chunks
+        let chunk_texts: Vec<String> = chunks.iter().map(|c| c.text.clone()).collect();
+        tracing::info!("Computing embeddings for {} chunks in {:?}", chunk_texts.len(), file_path);
+        let embeddings = embedder.embed(&chunk_texts)?;
+        
+        chunks.into_iter().zip(embeddings.into_iter()).map(|(chunk, embedding)| {
             let chunk_type_str = match chunk.chunk_type {
                 ck_chunk::ChunkType::Function => Some("function".to_string()),
                 ck_chunk::ChunkType::Class => Some("class".to_string()),
@@ -477,12 +560,27 @@ fn index_single_file(file_path: &Path, _repo_root: &Path) -> Result<IndexEntry> 
             };
             ChunkEntry {
                 span: chunk.span,
-                text: chunk.text,
+                embedding: Some(embedding),
+                chunk_type: chunk_type_str,
+            }
+        }).collect()
+    } else {
+        // No embedder, just store spans without embeddings
+        chunks.into_iter().map(|chunk| {
+            let chunk_type_str = match chunk.chunk_type {
+                ck_chunk::ChunkType::Function => Some("function".to_string()),
+                ck_chunk::ChunkType::Class => Some("class".to_string()),
+                ck_chunk::ChunkType::Method => Some("method".to_string()),
+                ck_chunk::ChunkType::Module => Some("module".to_string()),
+                ck_chunk::ChunkType::Text => None,
+            };
+            ChunkEntry {
+                span: chunk.span,
                 embedding: None,
                 chunk_type: chunk_type_str,
             }
-        })
-        .collect();
+        }).collect()
+    };
     
     Ok(IndexEntry {
         metadata: file_metadata,

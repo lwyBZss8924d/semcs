@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 ck-core = { path = "../ck-core" }
 ck-chunk = { path = "../ck-chunk" }
+ck-embed = { path = "../ck-embed" }
 
 anyhow = { workspace = true }
 serde = { workspace = true }

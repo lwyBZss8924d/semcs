@@ -78,7 +78,7 @@ pub struct SearchSignals {
     pub rrf_score: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SearchMode {
     Regex,
     Lexical,
