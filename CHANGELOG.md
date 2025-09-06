@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2025-09-06
+
+### Improved
+- **Enhanced UX for semantic search**: Added intelligent defaults (topk=10, threshold=0.6) for semantic search to reduce cognitive load
+- **Better CLI discoverability**: Added `--limit` as intuitive alias for `--topk` flag
+- **Improved help documentation**: Clear signposting of relevant flags with aligned messaging across examples and descriptions  
+- **Informational output**: Semantic search now shows current parameters (e.g., "ℹ Semantic search: top 10 results, threshold ≥0.6")
+- **Consistent flag documentation**: Help text now clearly shows defaults and relationships between flags
+
 ## [0.3.0] - 2025-09-06
 
 ### Fixed

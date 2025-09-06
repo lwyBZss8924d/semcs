@@ -25,9 +25,10 @@ QUICK START EXAMPLES:
 
   Semantic search (finds conceptually similar code):
     ck --index .                       # First, create search index
-    ck --sem "error handling" src/     # Find error handling patterns
-    ck --sem "database connection"     # Find DB-related code
-    ck --sem "authentication"         # Find auth-related code
+    ck --sem "error handling" src/     # Find error handling patterns (top 10, threshold ≥0.6)
+    ck --sem "database connection"     # Find DB-related code  
+    ck --sem --limit 5 "authentication"    # Limit to top 5 results
+    ck --sem --threshold 0.8 "auth"   # Higher precision filtering
 
   Lexical search (BM25 full-text search):
     ck --lex "user authentication"    # Full-text search with ranking
@@ -35,7 +36,7 @@ QUICK START EXAMPLES:
 
   Hybrid search (combines regex + semantic):  
     ck --hybrid "async function"      # Best of both worlds
-    ck --hybrid "error" --topk 10     # Top 10 most relevant results
+    ck --hybrid "error" --limit 10    # Top 10 most relevant results (--limit is alias for --topk)
     ck --hybrid "bug" --threshold 0.02 # Only results with RRF score >= 0.02
     ck --sem "auth" --scores           # Show similarity scores in output
 
@@ -48,7 +49,7 @@ QUICK START EXAMPLES:
 
   JSON output for tools/scripts:
     ck --json --sem "bug fix" src/    # Machine-readable output
-    ck --json --topk 5 "TODO"        # Limit results
+    ck --json --limit 5 "TODO"       # Limit results (--limit alias for --topk)
 
   Advanced grep features:
     ck -C 2 "error" src/              # Show 2 lines of context  
@@ -59,12 +60,14 @@ QUICK START EXAMPLES:
 SEARCH MODES:
   --regex   : Classic grep behavior (default, no index needed)
   --lex     : BM25 lexical search (requires index)  
-  --sem     : Semantic/embedding search (requires index)
+  --sem     : Semantic/embedding search (requires index, defaults: top 10, threshold ≥0.6)
   --hybrid  : Combines regex and semantic (requires index)
 
-THRESHOLD AND SCORING:
-  --threshold SCORE : Filter results by minimum score (0.0-1.0 semantic/lexical, 0.01-0.05 hybrid)
-  --scores         : Show scores in output [0.950] file:line:match
+RESULT FILTERING:
+  --topk, --limit N : Limit to top N results (default: 10 for semantic search)
+  --threshold SCORE : Filter by minimum score (default: 0.6 for semantic search)
+                      (0.0-1.0 semantic/lexical, 0.01-0.05 hybrid RRF)
+  --scores          : Show scores in output [0.950] file:line:match
 
 The semantic search understands meaning - searching for "error handling" 
 will find try/catch blocks, error returns, exception handling, etc.
@@ -112,7 +115,7 @@ struct Cli {
     #[arg(short = 'B', long = "before-context", value_name = "NUM", help = "Show NUM lines before match")]
     before_context: Option<usize>,
     
-    #[arg(long = "sem", help = "Semantic search - finds conceptually similar code")]
+    #[arg(long = "sem", help = "Semantic search - finds conceptually similar code (defaults: top 10, threshold ≥0.6)")]
     semantic: bool,
     
     #[arg(long = "lex", help = "Lexical search - BM25 full-text search with ranking")]
@@ -124,10 +127,10 @@ struct Cli {
     #[arg(long = "regex", help = "Regex search mode (default, grep-compatible)")]
     regex: bool,
     
-    #[arg(long = "topk", value_name = "N", help = "Limit results to top N matches (useful with --sem/--lex)")]
+    #[arg(long = "topk", alias = "limit", value_name = "N", help = "Limit results to top N matches (alias: --limit) [default: 10 for semantic search]")]
     top_k: Option<usize>,
     
-    #[arg(long = "threshold", value_name = "SCORE", help = "Minimum score threshold (0.0-1.0 for semantic/lexical, 0.01-0.05 for hybrid RRF)")]
+    #[arg(long = "threshold", value_name = "SCORE", help = "Minimum score threshold (0.0-1.0 for semantic/lexical, 0.01-0.05 for hybrid RRF) [default: 0.6 for semantic search]")]
     threshold: Option<f32>,
     
     #[arg(long = "scores", help = "Show similarity scores in output")]
@@ -478,12 +481,22 @@ fn build_options(cli: &Cli, reindex: bool) -> SearchOptions {
     // Add user-specified exclusions
     exclude_patterns.extend(cli.exclude.clone());
     
+    // Set intelligent defaults for semantic search
+    let default_topk = match mode {
+        SearchMode::Semantic => Some(10),
+        _ => None,
+    };
+    let default_threshold = match mode {
+        SearchMode::Semantic => Some(0.6),
+        _ => None,
+    };
+
     SearchOptions {
         mode,
         query: String::new(),
         path: PathBuf::from("."),
-        top_k: cli.top_k,
-        threshold: cli.threshold,
+        top_k: cli.top_k.or(default_topk),
+        threshold: cli.threshold.or(default_threshold),
         case_insensitive: cli.ignore_case,
         whole_word: cli.word_regexp,
         fixed_string: cli.fixed_strings,
@@ -698,13 +711,21 @@ async fn run_search(pattern: String, path: PathBuf, mut options: SearchOptions, 
     
     // Show search progress for non-regex searches or when explicitly enabled
     let search_spinner = if !matches!(options.mode, ck_core::SearchMode::Regex) {
-        status.create_spinner(&format!("Searching with {} mode...", 
-            match options.mode {
-                ck_core::SearchMode::Semantic => "semantic",
-                ck_core::SearchMode::Lexical => "lexical", 
-                ck_core::SearchMode::Hybrid => "hybrid",
-                _ => "regex"
-            }))
+        let mode_name = match options.mode {
+            ck_core::SearchMode::Semantic => "semantic",
+            ck_core::SearchMode::Lexical => "lexical", 
+            ck_core::SearchMode::Hybrid => "hybrid",
+            _ => "regex"
+        };
+        
+        // Show search parameters for semantic mode
+        if matches!(options.mode, ck_core::SearchMode::Semantic) {
+            let topk_info = options.top_k.map_or("unlimited".to_string(), |k| k.to_string());
+            let threshold_info = options.threshold.map_or("none".to_string(), |t| format!("{:.1}", t));
+            eprintln!("ℹ Semantic search: top {} results, threshold ≥{}", topk_info, threshold_info);
+        }
+        
+        status.create_spinner(&format!("Searching with {} mode...", mode_name))
     } else {
         None
     };
