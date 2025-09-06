@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Approximate nearest neighbor search for ck semantic search"
+repository = "https://github.com/yourusername/ck"
+keywords = ["search", "ann", "vector"]
+categories = ["algorithms"]
 
 [dependencies]
 ck-core = { path = "../ck-core" }

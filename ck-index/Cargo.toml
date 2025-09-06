@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Indexing and storage for ck semantic search"
+repository = "https://github.com/yourusername/ck"
+keywords = ["indexing", "search", "storage"]
+categories = ["database-implementations"]
 
 [dependencies]
 ck-core = { path = "../ck-core" }

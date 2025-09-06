@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Search engine implementation for ck semantic search"
+repository = "https://github.com/yourusername/ck"
+keywords = ["search", "engine", "semantic"]
+categories = ["algorithms"]
 
 [dependencies]
 ck-core = { path = "../ck-core" }
