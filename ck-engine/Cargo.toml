@@ -10,11 +10,11 @@ keywords = ["search", "engine", "semantic"]
 categories = ["algorithms"]
 
 [dependencies]
-ck-core = "0.3.1"
-ck-index = "0.3.1"
-ck-embed = "0.3.1"
-ck-ann = "0.3.1"
-ck-chunk = "0.3.1"
+ck-core = { path = "../ck-core" }
+ck-index = { path = "../ck-index" }
+ck-embed = { path = "../ck-embed" }
+ck-ann = { path = "../ck-ann" }
+ck-chunk = { path = "../ck-chunk" }
 serde_json = { workspace = true }
 
 anyhow = { workspace = true }
