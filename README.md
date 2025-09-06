@@ -63,6 +63,8 @@ All your muscle memory works. Same flags, same behavior, same output format.
 ck -i "warning" *.log              # Case-insensitive  
 ck -n -A 3 -B 1 "error" src/       # Line numbers + context
 ck --no-filename "TODO" src/        # Suppress filenames (grep -h equivalent)
+ck -l "error" src/                  # List files with matches only (NEW!)
+ck -L "TODO" src/                   # List files without matches (NEW!)
 ck -r --exclude "*.test.js" "bug"  # Recursive with exclusions
 ck "pattern" file1.txt file2.txt   # Multiple files
 ```
@@ -72,8 +74,9 @@ Combine keyword precision with semantic understanding using Reciprocal Rank Fusi
 
 ```bash
 ck --hybrid "async timeout" src/    # Best of both worlds
-ck --hybrid --scores "cache" src/   # Show relevance scores
+ck --hybrid --scores "cache" src/   # Show relevance scores with color highlighting
 ck --hybrid --threshold 0.02 query  # Filter by minimum relevance
+ck -l --hybrid "database" src/      # List files using hybrid search
 ```
 
 ### 🤖 **Agent-Friendly Output**
@@ -276,14 +279,17 @@ ck --json --sem "public API" src/ | generate_docs.py
 ```bash
 # Find related test files
 ck --sem "unit tests for authentication" tests/
+ck -l --sem "test" tests/           # List test files by semantic content
 
 # Identify refactoring candidates  
 ck --sem "duplicate logic" src/
 ck --sem "code complexity" src/
+ck -L "test" src/                   # Find source files without tests
 
 # Security audit
 ck --hybrid "password|credential|secret" src/
 ck --sem "input validation" src/
+ck -l --hybrid --scores "security" src/  # Files with security-related code
 ```
 
 ## Configuration
@@ -318,11 +324,12 @@ embedding_model = "BAAI/bge-small-en-v1.5"
 
 ## Performance
 
-- **Indexing:** ~1M LOC in under 2 minutes (with smart exclusions)
+- **Indexing:** ~1M LOC in under 2 minutes (with smart exclusions and optimized embedding computation)
 - **Search:** Sub-500ms queries on typical codebases  
 - **Index size:** ~2x source code size with compression
-- **Memory:** Efficient streaming for large repositories
+- **Memory:** Efficient streaming for large repositories with span-based content extraction
 - **File filtering:** Automatic exclusion of virtual environments and build artifacts
+- **Output:** Clean stdout/stderr separation for reliable piping and scripting
 
 ## Testing
 
@@ -358,16 +365,18 @@ cargo test
 
 ## Roadmap
 
-### Current (v0.1)
-- ✅ grep-compatible CLI with semantic search
+### Current (v0.3+)
+- ✅ grep-compatible CLI with semantic search and file listing flags (`-l`, `-L`)
 - ✅ FastEmbed integration with BGE models
 - ✅ File exclusion patterns and glob support
-- ✅ Threshold filtering and relevance scoring
-
-### Near-term (v0.2-0.3)  
+- ✅ Threshold filtering and relevance scoring with visual highlighting
 - ✅ Language-specific chunking (Python, TypeScript, JavaScript)
-- ✅ Complete code section extraction (--full-section)
-- 🚧 Incremental index updates
+- ✅ Complete code section extraction (`--full-section`)
+- ✅ Enhanced indexing strategy with v3 semantic search optimization
+- ✅ Clean stdout/stderr separation for reliable scripting
+- ✅ Incremental index updates with hash-based change detection
+
+### Near-term (v0.4-0.5)  
 - 🚧 Configuration file support
 - 🚧 Package manager distributions
 
