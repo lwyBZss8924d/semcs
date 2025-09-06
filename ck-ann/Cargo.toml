@@ -10,7 +10,7 @@ keywords = ["search", "ann", "vector"]
 categories = ["algorithms"]
 
 [dependencies]
-ck-core = { path = "../ck-core" }
+ck-core = "0.3.1"
 
 anyhow = { workspace = true }
 serde = { workspace = true }
