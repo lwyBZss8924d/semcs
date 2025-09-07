@@ -468,7 +468,10 @@ pub async fn smart_update_index_with_progress(
 
             let fs_last_modified = match fs_meta
                 .modified()
-                .and_then(|m| m.duration_since(SystemTime::UNIX_EPOCH))
+                .and_then(|m| {
+                    m.duration_since(SystemTime::UNIX_EPOCH)
+                        .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Time error"))
+                })
             {
                 Ok(dur) => dur.as_secs(),
                 Err(_) => {
