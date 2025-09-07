@@ -16,7 +16,7 @@ version = "0.3.2"
 edition = "2024"
 authors = ["Mike Renwick"]
 license = "MIT OR Apache-2.0"
-repository = "http://github.com/BeaconBay/ck"
+repository = "https://github.com/BeaconBay/ck"
 
 [workspace.dependencies]
 anyhow = "1.0"
