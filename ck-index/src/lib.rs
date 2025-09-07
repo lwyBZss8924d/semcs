@@ -739,24 +739,24 @@ mod tests {
         fs::write(test_path.join("file1.txt"), "initial content").unwrap();
         
         // First index
-        let stats1 = smart_update_index(test_path, false).await.unwrap();
+        let stats1 = smart_update_index(test_path, false, true).await.unwrap();
         assert_eq!(stats1.files_added, 1);
         assert_eq!(stats1.files_indexed, 1);
         
         // No changes, should be up to date
-        let stats2 = smart_update_index(test_path, false).await.unwrap();
+        let stats2 = smart_update_index(test_path, false, true).await.unwrap();
         assert_eq!(stats2.files_up_to_date, 1);
         assert_eq!(stats2.files_indexed, 0);
         
         // Modify file
         fs::write(test_path.join("file1.txt"), "modified content").unwrap();
-        let stats3 = smart_update_index(test_path, false).await.unwrap();
+        let stats3 = smart_update_index(test_path, false, true).await.unwrap();
         assert_eq!(stats3.files_modified, 1);
         assert_eq!(stats3.files_indexed, 1);
         
         // Add new file
         fs::write(test_path.join("file2.txt"), "new file content").unwrap();
-        let stats4 = smart_update_index(test_path, false).await.unwrap();
+        let stats4 = smart_update_index(test_path, false, true).await.unwrap();
         assert_eq!(stats4.files_added, 1);
         assert_eq!(stats4.files_up_to_date, 1);
         assert_eq!(stats4.files_indexed, 1);
@@ -786,7 +786,7 @@ mod tests {
         save_manifest(&manifest_path, &manifest).unwrap();
         
         // Cleanup should remove orphaned entry
-        let stats = cleanup_index(test_path).unwrap();
+        let stats = cleanup_index(test_path, true).unwrap();
         assert_eq!(stats.orphaned_entries_removed, 1);
         
         // Check that manifest was updated

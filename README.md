@@ -2,18 +2,30 @@
 
 **ck (seek)** finds code by meaning, not just keywords. It's a drop-in replacement for `grep` that understands what you're looking for — search for "error handling" and find try/catch blocks, error returns, and exception handling code even when those exact words aren't present.
 
-## Quick start
+## Quick Start
+
 ```bash
+# Install from crates.io
 cargo install ck-search
+
+# Or build from source
+git clone https://github.com/BeaconBay/ck
+cd ck
+cargo build --release
 ```
 
-
 ```bash
-# Find error handling patterns (finds try/catch, Result types, etc.)
+# Index your project for semantic search
+ck --index src/
+
+# Search by meaning
 ck --sem "error handling" src/
+ck --sem "authentication logic" src/
+ck --sem "database connection pooling" src/
 
 # Traditional grep-compatible search still works  
 ck -n "TODO" *.rs
+ck -R "TODO|FIXME" .
 
 # Combine both: semantic relevance + keyword filtering
 ck --hybrid "connection timeout" src/
@@ -25,26 +37,9 @@ ck --hybrid "connection timeout" src/
 
 **For AI Agents:** Get structured, semantic search results in JSON format. Perfect for code analysis, documentation generation, and automated refactoring.
 
-**For Teams:** Works exactly like `grep` with the same flags and behavior, but adds semantic intelligence when you need it.
 
-## Quick Start
 
-```bash
-# Build from source
-cargo build --release
 
-# Index your project for semantic search
-./target/debug/ck --index src/
-
-# Search by meaning
-./target/debug/ck --sem "authentication logic" src/
-./target/debug/ck --sem "database connection pooling" src/
-./target/debug/ck --sem "retry mechanisms" src/
-
-# Use all the grep features you know
-./target/debug/ck -n -C 3 "error" src/
-./target/debug/ck -R "TODO|FIXME" .
-```
 
 ## Core Features
 
@@ -95,10 +90,14 @@ ck --json --full-section --sem "database" . | jq -r '.preview'  # Complete funct
 ```
 
 ### 📁 **Smart File Filtering**
-Automatically excludes cache directories, build artifacts, and system files.
+Automatically excludes cache directories, build artifacts, and respects `.gitignore` files.
 
 ```bash
-# These are excluded by default:
+# Respects .gitignore by default (NEW!)
+ck "pattern" .                           # Follows .gitignore rules
+ck --no-ignore "pattern" .               # Search all files including ignored ones
+
+# These are also excluded by default:
 # .git, node_modules, target/, .fastembed_cache, __pycache__
 
 # Override defaults:
@@ -375,21 +374,9 @@ cargo test
 - ✅ Clean stdout/stderr separation for reliable scripting
 - ✅ Incremental index updates with hash-based change detection
 
-### Near-term (v0.4-0.5)  
+### Next (v0.4-0.5)  
 - 🚧 Configuration file support
 - 🚧 Package manager distributions
-
-### Medium-term (v0.4-0.6)
-- 🔮 Multiple embedding model support
-- 🔮 Advanced ranking algorithms
-- 🔮 Plugin architecture for custom chunkers
-- 🔮 Distributed/remote index support
-
-### Long-term (v1.0+)
-- 🔮 IDE integrations (VS Code, IntelliJ, etc.)
-- 🔮 Git integration (semantic diffs, blame)
-- 🔮 Web interface for team usage
-- 🔮 Multi-language semantic understanding
 
 ## FAQ
 
