@@ -30,6 +30,10 @@ pub fn chunk_text(text: &str, language: Option<&str>) -> Result<Vec<Chunk>> {
             tracing::debug!("Using TypeScript/JavaScript tree-sitter parser");
             chunk_typescript(text)
         },
+        Some("haskell") => {
+            tracing::debug!("Using Haskell tree-sitter parser");
+            chunk_haskell(text)
+        },
         _ => {
             tracing::debug!("Using generic chunking strategy");
             chunk_generic(text)
@@ -90,7 +94,7 @@ fn chunk_generic(text: &str) -> Result<Vec<Chunk>> {
 
 fn chunk_python(text: &str) -> Result<Vec<Chunk>> {
     let mut parser = tree_sitter::Parser::new();
-    parser.set_language(tree_sitter_python::language())?;
+    parser.set_language(&tree_sitter_python::language())?;
     
     let tree = parser.parse(text, None).ok_or_else(|| {
         anyhow::anyhow!("Failed to parse Python code")
@@ -110,7 +114,7 @@ fn chunk_python(text: &str) -> Result<Vec<Chunk>> {
 
 fn chunk_typescript(text: &str) -> Result<Vec<Chunk>> {
     let mut parser = tree_sitter::Parser::new();
-    parser.set_language(tree_sitter_typescript::language_typescript())?;
+    parser.set_language(&tree_sitter_typescript::language_typescript())?;
     
     let tree = parser.parse(text, None).ok_or_else(|| {
         anyhow::anyhow!("Failed to parse TypeScript code")
@@ -128,6 +132,26 @@ fn chunk_typescript(text: &str) -> Result<Vec<Chunk>> {
     Ok(chunks)
 }
 
+fn chunk_haskell(text: &str) -> Result<Vec<Chunk>> {
+    let mut parser = tree_sitter::Parser::new();
+    parser.set_language(&tree_sitter_haskell::language())?;
+    
+    let tree = parser.parse(text, None).ok_or_else(|| {
+        anyhow::anyhow!("Failed to parse Haskell code")
+    })?;
+    
+    let mut chunks = Vec::new();
+    let mut cursor = tree.root_node().walk();
+    
+    extract_code_chunks(&mut cursor, text, &mut chunks, "haskell");
+    
+    if chunks.is_empty() {
+        return chunk_generic(text);
+    }
+    
+    Ok(chunks)
+}
+
 fn extract_code_chunks(
     cursor: &mut tree_sitter::TreeCursor,
     source: &str,
@@ -137,11 +161,16 @@ fn extract_code_chunks(
     let node = cursor.node();
     let node_kind = node.kind();
     
+    
     let is_chunk = match language {
         "python" => matches!(node_kind, "function_definition" | "class_definition"),
         "typescript" | "javascript" => matches!(
             node_kind,
             "function_declaration" | "class_declaration" | "method_definition" | "arrow_function"
+        ),
+        "haskell" => matches!(
+            node_kind,
+            "signature" | "data_type" | "newtype" | "type_synomym" | "type_family" | "class" | "instance"
         ),
         _ => false,
     };
@@ -155,9 +184,10 @@ fn extract_code_chunks(
         let text = &source[start_byte..end_byte];
         
         let chunk_type = match node_kind {
-            "function_definition" | "function_declaration" | "arrow_function" => ChunkType::Function,
-            "class_definition" | "class_declaration" => ChunkType::Class,
+            "function_definition" | "function_declaration" | "arrow_function" | "function" | "signature" => ChunkType::Function,
+            "class_definition" | "class_declaration" | "instance_declaration" | "class" | "instance" => ChunkType::Class,
             "method_definition" => ChunkType::Method,
+            "data_type" | "newtype" | "type_synomym" | "type_family" => ChunkType::Module,
             _ => ChunkType::Text,
         };
         

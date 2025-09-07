@@ -177,9 +177,31 @@ ck add new_file.rs
 
 ## File Support
 
-**Supported Languages:** Rust, Python, JavaScript, TypeScript, Go, Java, C/C++, Ruby, PHP, Swift, Kotlin, Scala, and more.
+| Language | Indexing | Tree-sitter Parsing | Semantic Chunking |
+|----------|----------|-------------------|------------------|
+| Python | ✅ | ✅ | ✅ Functions, classes |
+| JavaScript | ✅ | ✅ | ✅ Functions, classes, methods |
+| TypeScript | ✅ | ✅ | ✅ Functions, classes, methods |
+| Haskell | ✅ | ✅ | ✅ Functions, types, instances |
+| Rust | ✅ | ❌ | ❌ Generic text chunks |
+| Go | ✅ | ❌ | ❌ Generic text chunks |
+| Java | ✅ | ❌ | ❌ Generic text chunks |
+| C/C++ | ✅ | ❌ | ❌ Generic text chunks |
+| C# | ✅ | ❌ | ❌ Generic text chunks |
+| Ruby | ✅ | ❌ | ❌ Generic text chunks |
+| PHP | ✅ | ❌ | ❌ Generic text chunks |
+| Swift | ✅ | ❌ | ❌ Generic text chunks |
+| Kotlin | ✅ | ❌ | ❌ Generic text chunks |
+| Scala | ✅ | ❌ | ❌ Generic text chunks |
+| Dart | ✅ | ❌ | ❌ Generic text chunks |
+| Julia | ✅ | ❌ | ❌ Generic text chunks |
+| Groovy | ✅ | ❌ | ❌ Generic text chunks |
+| Clojure | ✅ | ❌ | ❌ Generic text chunks |
+| F# | ✅ | ❌ | ❌ Generic text chunks |
+| Erlang | ✅ | ❌ | ❌ Generic text chunks |
+| Elixir | ✅ | ❌ | ❌ Generic text chunks |
 
-**Text Formats:** Source code, Markdown, JSON, YAML, XML, HTML, CSS, shell scripts, SQL, and plain text.
+**Text Formats:** Markdown, JSON, YAML, TOML, XML, HTML, CSS, shell scripts, SQL, and plain text.
 
 **Smart Exclusions:** Automatically skips `.git`, `node_modules`, `target/`, `build/`, `dist/`, `__pycache__/`, `.fastembed_cache`, `.venv`, `venv`, and other common build/cache/virtual environment directories.
 
@@ -359,7 +381,7 @@ cargo test
 - ✅ FastEmbed integration with BGE models
 - ✅ File exclusion patterns and glob support
 - ✅ Threshold filtering and relevance scoring with visual highlighting
-- ✅ Language-specific chunking (Python, TypeScript, JavaScript)
+- ✅ Tree-sitter parsing and intelligent chunking (Python, TypeScript, JavaScript, Haskell)
 - ✅ Complete code section extraction (`--full-section`)
 - ✅ Enhanced indexing strategy with v3 semantic search optimization
 - ✅ Clean stdout/stderr separation for reliable scripting
