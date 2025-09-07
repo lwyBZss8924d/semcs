@@ -3,7 +3,7 @@ use clap::Parser;
 use ck_core::{SearchOptions, SearchMode};
 use console::style;
 use owo_colors::{OwoColorize, Rgb};
-use regex::{Regex, RegexBuilder};
+use regex::RegexBuilder;
 use std::path::{Path, PathBuf};
 
 mod progress;
@@ -151,7 +151,7 @@ struct Cli {
     #[arg(long = "no-default-excludes", help = "Disable default directory exclusions (like .git, node_modules, etc.)")]
     no_default_excludes: bool,
     
-    #[arg(long = "full-section", help = "Return complete code sections (functions/classes) instead of just matching lines. Uses tree-sitter to identify semantic boundaries. Supported: Python, JavaScript, TypeScript, Haskell")]
+    #[arg(long = "full-section", help = "Return complete code sections (functions/classes) instead of just matching lines. Uses tree-sitter to identify semantic boundaries. Supported: Python, JavaScript, TypeScript, Haskell, Rust, Ruby")]
     full_section: bool,
     
     #[arg(short = 'q', long = "quiet", help = "Suppress status messages and progress indicators")]
@@ -268,6 +268,7 @@ async fn inspect_file_metadata(file_path: &PathBuf, status: &StatusReporter) -> 
             "js" => Some("javascript"),
             "ts" => Some("typescript"),
             "hs" | "lhs" => Some("haskell"),
+            "rb" => Some("ruby"),
             "go" => Some("go"),
             "java" => Some("java"),
             "c" => Some("c"),
