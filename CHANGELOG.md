@@ -2,12 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.3.4] - 2025-09-07
+## [0.3.5] - 2025-09-07
 
 ### Added
 - **Git integration**: Added support for respecting `.gitignore` files during search and indexing operations
 - **Ignore control flag**: Added `--no-ignore` flag to disable gitignore support when needed
 - **Clean implementation**: Uses the `ignore` crate for proper gitignore parsing and directory traversal
+
+### Fixed
+- **UTF-8 boundary panic**: Fixed panic when truncating text containing emojis or multi-byte UTF-8 characters in preview display
 
 ## [0.3.1] - 2025-09-06
 
