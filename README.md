@@ -34,7 +34,7 @@ ck --hybrid "connection timeout" src/
 cargo build --release
 
 # Index your project for semantic search
-./target/debug/ck index src/
+./target/debug/ck --index src/
 
 # Search by meaning
 ./target/debug/ck --sem "authentication logic" src/
@@ -43,7 +43,7 @@ cargo build --release
 
 # Use all the grep features you know
 ./target/debug/ck -n -C 3 "error" src/
-./target/debug/ck -r "TODO|FIXME" .
+./target/debug/ck -R "TODO|FIXME" .
 ```
 
 ## Core Features
@@ -71,7 +71,7 @@ ck -n -A 3 -B 1 "error" src/       # Line numbers + context
 ck --no-filename "TODO" src/        # Suppress filenames (grep -h equivalent)
 ck -l "error" src/                  # List files with matches only (NEW!)
 ck -L "TODO" src/                   # List files without matches (NEW!)
-ck -r --exclude "*.test.js" "bug"  # Recursive with exclusions
+ck -R --exclude "*.test.js" "bug"  # Recursive with exclusions
 ck "pattern" file1.txt file2.txt   # Multiple files
 ```
 
@@ -111,7 +111,7 @@ ck --exclude "dist" --exclude "logs" .   # Add custom exclusions
 ### 1. **Index Once, Search Many**
 ```bash
 # Create semantic index (one-time setup)
-ck index /path/to/project
+ck --index /path/to/project
 
 # Now search instantly by meaning
 ck --sem "database queries" .
@@ -171,14 +171,14 @@ ck --json --topk 10 "error handling" | process_results.py
 ### Directory Management
 ```bash
 # Check index status
-ck status .
+ck --status .
 
 # Clean up and rebuild
-ck clean .
-ck index .
+ck --clean .
+ck --index .
 
 # Add single file to index
-ck add new_file.rs
+ck --add new_file.rs
 ```
 
 ## File Support
@@ -358,7 +358,7 @@ git clone https://github.com/your-org/ck
 cd ck
 cargo build
 cargo test
-./target/debug/ck index test_files/
+./target/debug/ck --index test_files/
 ./target/debug/ck --sem "test query" test_files/
 ```
 
@@ -435,6 +435,6 @@ Inspired by the need for better code search tools in the age of AI-assisted deve
 
 ```bash
 cargo build --release
-./target/release/ck index .
+./target/release/ck --index .
 ./target/release/ck --sem "the code you're looking for"
 ```
