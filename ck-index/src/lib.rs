@@ -1,11 +1,12 @@
 use anyhow::Result;
-use ck_core::{FileMetadata, Span, compute_file_hash, get_sidecar_path, get_default_exclude_patterns};
+use ck_core::{FileMetadata, Span, compute_file_hash, get_sidecar_path};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use walkdir::WalkDir;
+use ignore::WalkBuilder;
 use rayon::prelude::*;
 
 pub type ProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
@@ -47,7 +48,46 @@ impl Default for IndexManifest {
     }
 }
 
-fn should_exclude_path(path: &Path, exclude_patterns: &[String]) -> bool {
+
+pub fn collect_files(path: &Path, respect_gitignore: bool) -> Vec<PathBuf> {
+    let index_dir = path.join(".ck");
+    
+    if respect_gitignore {
+        WalkBuilder::new(path)
+            .git_ignore(true)
+            .git_global(true)
+            .git_exclude(true)
+            .hidden(false)
+            .build()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                let path = entry.path();
+                entry.file_type().map_or(false, |ft| ft.is_file()) 
+                    && is_text_file(path) 
+                    && !path.starts_with(&index_dir)
+            })
+            .map(|entry| entry.path().to_path_buf())
+            .collect()
+    } else {
+        // Fallback to basic walkdir without gitignore support
+        use ck_core::get_default_exclude_patterns;
+        let exclude_patterns = get_default_exclude_patterns();
+        
+        WalkDir::new(path)
+            .into_iter()
+            .filter_entry(|e| {
+                !e.path().starts_with(&index_dir) && 
+                !should_exclude_path_basic(e.path(), &exclude_patterns)
+            })
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file())
+            .filter(|e| is_text_file(e.path()))
+            .map(|e| e.path().to_path_buf())
+            .collect()
+    }
+}
+
+fn should_exclude_path_basic(path: &Path, exclude_patterns: &[String]) -> bool {
     for component in path.components() {
         if let std::path::Component::Normal(name) = component {
             let name_str = name.to_string_lossy();
@@ -61,7 +101,11 @@ fn should_exclude_path(path: &Path, exclude_patterns: &[String]) -> bool {
     false
 }
 
-pub async fn index_directory(path: &Path, compute_embeddings: bool) -> Result<()> {
+fn collect_files_as_hashset(path: &Path, respect_gitignore: bool) -> HashSet<PathBuf> {
+    collect_files(path, respect_gitignore).into_iter().collect()
+}
+
+pub async fn index_directory(path: &Path, compute_embeddings: bool, respect_gitignore: bool) -> Result<()> {
     tracing::info!("index_directory called with compute_embeddings={}", compute_embeddings);
     let index_dir = path.join(".ck");
     fs::create_dir_all(&index_dir)?;
@@ -69,18 +113,7 @@ pub async fn index_directory(path: &Path, compute_embeddings: bool) -> Result<()
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
     
-    let exclude_patterns = get_default_exclude_patterns();
-    let files: Vec<PathBuf> = WalkDir::new(path)
-        .into_iter()
-        .filter_entry(|e| {
-            !e.path().starts_with(&index_dir) && 
-            !should_exclude_path(e.path(), &exclude_patterns)
-        })
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
-        .filter(|e| is_text_file(e.path()))
-        .map(|e| e.path().to_path_buf())
-        .collect();
+    let files = collect_files(path, respect_gitignore);
     
     let entries: Vec<(PathBuf, IndexEntry)> = if compute_embeddings {
         // Sequential processing when computing embeddings (embedder not thread-safe)
@@ -158,27 +191,16 @@ pub async fn index_file(file_path: &Path, compute_embeddings: bool) -> Result<()
     Ok(())
 }
 
-pub async fn update_index(path: &Path, compute_embeddings: bool) -> Result<()> {
+pub async fn update_index(path: &Path, compute_embeddings: bool, respect_gitignore: bool) -> Result<()> {
     let index_dir = path.join(".ck");
     if !index_dir.exists() {
-        return index_directory(path, compute_embeddings).await;
+        return index_directory(path, compute_embeddings, respect_gitignore).await;
     }
     
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
     
-    let exclude_patterns = get_default_exclude_patterns();
-    let files: Vec<PathBuf> = WalkDir::new(path)
-        .into_iter()
-        .filter_entry(|e| {
-            !e.path().starts_with(&index_dir) && 
-            !should_exclude_path(e.path(), &exclude_patterns)
-        })
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
-        .filter(|e| is_text_file(e.path()))
-        .map(|e| e.path().to_path_buf())
-        .collect();
+    let files = collect_files(path, respect_gitignore);
     
     let updates: Vec<(PathBuf, IndexEntry)> = if compute_embeddings {
         // Sequential processing when computing embeddings
@@ -263,7 +285,7 @@ pub fn clean_index(path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn cleanup_index(path: &Path) -> Result<CleanupStats> {
+pub fn cleanup_index(path: &Path, respect_gitignore: bool) -> Result<CleanupStats> {
     let index_dir = path.join(".ck");
     if !index_dir.exists() {
         return Ok(CleanupStats::default());
@@ -273,18 +295,7 @@ pub fn cleanup_index(path: &Path) -> Result<CleanupStats> {
     let mut manifest = load_or_create_manifest(&manifest_path)?;
     
     // Find all current files in the repository
-    let exclude_patterns = get_default_exclude_patterns();
-    let current_files: HashSet<PathBuf> = WalkDir::new(path)
-        .into_iter()
-        .filter_entry(|e| {
-            !e.path().starts_with(&index_dir) && 
-            !should_exclude_path(e.path(), &exclude_patterns)
-        })
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
-        .filter(|e| is_text_file(e.path()))
-        .map(|e| e.path().to_path_buf())
-        .collect();
+    let current_files = collect_files_as_hashset(path, respect_gitignore);
     
     let mut stats = CleanupStats::default();
     
@@ -387,17 +398,17 @@ pub fn get_index_stats(path: &Path) -> Result<IndexStats> {
     Ok(stats)
 }
 
-pub async fn smart_update_index(path: &Path, compute_embeddings: bool) -> Result<UpdateStats> {
-    smart_update_index_with_progress(path, false, None, compute_embeddings).await
+pub async fn smart_update_index(path: &Path, compute_embeddings: bool, respect_gitignore: bool) -> Result<UpdateStats> {
+    smart_update_index_with_progress(path, false, None, compute_embeddings, respect_gitignore).await
 }
 
-pub async fn smart_update_index_with_progress(path: &Path, force_rebuild: bool, progress_callback: Option<ProgressCallback>, compute_embeddings: bool) -> Result<UpdateStats> {
+pub async fn smart_update_index_with_progress(path: &Path, force_rebuild: bool, progress_callback: Option<ProgressCallback>, compute_embeddings: bool, respect_gitignore: bool) -> Result<UpdateStats> {
     let index_dir = path.join(".ck");
     let mut stats = UpdateStats::default();
     
     if force_rebuild {
         clean_index(path)?;
-        index_directory(path, compute_embeddings).await?;
+        index_directory(path, compute_embeddings, respect_gitignore).await?;
         let index_stats = get_index_stats(path)?;
         stats.files_indexed = index_stats.total_files;
         return Ok(stats);
@@ -413,18 +424,7 @@ pub async fn smart_update_index_with_progress(path: &Path, force_rebuild: bool, 
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
     
-    let exclude_patterns = get_default_exclude_patterns();
-    let current_files: Vec<PathBuf> = WalkDir::new(path)
-        .into_iter()
-        .filter_entry(|e| {
-            !e.path().starts_with(&index_dir) && 
-            !should_exclude_path(e.path(), &exclude_patterns)
-        })
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
-        .filter(|e| is_text_file(e.path()))
-        .map(|e| e.path().to_path_buf())
-        .collect();
+    let current_files = collect_files(path, respect_gitignore);
     
     // First pass: determine which files need updating and collect stats
     let mut files_to_update = Vec::new();
