@@ -305,8 +305,9 @@ async fn inspect_file_metadata(file_path: &PathBuf, status: &StatusReporter) -> 
         ));
         
         // Show preview of chunk content (first 100 chars)
-        let preview = if chunk.text.len() > 100 {
-            format!("{}...", &chunk.text[..100])
+        let preview = if chunk.text.chars().count() > 100 {
+            let truncated: String = chunk.text.chars().take(100).collect();
+            format!("{}...", truncated)
         } else {
             chunk.text.clone()
         };
