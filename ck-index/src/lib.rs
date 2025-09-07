@@ -540,6 +540,8 @@ fn index_single_file(file_path: &Path, _repo_root: &Path, embedder: Option<&mut 
         Some("js") => Some("javascript"),
         Some("ts") | Some("tsx") => Some("typescript"),
         Some("hs") | Some("lhs") => Some("haskell"),
+        Some("rs") => Some("rust"),
+        Some("rb") => Some("ruby"),
         _ => None,
     };
     

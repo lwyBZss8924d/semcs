@@ -9,7 +9,7 @@ pub struct Chunk {
     pub chunk_type: ChunkType,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ChunkType {
     Text,
     Function,
@@ -33,6 +33,14 @@ pub fn chunk_text(text: &str, language: Option<&str>) -> Result<Vec<Chunk>> {
         Some("haskell") => {
             tracing::debug!("Using Haskell tree-sitter parser");
             chunk_haskell(text)
+        },
+        Some("rust") => {
+            tracing::debug!("Using Rust tree-sitter parser");
+            chunk_rust(text)
+        },
+        Some("ruby") => {
+            tracing::debug!("Using Ruby tree-sitter parser");
+            chunk_ruby(text)
         },
         _ => {
             tracing::debug!("Using generic chunking strategy");
@@ -152,6 +160,48 @@ fn chunk_haskell(text: &str) -> Result<Vec<Chunk>> {
     Ok(chunks)
 }
 
+fn chunk_rust(text: &str) -> Result<Vec<Chunk>> {
+    let mut parser = tree_sitter::Parser::new();
+    parser.set_language(&tree_sitter_rust::language())?;
+    
+    let tree = parser.parse(text, None).ok_or_else(|| {
+        anyhow::anyhow!("Failed to parse Rust code")
+    })?;
+    
+    let mut chunks = Vec::new();
+    let mut cursor = tree.root_node().walk();
+    
+    extract_code_chunks(&mut cursor, text, &mut chunks, "rust");
+    
+    if chunks.is_empty() {
+        return chunk_generic(text);
+    }
+    
+    Ok(chunks)
+}
+
+
+fn chunk_ruby(text: &str) -> Result<Vec<Chunk>> {
+    let mut parser = tree_sitter::Parser::new();
+    parser.set_language(&tree_sitter_ruby::language())?;
+    
+    let tree = parser.parse(text, None).ok_or_else(|| {
+        anyhow::anyhow!("Failed to parse Ruby code")
+    })?;
+    
+    let mut chunks = Vec::new();
+    let mut cursor = tree.root_node().walk();
+    
+    extract_code_chunks(&mut cursor, text, &mut chunks, "ruby");
+    
+    if chunks.is_empty() {
+        return chunk_generic(text);
+    }
+    
+    Ok(chunks)
+}
+
+
 fn extract_code_chunks(
     cursor: &mut tree_sitter::TreeCursor,
     source: &str,
@@ -172,6 +222,14 @@ fn extract_code_chunks(
             node_kind,
             "signature" | "data_type" | "newtype" | "type_synomym" | "type_family" | "class" | "instance"
         ),
+        "rust" => matches!(
+            node_kind,
+            "function_item" | "impl_item" | "struct_item" | "enum_item" | "trait_item" | "mod_item"
+        ),
+        "ruby" => matches!(
+            node_kind,
+            "method" | "class" | "module" | "singleton_method"
+        ),
         _ => false,
     };
     
@@ -184,10 +242,10 @@ fn extract_code_chunks(
         let text = &source[start_byte..end_byte];
         
         let chunk_type = match node_kind {
-            "function_definition" | "function_declaration" | "arrow_function" | "function" | "signature" => ChunkType::Function,
-            "class_definition" | "class_declaration" | "instance_declaration" | "class" | "instance" => ChunkType::Class,
-            "method_definition" => ChunkType::Method,
-            "data_type" | "newtype" | "type_synomym" | "type_family" => ChunkType::Module,
+            "function_definition" | "function_declaration" | "arrow_function" | "function" | "signature" | "function_item" | "def" | "defp" | "method" | "singleton_method" | "defn" | "defn-" => ChunkType::Function,
+            "class_definition" | "class_declaration" | "instance_declaration" | "class" | "instance" | "struct_item" | "enum_item" | "defstruct" | "defrecord" | "deftype" => ChunkType::Class,
+            "method_definition" | "defmacro" => ChunkType::Method,
+            "data_type" | "newtype" | "type_synomym" | "type_family" | "impl_item" | "trait_item" | "mod_item" | "defmodule" | "module" | "defprotocol" | "ns" => ChunkType::Module,
             _ => ChunkType::Text,
         };
         
@@ -256,5 +314,98 @@ mod tests {
             assert!(chunk.span.line_start > 0);
             assert!(chunk.span.line_end >= chunk.span.line_start);
         }
+    }
+
+    #[test]
+    fn test_chunk_rust() {
+        let rust_code = r#"
+pub struct Calculator {
+    memory: f64,
+}
+
+impl Calculator {
+    pub fn new() -> Self {
+        Calculator { memory: 0.0 }
+    }
+    
+    pub fn add(&mut self, a: f64, b: f64) -> f64 {
+        a + b
+    }
+}
+
+fn main() {
+    let calc = Calculator::new();
+}
+
+pub mod utils {
+    pub fn helper() {}
+}
+"#;
+        
+        let chunks = chunk_rust(rust_code).unwrap();
+        assert!(!chunks.is_empty());
+        
+        // Should find struct, impl, functions, and module
+        let chunk_types: Vec<&ChunkType> = chunks.iter().map(|c| &c.chunk_type).collect();
+        assert!(chunk_types.contains(&&ChunkType::Class));  // struct
+        assert!(chunk_types.contains(&&ChunkType::Module)); // impl and mod
+        assert!(chunk_types.contains(&&ChunkType::Function)); // functions
+    }
+
+    #[test]
+    fn test_chunk_ruby() {
+        let ruby_code = r#"
+class Calculator
+  def initialize
+    @memory = 0.0
+  end
+
+  def add(a, b)
+    a + b
+  end
+
+  def self.class_method
+    "class method"
+  end
+
+  private
+
+  def private_method
+    "private"
+  end
+end
+
+module Utils
+  def self.helper
+    "helper"
+  end
+end
+
+def main
+  calc = Calculator.new
+end
+"#;
+        
+        let chunks = chunk_ruby(ruby_code).unwrap();
+        assert!(!chunks.is_empty());
+        
+        // Should find class, module, and methods
+        let chunk_types: Vec<&ChunkType> = chunks.iter().map(|c| &c.chunk_type).collect();
+        assert!(chunk_types.contains(&&ChunkType::Class));    // class
+        assert!(chunk_types.contains(&&ChunkType::Module));   // module
+        assert!(chunk_types.contains(&&ChunkType::Function)); // methods
+    }
+
+    #[test]
+    fn test_language_detection_fallback() {
+        // Test that unknown languages fall back to generic chunking
+        let generic_text = "Some text\nwith multiple lines\nto chunk generically";
+        
+        let chunks_unknown = chunk_text(generic_text, Some("unknown_language")).unwrap();
+        let chunks_generic = chunk_generic(generic_text).unwrap();
+        
+        // Should produce the same result
+        assert_eq!(chunks_unknown.len(), chunks_generic.len());
+        assert_eq!(chunks_unknown[0].text, chunks_generic[0].text);
     }
 }
