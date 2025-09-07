@@ -2,6 +2,12 @@
 
 **ck (seek)** finds code by meaning, not just keywords. It's a drop-in replacement for `grep` that understands what you're looking for — search for "error handling" and find try/catch blocks, error returns, and exception handling code even when those exact words aren't present.
 
+## Quick start
+```bash
+cargo install ck-search
+```
+
+
 ```bash
 # Find error handling patterns (finds try/catch, Result types, etc.)
 ck --sem "error handling" src/
@@ -201,7 +207,6 @@ cargo install --path ck-cli
 ```bash
 # Coming soon:
 brew install ck-search
-cargo install ck-search  
 apt install ck-search
 ```
 
