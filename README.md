@@ -183,23 +183,6 @@ ck add new_file.rs
 | JavaScript | ✅ | ✅ | ✅ Functions, classes, methods |
 | TypeScript | ✅ | ✅ | ✅ Functions, classes, methods |
 | Haskell | ✅ | ✅ | ✅ Functions, types, instances |
-| Rust | ✅ | ❌ | ❌ Generic text chunks |
-| Go | ✅ | ❌ | ❌ Generic text chunks |
-| Java | ✅ | ❌ | ❌ Generic text chunks |
-| C/C++ | ✅ | ❌ | ❌ Generic text chunks |
-| C# | ✅ | ❌ | ❌ Generic text chunks |
-| Ruby | ✅ | ❌ | ❌ Generic text chunks |
-| PHP | ✅ | ❌ | ❌ Generic text chunks |
-| Swift | ✅ | ❌ | ❌ Generic text chunks |
-| Kotlin | ✅ | ❌ | ❌ Generic text chunks |
-| Scala | ✅ | ❌ | ❌ Generic text chunks |
-| Dart | ✅ | ❌ | ❌ Generic text chunks |
-| Julia | ✅ | ❌ | ❌ Generic text chunks |
-| Groovy | ✅ | ❌ | ❌ Generic text chunks |
-| Clojure | ✅ | ❌ | ❌ Generic text chunks |
-| F# | ✅ | ❌ | ❌ Generic text chunks |
-| Erlang | ✅ | ❌ | ❌ Generic text chunks |
-| Elixir | ✅ | ❌ | ❌ Generic text chunks |
 
 **Text Formats:** Markdown, JSON, YAML, TOML, XML, HTML, CSS, shell scripts, SQL, and plain text.
 
