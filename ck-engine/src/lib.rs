@@ -94,7 +94,13 @@ fn regex_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
     
     // Default to recursive for directories (like grep) to maintain compatibility
     let should_recurse = options.path.is_dir() || options.recursive;
-    let files = collect_files(&options.path, should_recurse, &options.exclude_patterns)?;
+    let files = if should_recurse {
+        // Use ck_index's collect_files which respects gitignore
+        ck_index::collect_files(&options.path, options.respect_gitignore)
+    } else {
+        // For non-recursive, use the local collect_files
+        collect_files(&options.path, should_recurse, &options.exclude_patterns)?
+    };
     
     let results: Vec<Vec<SearchResult>> = files
         .par_iter()
@@ -894,7 +900,7 @@ async fn ensure_index_updated(path: &Path, force_reindex: bool, need_embeddings:
     
     // If force reindex is requested, always update
     if force_reindex {
-        let stats = ck_index::smart_update_index_with_progress(index_root, false, None, need_embeddings).await?;
+        let stats = ck_index::smart_update_index_with_progress(index_root, false, None, need_embeddings, true).await?;
         if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {
             tracing::info!("Index updated: {} files indexed, {} orphaned files removed", 
                           stats.files_indexed, stats.orphaned_files_removed);
@@ -903,7 +909,7 @@ async fn ensure_index_updated(path: &Path, force_reindex: bool, need_embeddings:
     }
     
     // Always use smart_update_index for incremental updates (handles both new and existing indexes)
-    let stats = ck_index::smart_update_index_with_progress(index_root, false, None, need_embeddings).await?;
+    let stats = ck_index::smart_update_index_with_progress(index_root, false, None, need_embeddings, true).await?;
     if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {
         tracing::info!("Index updated: {} files indexed, {} orphaned files removed", 
                       stats.files_indexed, stats.orphaned_files_removed);

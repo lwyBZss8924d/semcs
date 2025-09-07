@@ -108,6 +108,7 @@ pub struct SearchOptions {
     pub files_with_matches: bool,
     pub files_without_matches: bool,
     pub exclude_patterns: Vec<String>,
+    pub respect_gitignore: bool,
     pub full_section: bool,
 }
 
@@ -134,6 +135,7 @@ impl Default for SearchOptions {
             files_with_matches: false,
             files_without_matches: false,
             exclude_patterns: get_default_exclude_patterns(),
+            respect_gitignore: true,
             full_section: false,
         }
     }

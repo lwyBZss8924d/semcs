@@ -151,6 +151,9 @@ struct Cli {
     #[arg(long = "no-default-excludes", help = "Disable default directory exclusions (like .git, node_modules, etc.)")]
     no_default_excludes: bool,
     
+    #[arg(long = "no-ignore", help = "Don't respect .gitignore files")]
+    no_ignore: bool,
+    
     #[arg(long = "full-section", help = "Return complete code sections (functions/classes) instead of just matching lines. Uses tree-sitter to identify semantic boundaries. Supported: Python, JavaScript, TypeScript, Haskell, Rust, Ruby")]
     full_section: bool,
     
@@ -380,7 +383,7 @@ async fn run_main() -> Result<()> {
             None
         };
         
-        let stats = ck_index::smart_update_index_with_progress(&path, false, progress_callback, true).await?;
+        let stats = ck_index::smart_update_index_with_progress(&path, false, progress_callback, true, !cli.no_ignore).await?;
         status.finish_progress(indexing_progress, "Index built successfully");
         
         status.success(&format!("Indexed {} files", stats.files_indexed));
@@ -409,7 +412,7 @@ async fn run_main() -> Result<()> {
             status.info(&format!("Scanning for orphans in {}", clean_path.display()));
             
             let cleanup_spinner = status.create_spinner("Removing orphaned entries...");
-            let cleanup_stats = ck_index::cleanup_index(&clean_path)?;
+            let cleanup_stats = ck_index::cleanup_index(&clean_path, !cli.no_ignore)?;
             status.finish_progress(cleanup_spinner, "Cleanup complete");
             
             if cleanup_stats.orphaned_entries_removed > 0 || cleanup_stats.orphaned_sidecars_removed > 0 {
@@ -621,6 +624,7 @@ fn build_options(cli: &Cli, reindex: bool) -> SearchOptions {
         files_with_matches: cli.files_with_matches,
         files_without_matches: cli.files_without_matches,
         exclude_patterns,
+        respect_gitignore: !cli.no_ignore,
         full_section: cli.full_section,
     }
 }
@@ -816,7 +820,7 @@ async fn run_search(pattern: String, path: PathBuf, mut options: SearchOptions, 
     
     if options.reindex {
         let reindex_spinner = status.create_spinner("Updating index...");
-        ck_index::update_index(&options.path, true).await?;
+        ck_index::update_index(&options.path, true, options.respect_gitignore).await?;
         status.finish_progress(reindex_spinner, "Index updated");
     }
     
