@@ -185,22 +185,11 @@ ck add new_file.rs
 
 ## Installation
 
-### Quick Install Script
+### From Source
 ```bash
-# Automated installation with PATH setup
-./install.sh
-```
-
-### Manual Installation
-```bash
-git clone https://github.com/your-org/ck
+git clone https://github.com/BeaconBay/ck
 cd ck
-cargo build --release
-
-# Choose one:
-sudo cp target/release/ck /usr/local/bin/    # System-wide
-cp target/release/ck ~/.local/bin/           # User-local
-cp target/release/ck /opt/homebrew/bin/      # Homebrew (macOS)
+cargo install --path ck-cli
 ```
 
 ### Package Managers (Planned)

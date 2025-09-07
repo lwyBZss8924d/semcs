@@ -13,10 +13,10 @@ members = [
 
 [workspace.package]
 version = "0.3.2"
-edition = "2021"
-authors = ["ck contributors"]
+edition = "2024"
+authors = ["Mike Renwick"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/yourusername/ck"
+repository = "https://github.com/BeaconBay/ck"
 
 [workspace.dependencies]
 anyhow = "1.0"

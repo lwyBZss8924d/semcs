@@ -103,11 +103,18 @@ pub async fn semantic_search_v3_with_progress(options: &SearchOptions, progress_
             }
         }
 
-        // Check if we're filtering by a specific file
+        // Check if we're filtering by a specific file or directory
         if options.path.is_file() {
             let target_file = options.path.canonicalize().unwrap_or_else(|_| options.path.clone());
             let result_file = file_path.canonicalize().unwrap_or_else(|_| file_path.clone());
             if result_file != target_file {
+                continue;
+            }
+        } else if options.path != Path::new(".") {
+            // Filter by directory path - only include files within the specified directory
+            let target_dir = options.path.canonicalize().unwrap_or_else(|_| options.path.clone());
+            let result_file = file_path.canonicalize().unwrap_or_else(|_| file_path.clone());
+            if !result_file.starts_with(&target_dir) {
                 continue;
             }
         }
