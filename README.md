@@ -34,7 +34,7 @@ ck --hybrid "connection timeout" src/
 cargo build --release
 
 # Index your project for semantic search
-./target/debug/ck index src/
+./target/debug/ck --index src/
 
 # Search by meaning
 ./target/debug/ck --sem "authentication logic" src/
@@ -111,7 +111,7 @@ ck --exclude "dist" --exclude "logs" .   # Add custom exclusions
 ### 1. **Index Once, Search Many**
 ```bash
 # Create semantic index (one-time setup)
-ck index /path/to/project
+ck --index /path/to/project
 
 # Now search instantly by meaning
 ck --sem "database queries" .
@@ -171,14 +171,14 @@ ck --json --topk 10 "error handling" | process_results.py
 ### Directory Management
 ```bash
 # Check index status
-ck status .
+ck --status .
 
 # Clean up and rebuild
-ck clean .
-ck index .
+ck --clean .
+ck --index .
 
 # Add single file to index
-ck add new_file.rs
+ck --add new_file.rs
 ```
 
 ## File Support
