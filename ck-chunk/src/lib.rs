@@ -50,13 +50,22 @@ fn chunk_generic(text: &str) -> Result<Vec<Chunk>> {
     let chunk_size = 20;
     let overlap = 5;
     
+    // Pre-compute cumulative byte offsets for O(1) lookup
+    let mut line_byte_offsets = Vec::with_capacity(lines.len() + 1);
+    line_byte_offsets.push(0);
+    let mut cumulative_offset = 0;
+    for line in &lines {
+        cumulative_offset += line.len() + 1; // +1 for newline
+        line_byte_offsets.push(cumulative_offset);
+    }
+    
     let mut i = 0;
     while i < lines.len() {
         let end = (i + chunk_size).min(lines.len());
         let chunk_lines = &lines[i..end];
         let chunk_text = chunk_lines.join("\n");
         
-        let byte_start = lines[0..i].iter().map(|l| l.len() + 1).sum::<usize>();
+        let byte_start = line_byte_offsets[i];
         let byte_end = byte_start + chunk_text.len();
         
         chunks.push(Chunk {
@@ -172,5 +181,50 @@ fn extract_code_chunks(
             }
         }
         cursor.goto_parent();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_chunk_generic_byte_offsets() {
+        // Test that byte offsets are calculated correctly using O(n) algorithm
+        let text = "line 1\nline 2\nline 3\nline 4\nline 5";
+        let chunks = chunk_generic(text).unwrap();
+        
+        assert!(!chunks.is_empty());
+        
+        // First chunk should start at byte 0
+        assert_eq!(chunks[0].span.byte_start, 0);
+        
+        // Each chunk's byte_end should match the actual text length
+        for chunk in &chunks {
+            let expected_len = chunk.text.len();
+            let actual_len = chunk.span.byte_end - chunk.span.byte_start;
+            assert_eq!(actual_len, expected_len);
+        }
+    }
+
+    #[test]
+    fn test_chunk_generic_large_file_performance() {
+        // Create a large text to ensure O(n) performance
+        let lines: Vec<String> = (0..1000).map(|i| format!("Line {}: Some content here", i)).collect();
+        let text = lines.join("\n");
+        
+        let start = std::time::Instant::now();
+        let chunks = chunk_generic(&text).unwrap();
+        let duration = start.elapsed();
+        
+        // Should complete quickly even for 1000 lines
+        assert!(duration.as_millis() < 100, "Chunking took too long: {:?}", duration);
+        assert!(!chunks.is_empty());
+        
+        // Verify chunks have correct line numbers
+        for chunk in &chunks {
+            assert!(chunk.span.line_start > 0);
+            assert!(chunk.span.line_end >= chunk.span.line_start);
+        }
     }
 }

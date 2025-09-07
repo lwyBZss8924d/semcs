@@ -144,10 +144,14 @@ fn search_file(regex: &Regex, file_path: &Path, options: &SearchOptions) -> Resu
         None
     };
     
+    // Track byte offset as we iterate through lines
+    let mut byte_offset = 0;
+    
     for (line_idx, line) in lines.iter().enumerate() {
         let line_number = line_idx + 1;
         
-        if regex.is_match(line) {
+        // Find all matches in the line with their positions
+        for mat in regex.find_iter(line) {
             let preview = if options.full_section {
                 // Try to find the containing code section
                 if let Some(ref sections) = code_sections {
@@ -167,8 +171,8 @@ fn search_file(regex: &Regex, file_path: &Path, options: &SearchOptions) -> Resu
             results.push(SearchResult {
                 file: file_path.to_path_buf(),
                 span: Span {
-                    byte_start: 0,
-                    byte_end: line.len(),
+                    byte_start: byte_offset + mat.start(),
+                    byte_end: byte_offset + mat.end(),
                     line_start: line_number,
                     line_end: line_number,
                 },
@@ -177,6 +181,12 @@ fn search_file(regex: &Regex, file_path: &Path, options: &SearchOptions) -> Resu
                 lang: detect_language(file_path),
                 symbol: None,
             });
+        }
+        
+        // Update byte offset for next line (add line length + newline character)
+        byte_offset += line.len();
+        if line_idx < lines.len() - 1 {
+            byte_offset += 1; // Add 1 for the newline character
         }
     }
     
@@ -1110,6 +1120,45 @@ mod tests {
 
         let results = regex_search(&options).unwrap();
         assert!(results.len() <= 5);
+    }
+
+    #[test]
+    fn test_regex_search_span_offsets() {
+        // Test that span offsets are correctly calculated for multiple matches on a line
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("spans.txt");
+        fs::write(&test_file, "test test test\nline two test\ntest end").unwrap();
+
+        let options = SearchOptions {
+            mode: SearchMode::Regex,
+            query: "test".to_string(),
+            path: test_file.clone(),
+            recursive: false,
+            ..Default::default()
+        };
+
+        let results = regex_search(&options).unwrap();
+        
+        // Should find 5 matches total
+        assert_eq!(results.len(), 5);
+        
+        // Check first line has 3 matches with correct byte offsets
+        let line1_matches: Vec<_> = results.iter().filter(|r| r.span.line_start == 1).collect();
+        assert_eq!(line1_matches.len(), 3);
+        assert_eq!(line1_matches[0].span.byte_start, 0);
+        assert_eq!(line1_matches[1].span.byte_start, 5);
+        assert_eq!(line1_matches[2].span.byte_start, 10);
+        
+        // Check second line match
+        let line2_matches: Vec<_> = results.iter().filter(|r| r.span.line_start == 2).collect();
+        assert_eq!(line2_matches.len(), 1);
+        assert_eq!(line2_matches[0].span.byte_start, 24); // "test test test\n" = 15 bytes, "line two " = 9 bytes
+        
+        // Each match should have different byte offsets
+        let mut byte_starts: Vec<_> = results.iter().map(|r| r.span.byte_start).collect();
+        byte_starts.sort();
+        byte_starts.dedup();
+        assert_eq!(byte_starts.len(), 5); // All byte_starts should be unique
     }
 
     #[test] 

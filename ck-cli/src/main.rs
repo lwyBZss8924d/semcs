@@ -3,7 +3,7 @@ use clap::Parser;
 use ck_core::{SearchOptions, SearchMode};
 use console::style;
 use owo_colors::{OwoColorize, Rgb};
-use regex::Regex;
+use regex::{Regex, RegexBuilder};
 use std::path::{Path, PathBuf};
 
 mod progress;
@@ -537,19 +537,21 @@ fn highlight_matches(text: &str, pattern: &str, options: &SearchOptions) -> Stri
 }
 
 fn highlight_regex_matches(text: &str, pattern: &str, options: &SearchOptions) -> String {
-    // Build regex from pattern with same flags as main search
-    let regex_flags = if options.case_insensitive { "(?i)" } else { "" };
+    // Build regex from pattern with EXACT same logic as regex_search in ck-engine
     let regex_pattern = if options.fixed_string {
-        // For fixed strings, escape regex special characters
-        format!("{}{}", regex_flags, regex::escape(pattern))
+        regex::escape(pattern)
     } else if options.whole_word {
-        // For word regexp, wrap in word boundaries
-        format!(r"{}\b{}\b", regex_flags, pattern)
+        // Must escape the pattern for whole_word, matching the search engine behavior
+        format!(r"\b{}\b", regex::escape(pattern))
     } else {
-        format!("{}{}", regex_flags, pattern)
+        pattern.to_string()
     };
     
-    match Regex::new(&regex_pattern) {
+    let regex_result = RegexBuilder::new(&regex_pattern)
+        .case_insensitive(options.case_insensitive)
+        .build();
+    
+    match regex_result {
         Ok(re) => {
             // Replace matches with highlighted versions
             re.replace_all(text, |caps: &regex::Captures| {
