@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.3.2"
+version = "0.3.3"
 edition = "2024"
 authors = ["Mike Renwick"]
 license = "MIT OR Apache-2.0"
@@ -34,9 +34,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rayon = "1.8"
 walkdir = "2.4"
 tantivy = "0.24"
-tree-sitter = "0.20"
-tree-sitter-python = "0.20"
-tree-sitter-typescript = "0.20"
+tree-sitter = "0.22"
+tree-sitter-python = "0.21"
+tree-sitter-typescript = "0.21"
+tree-sitter-haskell = "0.21"
 fastembed = "5.1"
 tempfile = "3.8"
 glob = "0.3"

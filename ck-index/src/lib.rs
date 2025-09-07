@@ -539,6 +539,7 @@ fn index_single_file(file_path: &Path, _repo_root: &Path, embedder: Option<&mut 
         Some("py") => Some("python"),
         Some("js") => Some("javascript"),
         Some("ts") | Some("tsx") => Some("typescript"),
+        Some("hs") | Some("lhs") => Some("haskell"),
         _ => None,
     };
     
@@ -649,7 +650,7 @@ fn is_text_file(path: &Path) -> bool {
                 "rs" | "py" | "js" | "ts" | "jsx" | "tsx" | "go" | "java" | "c" | "cpp" | "h" | 
                 "hpp" | "cs" | "rb" | "php" | "swift" | "kt" | "scala" | "r" | "m" | "mm" |
                 "txt" | "md" | "json" | "yaml" | "yml" | "toml" | "xml" | "html" | "css" |
-                "sh" | "bash" | "zsh" | "fish" | "ps1" | "sql" | "vim" | "lua" | "el"
+                "sh" | "bash" | "zsh" | "fish" | "ps1" | "sql" | "vim" | "lua" | "el" | "hs" | "lhs"
             )
         }
         None => false,
@@ -841,6 +842,8 @@ mod tests {
     fn test_is_text_file() {
         assert!(is_text_file(&PathBuf::from("test.rs")));
         assert!(is_text_file(&PathBuf::from("test.py")));
+        assert!(is_text_file(&PathBuf::from("test.hs")));
+        assert!(is_text_file(&PathBuf::from("test.lhs")));
         assert!(is_text_file(&PathBuf::from("test.txt")));
         assert!(is_text_file(&PathBuf::from("test.md")));
         assert!(!is_text_file(&PathBuf::from("test.exe")));

@@ -864,6 +864,7 @@ fn detect_language(path: &Path) -> Option<String> {
             "py" => "python",
             "js" => "javascript",
             "ts" => "typescript",
+            "hs" | "lhs" => "haskell",
             "go" => "go",
             "java" => "java",
             "c" => "c",
@@ -930,6 +931,7 @@ fn extract_code_sections(file_path: &Path, content: &str) -> Option<Vec<(usize, 
         Some("py") => Some("python"),
         Some("js") => Some("javascript"),
         Some("ts") | Some("tsx") => Some("typescript"),
+        Some("hs") | Some("lhs") => Some("haskell"),
         _ => return None,
     };
     
@@ -999,6 +1001,8 @@ mod tests {
         assert_eq!(detect_language(&PathBuf::from("test.rs")), Some("rust".to_string()));
         assert_eq!(detect_language(&PathBuf::from("test.py")), Some("python".to_string()));
         assert_eq!(detect_language(&PathBuf::from("test.js")), Some("javascript".to_string()));
+        assert_eq!(detect_language(&PathBuf::from("test.hs")), Some("haskell".to_string()));
+        assert_eq!(detect_language(&PathBuf::from("test.lhs")), Some("haskell".to_string()));
         assert_eq!(detect_language(&PathBuf::from("test.unknown")), Some("unknown".to_string()));
         assert_eq!(detect_language(&PathBuf::from("noext")), None);
     }

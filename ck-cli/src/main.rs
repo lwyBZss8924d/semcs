@@ -151,7 +151,7 @@ struct Cli {
     #[arg(long = "no-default-excludes", help = "Disable default directory exclusions (like .git, node_modules, etc.)")]
     no_default_excludes: bool,
     
-    #[arg(long = "full-section", help = "Return complete code sections (functions/classes) instead of just matching lines. Uses tree-sitter to identify semantic boundaries. Supported: Python, JavaScript, TypeScript")]
+    #[arg(long = "full-section", help = "Return complete code sections (functions/classes) instead of just matching lines. Uses tree-sitter to identify semantic boundaries. Supported: Python, JavaScript, TypeScript, Haskell")]
     full_section: bool,
     
     #[arg(short = 'q', long = "quiet", help = "Suppress status messages and progress indicators")]
@@ -175,6 +175,9 @@ struct Cli {
     
     #[arg(long = "status-verbose", help = "Show detailed index statistics")]
     status_verbose: bool,
+    
+    #[arg(long = "inspect", help = "Show detailed metadata for a specific file (chunks, embeddings, tree-sitter parsing info)")]
+    inspect: bool,
 }
 
 
@@ -238,6 +241,92 @@ fn should_exclude_path(path: &Path, exclude_patterns: &[String]) -> bool {
         }
     }
     false
+}
+
+async fn inspect_file_metadata(file_path: &PathBuf, status: &StatusReporter) -> Result<()> {
+    use std::fs;
+    use std::path::Path;
+    
+    let path = Path::new(file_path);
+    
+    // Basic file info
+    status.info(&format!("📁 File: {}", path.display()));
+    
+    if !path.exists() {
+        status.error("File does not exist");
+        return Ok(());
+    }
+    
+    let metadata = fs::metadata(path)?;
+    status.info(&format!("📏 Size: {} bytes", metadata.len()));
+    
+    // Detect language
+    let detected_lang = if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        match ext {
+            "rs" => Some("rust"),
+            "py" => Some("python"),
+            "js" => Some("javascript"),
+            "ts" => Some("typescript"),
+            "hs" | "lhs" => Some("haskell"),
+            "go" => Some("go"),
+            "java" => Some("java"),
+            "c" => Some("c"),
+            "cpp" | "cc" | "cxx" => Some("cpp"),
+            _ => Some(ext),
+        }
+    } else {
+        None
+    };
+    
+    status.info(&format!("🔍 Language: {}", 
+        detected_lang.unwrap_or("unknown")));
+    
+    // Read file content
+    let content = fs::read_to_string(path)?;
+    status.info(&format!("📄 Lines: {}", content.lines().count()));
+    
+    // Try chunking with detected language
+    status.info("🧩 Chunking Analysis:");
+    let chunks = ck_chunk::chunk_text(&content, detected_lang)?;
+    status.info(&format!("  • Total chunks: {}", chunks.len()));
+    
+    for (i, chunk) in chunks.iter().take(15).enumerate() {
+        status.info(&format!("  • Chunk {}: {:?} ({}:{}-{}:{})", 
+            i + 1, 
+            chunk.chunk_type,
+            chunk.span.line_start,
+            chunk.span.line_end,
+            chunk.span.byte_start,
+            chunk.span.byte_end
+        ));
+        
+        // Show preview of chunk content (first 100 chars)
+        let preview = if chunk.text.len() > 100 {
+            format!("{}...", &chunk.text[..100])
+        } else {
+            chunk.text.clone()
+        };
+        status.info(&format!("    Preview: {}", preview.replace('\n', "\\n")));
+    }
+    
+    if chunks.len() > 15 {
+        status.info(&format!("    ... and {} more chunks", chunks.len() - 15));
+    }
+    
+    // Check if file is indexed
+    let parent_dir = path.parent().unwrap_or(Path::new("."));
+    if let Ok(stats) = ck_index::get_index_stats(parent_dir) {
+        if stats.total_files > 0 {
+            status.info("📚 Index Status: File's directory is indexed");
+            status.info(&format!("  • Total indexed files: {}", stats.total_files));
+            status.info(&format!("  • Total chunks in index: {}", stats.total_chunks));
+        } else {
+            status.warn("📚 Index Status: File's directory is not indexed");
+            status.info("  Run 'ck --index .' to create an index for semantic search");
+        }
+    }
+    
+    Ok(())
 }
 
 #[tokio::main]
@@ -406,6 +495,25 @@ async fn run_main() -> Result<()> {
                 }
             }
         }
+        return Ok(());
+    }
+    
+    if cli.inspect {
+        // Handle --inspect flag
+        // For inspect, the file path could be in pattern or files
+        let file_path = if let Some(pattern) = &cli.pattern {
+            PathBuf::from(pattern)
+        } else if !cli.files.is_empty() {
+            cli.files[0].clone()
+        } else {
+            eprintln!("Error: --inspect requires a file path");
+            std::process::exit(1);
+        };
+        
+        status.section_header("File Inspection");
+        
+        // Inspect the file metadata
+        inspect_file_metadata(&file_path, &status).await?;
         return Ok(());
     }
     
