@@ -171,14 +171,14 @@ ck --json --topk 10 "error handling" | process_results.py
 ### Directory Management
 ```bash
 # Check index status
-ck status .
+ck --status .
 
 # Clean up and rebuild
-ck clean .
-ck index .
+ck --clean .
+ck --index .
 
 # Add single file to index
-ck add new_file.rs
+ck --add new_file.rs
 ```
 
 ## File Support
