@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 description = "Core types and utilities for ck semantic search tool"
-repository = "https://github.com/yourusername/ck"
+repository = "https://github.com/BeaconBay/ck"
 keywords = ["search", "semantic", "core"]
 categories = ["data-structures"]
 

@@ -5,12 +5,12 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 description = "Text embedding providers for ck semantic search"
-repository = "https://github.com/yourusername/ck"
+repository = "https://github.com/BeaconBay/ck"
 keywords = ["embedding", "nlp", "semantic"]
 categories = ["science"]
 
 [dependencies]
-ck-core = { path = "../ck-core" }
+ck-core = { version = "0.3.2", path = "../ck-core" }
 
 anyhow = { workspace = true }
 serde = { workspace = true }

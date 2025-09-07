@@ -5,8 +5,8 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 description = "Semantic grep by embedding - find code by meaning, not just keywords"
-repository = "https://github.com/yourusername/ck"
-homepage = "https://github.com/yourusername/ck"
+repository = "https://github.com/BeaconBay/ck"
+homepage = "https://github.com/BeaconBay/ck"
 readme = "../README.md"
 keywords = ["grep", "search", "semantic", "code", "cli"]
 categories = ["command-line-utilities", "development-tools"]
@@ -16,13 +16,13 @@ name = "ck"
 path = "src/main.rs"
 
 [dependencies]
-ck-core = { path = "../ck-core" }
-ck-index = { path = "../ck-index" }
-ck-engine = { path = "../ck-engine" }
-ck-chunk = { path = "../ck-chunk" }
-ck-embed = { path = "../ck-embed" }
-ck-ann = { path = "../ck-ann" }
-ck-models = { path = "../ck-models" }
+ck-core = { version = "0.3.2", path = "../ck-core" }
+ck-index = { version = "0.3.2", path = "../ck-index" }
+ck-engine = { version = "0.3.2", path = "../ck-engine" }
+ck-chunk = { version = "0.3.2", path = "../ck-chunk" }
+ck-embed = { version = "0.3.2", path = "../ck-embed" }
+ck-ann = { version = "0.3.2", path = "../ck-ann" }
+ck-models = { version = "0.3.2", path = "../ck-models" }
 
 anyhow = { workspace = true }
 clap = { workspace = true }

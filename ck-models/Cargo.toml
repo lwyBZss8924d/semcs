@@ -5,12 +5,12 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 description = "Model registry and configuration for ck semantic search"
-repository = "https://github.com/yourusername/ck"
+repository = "https://github.com/BeaconBay/ck"
 keywords = ["models", "config", "registry"]
 categories = ["config"]
 
 [dependencies]
-ck-core = { path = "../ck-core" }
+ck-core = { version = "0.3.2", path = "../ck-core" }
 
 anyhow = { workspace = true }
 serde = { workspace = true }
