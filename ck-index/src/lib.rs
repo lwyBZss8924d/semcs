@@ -125,13 +125,13 @@ pub async fn index_directory(
         // Sequential processing with streaming - write each file immediately
         tracing::info!("Creating embedder for {} files", files.len());
         let mut embedder = ck_embed::create_embedder(None)?;
-        let mut processed_count = 0;
+        let mut _processed_count = 0;
 
         for file_path in files.iter() {
             match index_single_file(file_path, path, Some(&mut embedder)) {
                 Ok(entry) => {
                     // Write sidecar immediately
-                    let sidecar_path = get_sidecar_path(path, &file_path);
+                    let sidecar_path = get_sidecar_path(path, file_path);
                     save_index_entry(&sidecar_path, &entry)?;
 
                     // Update and save manifest immediately
@@ -141,7 +141,7 @@ pub async fn index_directory(
                         .unwrap()
                         .as_secs();
                     save_manifest(&manifest_path, &manifest)?;
-                    processed_count += 1;
+                    _processed_count += 1;
                 }
                 Err(e) => {
                     tracing::warn!("Failed to index {:?}: {}", file_path, e);
@@ -164,7 +164,6 @@ pub async fn index_directory(
                     Ok(entry) => {
                         if tx.send((file_path.clone(), entry)).is_err() {
                             // Receiver dropped, stop processing
-                            return;
                         }
                     }
                     Err(e) => {
@@ -555,19 +554,19 @@ pub async fn smart_update_index_with_progress(
     if compute_embeddings {
         // Sequential processing with streaming - write each file immediately
         let mut embedder = ck_embed::create_embedder(None)?;
-        let mut processed_count = 0;
+        let mut _processed_count = 0;
 
         for file_path in files_to_update.iter() {
-            if let Some(ref callback) = progress_callback {
-                if let Some(file_name) = file_path.file_name() {
-                    callback(&file_name.to_string_lossy());
-                }
+            if let Some(ref callback) = progress_callback
+                && let Some(file_name) = file_path.file_name()
+            {
+                callback(&file_name.to_string_lossy());
             }
 
             match index_single_file(file_path, path, Some(&mut embedder)) {
                 Ok(entry) => {
                     // Write sidecar immediately
-                    let sidecar_path = get_sidecar_path(path, &file_path);
+                    let sidecar_path = get_sidecar_path(path, file_path);
                     save_index_entry(&sidecar_path, &entry)?;
 
                     // Update and save manifest immediately
@@ -577,7 +576,7 @@ pub async fn smart_update_index_with_progress(
                         .unwrap()
                         .as_secs();
                     save_manifest(&manifest_path, &manifest)?;
-                    processed_count += 1;
+                    _processed_count += 1;
                 }
                 Err(e) => {
                     tracing::warn!("Failed to index {:?}: {}", file_path, e);
@@ -586,7 +585,7 @@ pub async fn smart_update_index_with_progress(
             }
         }
 
-        stats.files_indexed = processed_count;
+        stats.files_indexed = _processed_count;
     } else {
         // Parallel processing with streaming using producer-consumer pattern
         use std::sync::mpsc;
@@ -603,7 +602,6 @@ pub async fn smart_update_index_with_progress(
                     Ok(entry) => {
                         if tx.send((file_path.clone(), entry)).is_err() {
                             // Receiver dropped, stop processing
-                            return;
                         }
                     }
                     Err(e) => {
@@ -614,12 +612,12 @@ pub async fn smart_update_index_with_progress(
         });
 
         // Main thread: stream results as they arrive
-        let mut processed_count = 0;
+        let mut _processed_count = 0;
         while let Ok((file_path, entry)) = rx.recv() {
-            if let Some(ref callback) = progress_callback {
-                if let Some(file_name) = file_path.file_name() {
-                    callback(&file_name.to_string_lossy());
-                }
+            if let Some(ref callback) = progress_callback
+                && let Some(file_name) = file_path.file_name()
+            {
+                callback(&file_name.to_string_lossy());
             }
 
             // Write sidecar immediately
@@ -636,7 +634,7 @@ pub async fn smart_update_index_with_progress(
             processed_count += 1;
         }
 
-        stats.files_indexed = processed_count;
+        stats.files_indexed = _processed_count;
 
         // Wait for worker to complete
         worker_handle
