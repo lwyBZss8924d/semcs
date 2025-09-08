@@ -67,6 +67,8 @@ jobs:
       run: cargo hack check --each-feature --locked --rust-version --ignore-private --workspace --all-targets --keep-going
   minimal-versions:
     name: Minimal versions
+    # Temporarily disabled due to issue building sharded-slab in CI
+    if: false
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
