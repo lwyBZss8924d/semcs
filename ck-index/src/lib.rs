@@ -61,7 +61,7 @@ pub fn collect_files(path: &Path, respect_gitignore: bool) -> Vec<PathBuf> {
             .filter_map(|entry| entry.ok())
             .filter(|entry| {
                 let path = entry.path();
-                entry.file_type().map_or(false, |ft| ft.is_file())
+                entry.file_type().is_some_and(|ft| ft.is_file())
                     && is_text_file(path)
                     && !path.starts_with(&index_dir)
             })
@@ -373,13 +373,12 @@ pub fn cleanup_index(path: &Path, respect_gitignore: bool) -> Result<CleanupStat
                 let path = entry.path();
                 if path.extension().and_then(|s| s.to_str()) == Some("ck") {
                     // Try to reconstruct the original file path
-                    if let Some(original_path) = sidecar_to_original_path(path, &index_dir, path) {
-                        if !current_files.contains(&original_path)
-                            && !manifest.files.contains_key(&original_path)
-                        {
-                            fs::remove_file(path)?;
-                            stats.orphaned_sidecars_removed += 1;
-                        }
+                    if let Some(original_path) = sidecar_to_original_path(path, &index_dir, path)
+                        && !current_files.contains(&original_path)
+                        && !manifest.files.contains_key(&original_path)
+                    {
+                        fs::remove_file(path)?;
+                        stats.orphaned_sidecars_removed += 1;
                     }
                 }
             }
@@ -420,19 +419,19 @@ pub fn get_index_stats(path: &Path) -> Result<IndexStats> {
     // Calculate total chunks and size
     for file_path in manifest.files.keys() {
         let sidecar_path = get_sidecar_path(path, file_path);
-        if sidecar_path.exists() {
-            if let Ok(entry) = load_index_entry(&sidecar_path) {
-                stats.total_chunks += entry.chunks.len();
-                stats.total_size_bytes += entry.metadata.size;
+        if sidecar_path.exists()
+            && let Ok(entry) = load_index_entry(&sidecar_path)
+        {
+            stats.total_chunks += entry.chunks.len();
+            stats.total_size_bytes += entry.metadata.size;
 
-                // Count embedded chunks
-                let embedded = entry
-                    .chunks
-                    .iter()
-                    .filter(|c| c.embedding.is_some())
-                    .count();
-                stats.embedded_chunks += embedded;
-            }
+            // Count embedded chunks
+            let embedded = entry
+                .chunks
+                .iter()
+                .filter(|c| c.embedding.is_some())
+                .count();
+            stats.embedded_chunks += embedded;
         }
     }
 
@@ -442,10 +441,10 @@ pub fn get_index_stats(path: &Path) -> Result<IndexStats> {
         .collect::<Result<Vec<_>, _>>()
     {
         for entry in entries {
-            if entry.file_type().is_file() {
-                if let Ok(metadata) = entry.metadata() {
-                    stats.index_size_bytes += metadata.len();
-                }
+            if entry.file_type().is_file()
+                && let Ok(metadata) = entry.metadata()
+            {
+                stats.index_size_bytes += metadata.len();
             }
         }
     }
@@ -505,13 +504,10 @@ pub async fn smart_update_index_with_progress(
                 }
             };
 
-            let fs_last_modified = match fs_meta
-                .modified()
-                .and_then(|m| {
-                    m.duration_since(SystemTime::UNIX_EPOCH)
-                        .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Time error"))
-                })
-            {
+            let fs_last_modified = match fs_meta.modified().and_then(|m| {
+                m.duration_since(SystemTime::UNIX_EPOCH)
+                    .map_err(|_| std::io::Error::other("Time error"))
+            }) {
                 Ok(dur) => dur.as_secs(),
                 Err(_) => {
                     stats.files_errored += 1;
@@ -677,15 +673,7 @@ fn index_single_file(
     };
 
     // Detect language for tree-sitter parsing
-    let lang = match file_path.extension().and_then(|s| s.to_str()) {
-        Some("py") => Some("python"),
-        Some("js") => Some("javascript"),
-        Some("ts") | Some("tsx") => Some("typescript"),
-        Some("hs") | Some("lhs") => Some("haskell"),
-        Some("rs") => Some("rust"),
-        Some("rb") => Some("ruby"),
-        _ => None,
-    };
+    let lang = ck_core::Language::from_path(file_path);
 
     let chunks = ck_chunk::chunk_text(&content, lang)?;
 
@@ -701,7 +689,7 @@ fn index_single_file(
 
         chunks
             .into_iter()
-            .zip(embeddings.into_iter())
+            .zip(embeddings)
             .map(|(chunk, embedding)| {
                 let chunk_type_str = match chunk.chunk_type {
                     ck_chunk::ChunkType::Function => Some("function".to_string()),

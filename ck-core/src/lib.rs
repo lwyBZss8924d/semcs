@@ -1,35 +1,104 @@
-use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum CkError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     #[error("Regex error: {0}")]
     Regex(#[from] regex::Error),
-    
+
     #[error("Serialization error: {0}")]
     Serialization(#[from] bincode::Error),
-    
+
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
-    
+
     #[error("Index error: {0}")]
     Index(String),
-    
+
     #[error("Search error: {0}")]
     Search(String),
-    
+
     #[error("Embedding error: {0}")]
     Embedding(String),
-    
+
     #[error("Other error: {0}")]
     Other(String),
 }
 
 pub type Result<T> = std::result::Result<T, CkError>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Language {
+    Rust,
+    Python,
+    JavaScript,
+    TypeScript,
+    Haskell,
+    Go,
+    Java,
+    C,
+    Cpp,
+    CSharp,
+    Ruby,
+    Php,
+    Swift,
+    Kotlin,
+}
+
+impl Language {
+    pub fn from_extension(ext: &str) -> Option<Self> {
+        match ext {
+            "rs" => Some(Language::Rust),
+            "py" => Some(Language::Python),
+            "js" => Some(Language::JavaScript),
+            "ts" | "tsx" => Some(Language::TypeScript),
+            "hs" | "lhs" => Some(Language::Haskell),
+            "go" => Some(Language::Go),
+            "java" => Some(Language::Java),
+            "c" => Some(Language::C),
+            "cpp" | "cc" | "cxx" | "c++" => Some(Language::Cpp),
+            "h" | "hpp" => Some(Language::Cpp), // Assume C++ for headers
+            "cs" => Some(Language::CSharp),
+            "rb" => Some(Language::Ruby),
+            "php" => Some(Language::Php),
+            "swift" => Some(Language::Swift),
+            "kt" | "kts" => Some(Language::Kotlin),
+            _ => None,
+        }
+    }
+
+    pub fn from_path(path: &Path) -> Option<Self> {
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .and_then(Self::from_extension)
+    }
+}
+
+impl std::fmt::Display for Language {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            Language::Rust => "rust",
+            Language::Python => "python",
+            Language::JavaScript => "javascript",
+            Language::TypeScript => "typescript",
+            Language::Haskell => "haskell",
+            Language::Go => "go",
+            Language::Java => "java",
+            Language::C => "c",
+            Language::Cpp => "cpp",
+            Language::CSharp => "csharp",
+            Language::Ruby => "ruby",
+            Language::Php => "php",
+            Language::Swift => "swift",
+            Language::Kotlin => "kotlin",
+        };
+        write!(f, "{}", name)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Span {
@@ -54,7 +123,7 @@ pub struct SearchResult {
     pub score: f32,
     pub preview: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub lang: Option<String>,
+    pub lang: Option<Language>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub symbol: Option<String>,
 }
@@ -63,7 +132,7 @@ pub struct SearchResult {
 pub struct JsonSearchResult {
     pub file: String,
     pub span: Span,
-    pub lang: Option<String>,
+    pub lang: Option<Language>,
     pub symbol: Option<String>,
     pub score: f32,
     pub signals: SearchSignals,
@@ -147,39 +216,33 @@ pub fn get_default_exclude_patterns() -> Vec<String> {
     vec![
         // ck's own index directory
         ".ck".to_string(),
-        
         // AI/ML model cache directories
         ".fastembed_cache".to_string(),
         ".cache".to_string(),
         "__pycache__".to_string(),
-        
         // Version control
         ".git".to_string(),
         ".svn".to_string(),
         ".hg".to_string(),
-        
         // Build directories
-        "target".to_string(),        // Rust
-        "build".to_string(),         // Various
-        "dist".to_string(),          // JavaScript/Python
-        "node_modules".to_string(),  // JavaScript
-        ".gradle".to_string(),       // Java
-        ".mvn".to_string(),          // Maven
-        "bin".to_string(),           // Various
-        "obj".to_string(),           // .NET
-        
+        "target".to_string(),       // Rust
+        "build".to_string(),        // Various
+        "dist".to_string(),         // JavaScript/Python
+        "node_modules".to_string(), // JavaScript
+        ".gradle".to_string(),      // Java
+        ".mvn".to_string(),         // Maven
+        "bin".to_string(),          // Various
+        "obj".to_string(),          // .NET
         // Python virtual environments
         "venv".to_string(),
         ".venv".to_string(),
         "env".to_string(),
         ".env".to_string(),
         "virtualenv".to_string(),
-        
         // IDE/Editor directories
         ".vscode".to_string(),
         ".idea".to_string(),
         ".eclipse".to_string(),
-        
         // Temporary directories
         "tmp".to_string(),
         "temp".to_string(),
@@ -219,7 +282,7 @@ mod tests {
             line_start: 1,
             line_end: 2,
         };
-        
+
         assert_eq!(span.byte_start, 0);
         assert_eq!(span.byte_end, 10);
         assert_eq!(span.line_start, 1);
@@ -276,7 +339,7 @@ mod tests {
             },
             score: 0.95,
             preview: "hello world".to_string(),
-            lang: Some("rust".to_string()),
+            lang: Some(Language::Rust),
             symbol: Some("main".to_string()),
         };
 
@@ -294,10 +357,10 @@ mod tests {
     fn test_get_sidecar_path() {
         let repo_root = PathBuf::from("/home/user/project");
         let file_path = PathBuf::from("/home/user/project/src/main.rs");
-        
+
         let sidecar = get_sidecar_path(&repo_root, &file_path);
         let expected = PathBuf::from("/home/user/project/.ck/src/main.rs.ck");
-        
+
         assert_eq!(sidecar, expected);
     }
 
@@ -305,10 +368,10 @@ mod tests {
     fn test_get_sidecar_path_no_extension() {
         let repo_root = PathBuf::from("/project");
         let file_path = PathBuf::from("/project/README");
-        
+
         let sidecar = get_sidecar_path(&repo_root, &file_path);
         let expected = PathBuf::from("/project/.ck/README.ck");
-        
+
         assert_eq!(sidecar, expected);
     }
 
@@ -316,16 +379,16 @@ mod tests {
     fn test_compute_file_hash() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        
+
         fs::write(&file_path, "hello world").unwrap();
-        
+
         let hash1 = compute_file_hash(&file_path).unwrap();
         let hash2 = compute_file_hash(&file_path).unwrap();
-        
+
         // Same content should produce same hash
         assert_eq!(hash1, hash2);
         assert!(!hash1.is_empty());
-        
+
         // Different content should produce different hash
         fs::write(&file_path, "hello rust").unwrap();
         let hash3 = compute_file_hash(&file_path).unwrap();
@@ -354,7 +417,7 @@ mod tests {
                 line_start: 1,
                 line_end: 1,
             },
-            lang: Some("txt".to_string()),
+            lang: None, // txt is not a supported language
             symbol: None,
             score: 0.95,
             signals,
@@ -369,5 +432,67 @@ mod tests {
         assert_eq!(result.score, deserialized.score);
         assert_eq!(result.signals.rrf_score, deserialized.signals.rrf_score);
         assert_eq!(result.model, deserialized.model);
+    }
+
+    #[test]
+    fn test_language_from_extension() {
+        assert_eq!(Language::from_extension("rs"), Some(Language::Rust));
+        assert_eq!(Language::from_extension("py"), Some(Language::Python));
+        assert_eq!(Language::from_extension("js"), Some(Language::JavaScript));
+        assert_eq!(Language::from_extension("ts"), Some(Language::TypeScript));
+        assert_eq!(Language::from_extension("tsx"), Some(Language::TypeScript));
+        assert_eq!(Language::from_extension("hs"), Some(Language::Haskell));
+        assert_eq!(Language::from_extension("lhs"), Some(Language::Haskell));
+        assert_eq!(Language::from_extension("go"), Some(Language::Go));
+        assert_eq!(Language::from_extension("java"), Some(Language::Java));
+        assert_eq!(Language::from_extension("c"), Some(Language::C));
+        assert_eq!(Language::from_extension("cpp"), Some(Language::Cpp));
+        assert_eq!(Language::from_extension("cs"), Some(Language::CSharp));
+        assert_eq!(Language::from_extension("rb"), Some(Language::Ruby));
+        assert_eq!(Language::from_extension("php"), Some(Language::Php));
+        assert_eq!(Language::from_extension("swift"), Some(Language::Swift));
+        assert_eq!(Language::from_extension("kt"), Some(Language::Kotlin));
+        assert_eq!(Language::from_extension("kts"), Some(Language::Kotlin));
+        assert_eq!(Language::from_extension("unknown"), None);
+    }
+
+    #[test]
+    fn test_language_from_path() {
+        assert_eq!(
+            Language::from_path(&PathBuf::from("test.rs")),
+            Some(Language::Rust)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("test.py")),
+            Some(Language::Python)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("test.js")),
+            Some(Language::JavaScript)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("test.hs")),
+            Some(Language::Haskell)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("test.lhs")),
+            Some(Language::Haskell)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("test.go")),
+            Some(Language::Go)
+        );
+        assert_eq!(Language::from_path(&PathBuf::from("test.unknown")), None); // unknown extensions return None
+        assert_eq!(Language::from_path(&PathBuf::from("noext")), None); // no extension
+    }
+
+    #[test]
+    fn test_language_display() {
+        assert_eq!(Language::Rust.to_string(), "rust");
+        assert_eq!(Language::Python.to_string(), "python");
+        assert_eq!(Language::JavaScript.to_string(), "javascript");
+        assert_eq!(Language::TypeScript.to_string(), "typescript");
+        assert_eq!(Language::Go.to_string(), "go");
+        assert_eq!(Language::Java.to_string(), "java");
     }
 }
