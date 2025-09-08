@@ -121,48 +121,88 @@ pub async fn index_directory(
 
     let files = collect_files(path, respect_gitignore);
 
-    let entries: Vec<(PathBuf, IndexEntry)> = if compute_embeddings {
-        // Sequential processing when computing embeddings (embedder not thread-safe)
+    if compute_embeddings {
+        // Sequential processing with streaming - write each file immediately
         tracing::info!("Creating embedder for {} files", files.len());
         let mut embedder = ck_embed::create_embedder(None)?;
-        files
-            .iter()
-            .filter_map(
-                |file_path| match index_single_file(file_path, path, Some(&mut embedder)) {
-                    Ok(entry) => Some((file_path.clone(), entry)),
-                    Err(e) => {
-                        tracing::warn!("Failed to index {:?}: {}", file_path, e);
-                        None
-                    }
-                },
-            )
-            .collect()
-    } else {
-        // Parallel processing when not computing embeddings
-        files
-            .par_iter()
-            .filter_map(|file_path| match index_single_file(file_path, path, None) {
-                Ok(entry) => Some((file_path.clone(), entry)),
+        let mut _processed_count = 0;
+
+        for file_path in files.iter() {
+            match index_single_file(file_path, path, Some(&mut embedder)) {
+                Ok(entry) => {
+                    // Write sidecar immediately
+                    let sidecar_path = get_sidecar_path(path, file_path);
+                    save_index_entry(&sidecar_path, &entry)?;
+
+                    // Update and save manifest immediately
+                    manifest.files.insert(file_path.clone(), entry.metadata);
+                    manifest.updated = SystemTime::now()
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs();
+                    save_manifest(&manifest_path, &manifest)?;
+                    _processed_count += 1;
+                }
                 Err(e) => {
                     tracing::warn!("Failed to index {:?}: {}", file_path, e);
-                    None
                 }
-            })
-            .collect()
-    };
+            }
+        }
+    } else {
+        // Parallel processing with streaming using producer-consumer pattern
+        use std::sync::mpsc;
+        use std::thread;
 
-    for (file_path, entry) in entries {
-        let sidecar_path = get_sidecar_path(path, &file_path);
-        save_index_entry(&sidecar_path, &entry)?;
-        manifest.files.insert(file_path, entry.metadata);
+        let (tx, rx) = mpsc::channel();
+        let files_clone = files.clone();
+        let path_clone = path.to_path_buf();
+
+        // Spawn worker thread for parallel processing
+        let worker_handle = thread::spawn(move || {
+            files_clone.par_iter().for_each(|file_path| {
+                match index_single_file(file_path, &path_clone, None) {
+                    Ok(entry) => {
+                        if tx.send((file_path.clone(), entry)).is_err() {
+                            // Receiver dropped, stop processing
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to index {:?}: {}", file_path, e);
+                    }
+                }
+            });
+        });
+
+        // Main thread: stream results as they arrive
+        while let Ok((file_path, entry)) = rx.recv() {
+            // Write sidecar immediately
+            let sidecar_path = get_sidecar_path(path, &file_path);
+            save_index_entry(&sidecar_path, &entry)?;
+
+            // Update and save manifest immediately
+            manifest.files.insert(file_path, entry.metadata);
+            manifest.updated = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            save_manifest(&manifest_path, &manifest)?;
+        }
+
+        // Wait for worker to complete
+        worker_handle
+            .join()
+            .map_err(|_| anyhow::anyhow!("Worker thread panicked"))?;
     }
 
-    manifest.updated = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-
-    save_manifest(&manifest_path, &manifest)?;
+    // Manifest is already updated after each file in streaming mode
+    // Only save manifest if using parallel processing (non-embedding case)
+    if !compute_embeddings {
+        manifest.updated = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        save_manifest(&manifest_path, &manifest)?;
+    }
 
     Ok(())
 }
@@ -511,56 +551,102 @@ pub async fn smart_update_index_with_progress(
     }
 
     // Second pass: index the files that need updating
-    let updates: Vec<(PathBuf, IndexEntry)> = if compute_embeddings {
-        // Sequential processing when computing embeddings
+    if compute_embeddings {
+        // Sequential processing with streaming - write each file immediately
         let mut embedder = ck_embed::create_embedder(None)?;
-        files_to_update
-            .iter()
-            .filter_map(|file_path| {
-                if let Some(ref callback) = progress_callback
-                    && let Some(file_name) = file_path.file_name()
-                {
-                    callback(&file_name.to_string_lossy());
+        let mut _processed_count = 0;
+
+        for file_path in files_to_update.iter() {
+            if let Some(ref callback) = progress_callback
+                && let Some(file_name) = file_path.file_name()
+            {
+                callback(&file_name.to_string_lossy());
+            }
+
+            match index_single_file(file_path, path, Some(&mut embedder)) {
+                Ok(entry) => {
+                    // Write sidecar immediately
+                    let sidecar_path = get_sidecar_path(path, file_path);
+                    save_index_entry(&sidecar_path, &entry)?;
+
+                    // Update and save manifest immediately
+                    manifest.files.insert(file_path.clone(), entry.metadata);
+                    manifest.updated = SystemTime::now()
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs();
+                    save_manifest(&manifest_path, &manifest)?;
+                    _processed_count += 1;
                 }
-                match index_single_file(file_path, path, Some(&mut embedder)) {
-                    Ok(entry) => Some((file_path.clone(), entry)),
-                    Err(e) => {
-                        tracing::warn!("Failed to index {:?}: {}", file_path, e);
-                        None
-                    }
+                Err(e) => {
+                    tracing::warn!("Failed to index {:?}: {}", file_path, e);
+                    stats.files_errored += 1;
                 }
-            })
-            .collect()
+            }
+        }
+
+        stats.files_indexed = _processed_count;
     } else {
-        // Parallel processing when not computing embeddings
-        files_to_update
-            .par_iter()
-            .filter_map(|file_path| {
-                if let Some(ref callback) = progress_callback
-                    && let Some(file_name) = file_path.file_name()
-                {
-                    callback(&file_name.to_string_lossy());
-                }
-                match index_single_file(file_path, path, None) {
-                    Ok(entry) => Some((file_path.clone(), entry)),
+        // Parallel processing with streaming using producer-consumer pattern
+        use std::sync::mpsc;
+        use std::thread;
+
+        let (tx, rx) = mpsc::channel();
+        let files_clone = files_to_update.clone();
+        let path_clone = path.to_path_buf();
+
+        // Spawn worker thread for parallel processing
+        let worker_handle = thread::spawn(move || {
+            files_clone.par_iter().for_each(|file_path| {
+                match index_single_file(file_path, &path_clone, None) {
+                    Ok(entry) => {
+                        if tx.send((file_path.clone(), entry)).is_err() {
+                            // Receiver dropped, stop processing
+                        }
+                    }
                     Err(e) => {
                         tracing::warn!("Failed to index {:?}: {}", file_path, e);
-                        None
                     }
                 }
-            })
-            .collect()
-    };
+            });
+        });
 
-    stats.files_indexed = updates.len();
+        // Main thread: stream results as they arrive
+        let mut _processed_count = 0;
+        while let Ok((file_path, entry)) = rx.recv() {
+            if let Some(ref callback) = progress_callback
+                && let Some(file_name) = file_path.file_name()
+            {
+                callback(&file_name.to_string_lossy());
+            }
 
-    for (file_path, entry) in updates {
-        let sidecar_path = get_sidecar_path(path, &file_path);
-        save_index_entry(&sidecar_path, &entry)?;
-        manifest.files.insert(file_path, entry.metadata);
+            // Write sidecar immediately
+            let sidecar_path = get_sidecar_path(path, &file_path);
+            save_index_entry(&sidecar_path, &entry)?;
+
+            // Update and save manifest immediately
+            manifest.files.insert(file_path, entry.metadata);
+            manifest.updated = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            save_manifest(&manifest_path, &manifest)?;
+            _processed_count += 1;
+        }
+
+        stats.files_indexed = _processed_count;
+
+        // Wait for worker to complete
+        worker_handle
+            .join()
+            .map_err(|_| anyhow::anyhow!("Worker thread panicked"))?;
     }
 
-    if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 || manifest_changed {
+    // For sequential processing (embeddings), manifest is already saved after each file
+    // Only save manifest for parallel processing or if there were metadata-only changes
+    if !compute_embeddings
+        && (stats.files_indexed > 0 || stats.orphaned_files_removed > 0 || manifest_changed)
+    {
         manifest.updated = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
