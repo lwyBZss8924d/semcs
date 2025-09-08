@@ -1,6 +1,6 @@
 use anyhow::Result;
 use ck_core::{FileMetadata, Span, compute_file_hash, get_sidecar_path};
-use ignore::WalkBuilder;
+use ignore::{WalkBuilder, overrides::OverrideBuilder};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -10,6 +10,26 @@ use std::time::SystemTime;
 use walkdir::WalkDir;
 
 pub type ProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
+
+/// Build override patterns for excluding files during directory traversal
+fn build_overrides(
+    base_path: &Path,
+    exclude_patterns: &[String],
+) -> Result<ignore::overrides::Override> {
+    let mut builder = OverrideBuilder::new(base_path);
+
+    for pattern in exclude_patterns {
+        // Convert to exclude pattern (add ! prefix if not present)
+        let exclude_pattern = if pattern.starts_with('!') {
+            pattern.clone()
+        } else {
+            format!("!{}", pattern)
+        };
+        builder.add(&exclude_pattern)?;
+    }
+
+    Ok(builder.build()?)
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexEntry {
@@ -48,15 +68,21 @@ impl Default for IndexManifest {
     }
 }
 
-pub fn collect_files(path: &Path, respect_gitignore: bool) -> Vec<PathBuf> {
+pub fn collect_files(
+    path: &Path,
+    respect_gitignore: bool,
+    exclude_patterns: &[String],
+) -> Result<Vec<PathBuf>> {
     let index_dir = path.join(".ck");
+    let overrides = build_overrides(path, exclude_patterns)?;
 
     if respect_gitignore {
-        WalkBuilder::new(path)
+        Ok(WalkBuilder::new(path)
             .git_ignore(true)
             .git_global(true)
             .git_exclude(true)
             .hidden(false)
+            .overrides(overrides)
             .build()
             .filter_map(|entry| entry.ok())
             .filter(|entry| {
@@ -66,48 +92,49 @@ pub fn collect_files(path: &Path, respect_gitignore: bool) -> Vec<PathBuf> {
                     && !path.starts_with(&index_dir)
             })
             .map(|entry| entry.path().to_path_buf())
-            .collect()
+            .collect())
     } else {
-        // Fallback to basic walkdir without gitignore support
+        // Use WalkBuilder without gitignore support, but still apply overrides
         use ck_core::get_default_exclude_patterns;
-        let exclude_patterns = get_default_exclude_patterns();
+        let default_patterns = get_default_exclude_patterns();
 
-        WalkDir::new(path)
-            .into_iter()
-            .filter_entry(|e| {
-                !e.path().starts_with(&index_dir)
-                    && !should_exclude_path_basic(e.path(), &exclude_patterns)
+        // Combine default patterns with user exclude patterns
+        let mut all_patterns = default_patterns;
+        all_patterns.extend(exclude_patterns.iter().cloned());
+        let combined_overrides = build_overrides(path, &all_patterns)?;
+
+        Ok(WalkBuilder::new(path)
+            .git_ignore(false)
+            .hidden(false)
+            .overrides(combined_overrides)
+            .build()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                let path = entry.path();
+                entry.file_type().is_some_and(|ft| ft.is_file())
+                    && is_text_file(path)
+                    && !path.starts_with(&index_dir)
             })
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_file())
-            .filter(|e| is_text_file(e.path()))
-            .map(|e| e.path().to_path_buf())
-            .collect()
+            .map(|entry| entry.path().to_path_buf())
+            .collect())
     }
 }
 
-fn should_exclude_path_basic(path: &Path, exclude_patterns: &[String]) -> bool {
-    for component in path.components() {
-        if let std::path::Component::Normal(name) = component {
-            let name_str = name.to_string_lossy();
-            for pattern in exclude_patterns {
-                if name_str == pattern.as_str() {
-                    return true;
-                }
-            }
-        }
-    }
-    false
-}
-
-fn collect_files_as_hashset(path: &Path, respect_gitignore: bool) -> HashSet<PathBuf> {
-    collect_files(path, respect_gitignore).into_iter().collect()
+fn collect_files_as_hashset(
+    path: &Path,
+    respect_gitignore: bool,
+    exclude_patterns: &[String],
+) -> Result<HashSet<PathBuf>> {
+    Ok(collect_files(path, respect_gitignore, exclude_patterns)?
+        .into_iter()
+        .collect())
 }
 
 pub async fn index_directory(
     path: &Path,
     compute_embeddings: bool,
     respect_gitignore: bool,
+    exclude_patterns: &[String],
 ) -> Result<()> {
     tracing::info!(
         "index_directory called with compute_embeddings={}",
@@ -119,7 +146,7 @@ pub async fn index_directory(
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
 
-    let files = collect_files(path, respect_gitignore);
+    let files = collect_files(path, respect_gitignore, exclude_patterns)?;
 
     let entries: Vec<(PathBuf, IndexEntry)> = if compute_embeddings {
         // Sequential processing when computing embeddings (embedder not thread-safe)
@@ -201,16 +228,23 @@ pub async fn update_index(
     path: &Path,
     compute_embeddings: bool,
     respect_gitignore: bool,
+    exclude_patterns: &[String],
 ) -> Result<()> {
     let index_dir = path.join(".ck");
     if !index_dir.exists() {
-        return index_directory(path, compute_embeddings, respect_gitignore).await;
+        return index_directory(
+            path,
+            compute_embeddings,
+            respect_gitignore,
+            exclude_patterns,
+        )
+        .await;
     }
 
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
 
-    let files = collect_files(path, respect_gitignore);
+    let files = collect_files(path, respect_gitignore, exclude_patterns)?;
 
     let updates: Vec<(PathBuf, IndexEntry)> = if compute_embeddings {
         // Sequential processing when computing embeddings
@@ -291,7 +325,11 @@ pub fn clean_index(path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn cleanup_index(path: &Path, respect_gitignore: bool) -> Result<CleanupStats> {
+pub fn cleanup_index(
+    path: &Path,
+    respect_gitignore: bool,
+    exclude_patterns: &[String],
+) -> Result<CleanupStats> {
     let index_dir = path.join(".ck");
     if !index_dir.exists() {
         return Ok(CleanupStats::default());
@@ -301,7 +339,7 @@ pub fn cleanup_index(path: &Path, respect_gitignore: bool) -> Result<CleanupStat
     let mut manifest = load_or_create_manifest(&manifest_path)?;
 
     // Find all current files in the repository
-    let current_files = collect_files_as_hashset(path, respect_gitignore);
+    let current_files = collect_files_as_hashset(path, respect_gitignore, exclude_patterns)?;
 
     let mut stats = CleanupStats::default();
 
@@ -417,8 +455,17 @@ pub async fn smart_update_index(
     path: &Path,
     compute_embeddings: bool,
     respect_gitignore: bool,
+    exclude_patterns: &[String],
 ) -> Result<UpdateStats> {
-    smart_update_index_with_progress(path, false, None, compute_embeddings, respect_gitignore).await
+    smart_update_index_with_progress(
+        path,
+        false,
+        None,
+        compute_embeddings,
+        respect_gitignore,
+        exclude_patterns,
+    )
+    .await
 }
 
 pub async fn smart_update_index_with_progress(
@@ -427,13 +474,20 @@ pub async fn smart_update_index_with_progress(
     progress_callback: Option<ProgressCallback>,
     compute_embeddings: bool,
     respect_gitignore: bool,
+    exclude_patterns: &[String],
 ) -> Result<UpdateStats> {
     let index_dir = path.join(".ck");
     let mut stats = UpdateStats::default();
 
     if force_rebuild {
         clean_index(path)?;
-        index_directory(path, compute_embeddings, respect_gitignore).await?;
+        index_directory(
+            path,
+            compute_embeddings,
+            respect_gitignore,
+            exclude_patterns,
+        )
+        .await?;
         let index_stats = get_index_stats(path)?;
         stats.files_indexed = index_stats.total_files;
         return Ok(stats);
@@ -449,7 +503,7 @@ pub async fn smart_update_index_with_progress(
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
 
-    let current_files = collect_files(path, respect_gitignore);
+    let current_files = collect_files(path, respect_gitignore, exclude_patterns)?;
 
     // First pass: determine which files need updating and collect stats
     let mut files_to_update = Vec::new();
@@ -849,24 +903,32 @@ mod tests {
         fs::write(test_path.join("file1.txt"), "initial content").unwrap();
 
         // First index
-        let stats1 = smart_update_index(test_path, false, true).await.unwrap();
+        let stats1 = smart_update_index(test_path, false, true, &[])
+            .await
+            .unwrap();
         assert_eq!(stats1.files_added, 1);
         assert_eq!(stats1.files_indexed, 1);
 
         // No changes, should be up to date
-        let stats2 = smart_update_index(test_path, false, true).await.unwrap();
+        let stats2 = smart_update_index(test_path, false, true, &[])
+            .await
+            .unwrap();
         assert_eq!(stats2.files_up_to_date, 1);
         assert_eq!(stats2.files_indexed, 0);
 
         // Modify file
         fs::write(test_path.join("file1.txt"), "modified content").unwrap();
-        let stats3 = smart_update_index(test_path, false, true).await.unwrap();
+        let stats3 = smart_update_index(test_path, false, true, &[])
+            .await
+            .unwrap();
         assert_eq!(stats3.files_modified, 1);
         assert_eq!(stats3.files_indexed, 1);
 
         // Add new file
         fs::write(test_path.join("file2.txt"), "new file content").unwrap();
-        let stats4 = smart_update_index(test_path, false, true).await.unwrap();
+        let stats4 = smart_update_index(test_path, false, true, &[])
+            .await
+            .unwrap();
         assert_eq!(stats4.files_added, 1);
         assert_eq!(stats4.files_up_to_date, 1);
         assert_eq!(stats4.files_indexed, 1);
@@ -896,7 +958,7 @@ mod tests {
         save_manifest(&manifest_path, &manifest).unwrap();
 
         // Cleanup should remove orphaned entry
-        let stats = cleanup_index(test_path, true).unwrap();
+        let stats = cleanup_index(test_path, true, &[]).unwrap();
         assert_eq!(stats.orphaned_entries_removed, 1);
 
         // Check that manifest was updated

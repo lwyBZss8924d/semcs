@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.6] - 2025-09-08
+
+### Fixed
+- **Exclude patterns functionality**: Fixed critical bug where `--exclude` patterns were completely ignored during indexing operations
+- **Directory exclusion**: `--exclude "node_modules"` and similar patterns now work correctly to exclude directories and files
+- **Pattern matching**: Added support for gitignore-style glob patterns using ripgrep's `OverrideBuilder` for consistent, performant exclusion
+- **Multiple exclusions**: Fixed support for multiple `--exclude` flags (e.g., `--exclude "node_modules" --exclude "*.log"`)
+
+### Technical
+- **ripgrep alignment**: Leveraged the `ignore` crate's `OverrideBuilder` for exclude pattern matching, aligning with ripgrep's proven approach
+- **Streaming integration**: Exclude patterns now work correctly with the new streaming indexing architecture
+- **API consistency**: Updated all indexing functions (`index_directory`, `smart_update_index`, etc.) to support exclude patterns
+
 ## [0.3.5] - 2025-09-07
 
 ### Added

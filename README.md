@@ -103,6 +103,10 @@ ck --no-ignore "pattern" .               # Search all files including ignored on
 # Override defaults:
 ck --no-default-excludes "pattern" .     # Search everything
 ck --exclude "dist" --exclude "logs" .   # Add custom exclusions
+
+# Works with indexing too (NEW in v0.3.6!):
+ck --index --exclude "node_modules" .    # Exclude from index
+ck --index --exclude "*.test.js" .       # Support glob patterns
 ```
 
 ## How It Works
@@ -368,7 +372,7 @@ cargo test
 - ✅ FastEmbed integration with BGE models
 - ✅ File exclusion patterns and glob support
 - ✅ Threshold filtering and relevance scoring with visual highlighting
-- ✅ Tree-sitter parsing and intelligent chunking (Python, TypeScript, JavaScript, Haskell)
+- ✅ Tree-sitter parsing and intelligent chunking (Python, TypeScript, JavaScript, Go, Haskell, Rust, Ruby)
 - ✅ Complete code section extraction (`--full-section`)
 - ✅ Enhanced indexing strategy with v3 semantic search optimization
 - ✅ Clean stdout/stderr separation for reliable scripting
