@@ -20,8 +20,8 @@ pub use semantic_v3::{semantic_search_v3, semantic_search_v3_with_progress};
 pub type SearchProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 
 /// Extract content from a file using a span
-fn extract_content_from_span(file_path: &Path, span: &ck_core::Span) -> Result<String> {
-    let content = fs::read_to_string(file_path)?;
+async fn extract_content_from_span(file_path: &Path, span: &ck_core::Span) -> Result<String> {
+    let content = tokio::fs::read_to_string(file_path).await?;
     let lines: Vec<&str> = content.lines().collect();
 
     if span.line_start == 0 || span.line_start > lines.len() {

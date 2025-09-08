@@ -143,9 +143,9 @@ pub async fn semantic_search_v3_with_progress(
 
         // Extract content from the file using the span
         let content = if options.full_section {
-            extract_content_from_span(file_path, &chunk.span)?
+            extract_content_from_span(file_path, &chunk.span).await?
         } else {
-            let full_content = extract_content_from_span(file_path, &chunk.span)?;
+            let full_content = extract_content_from_span(file_path, &chunk.span).await?;
             // Take first 3 lines for preview
             full_content.lines().take(3).collect::<Vec<_>>().join("\n")
         };
