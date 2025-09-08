@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.7] - 2025-09-08
+
+### Improved
+- **Smart binary detection**: Replaced restrictive extension-based file detection with ripgrep-style content analysis using NUL byte detection
+- **Broader text file support**: Now automatically indexes log files (`.log`), config files (`.env`, `.conf`), and any other text format regardless of extension
+- **Improved accuracy**: Files without extensions containing text content are now correctly detected and indexed
+- **Binary file exclusion**: Files containing NUL bytes (executables, images, etc.) are correctly identified as binary and excluded from indexing
+- **Performance**: Fast detection using only the first 8KB of file content, similar to ripgrep's approach
+
+### Technical
+- **Content-based detection**: `is_text_file()` function now reads file content instead of checking against a hardcoded extension allowlist
+- **Test coverage**: Added comprehensive tests for binary detection with various file types and edge cases
+
 ## [0.3.6] - 2025-09-08
 
 ### Fixed

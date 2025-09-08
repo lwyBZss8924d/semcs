@@ -5,6 +5,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use walkdir::WalkDir;
@@ -757,66 +758,26 @@ fn find_repo_root(path: &Path) -> Result<PathBuf> {
 }
 
 fn is_text_file(path: &Path) -> bool {
-    match path.extension() {
-        Some(ext) => {
-            let ext = ext.to_string_lossy().to_lowercase();
-            matches!(
-                ext.as_str(),
-                "rs" | "py"
-                    | "js"
-                    | "ts"
-                    | "jsx"
-                    | "tsx"
-                    | "go"
-                    | "java"
-                    | "c"
-                    | "cpp"
-                    | "cc"
-                    | "cxx"
-                    | "h"
-                    | "hpp"
-                    | "cs"
-                    | "rb"
-                    | "php"
-                    | "swift"
-                    | "kt"
-                    | "scala"
-                    | "r"
-                    | "m"
-                    | "mm"
-                    | "dart"
-                    | "jl"
-                    | "groovy"
-                    | "clj"
-                    | "cljs"
-                    | "fs"
-                    | "fsx"
-                    | "erl"
-                    | "ex"
-                    | "exs"
-                    | "txt"
-                    | "md"
-                    | "json"
-                    | "yaml"
-                    | "yml"
-                    | "toml"
-                    | "xml"
-                    | "html"
-                    | "css"
-                    | "sh"
-                    | "bash"
-                    | "zsh"
-                    | "fish"
-                    | "ps1"
-                    | "sql"
-                    | "vim"
-                    | "lua"
-                    | "el"
-                    | "hs"
-                    | "lhs"
-            )
+    // Use NUL byte heuristic like ripgrep - read first 8KB and check for NUL bytes
+    const BUFFER_SIZE: usize = 8192;
+
+    match std::fs::File::open(path) {
+        Ok(mut file) => {
+            let mut buffer = vec![0; BUFFER_SIZE];
+            match file.read(&mut buffer) {
+                Ok(bytes_read) => {
+                    // If file is empty, consider it text
+                    if bytes_read == 0 {
+                        return true;
+                    }
+
+                    // Check for NUL bytes in the read portion
+                    !buffer[..bytes_read].contains(&0)
+                }
+                Err(_) => false, // If we can't read, assume binary
+            }
         }
-        None => false,
+        Err(_) => false, // If we can't open, assume binary
     }
 }
 
@@ -1016,19 +977,50 @@ mod tests {
 
     #[test]
     fn test_is_text_file() {
-        assert!(is_text_file(&PathBuf::from("test.rs")));
-        assert!(is_text_file(&PathBuf::from("test.py")));
-        assert!(is_text_file(&PathBuf::from("test.hs")));
-        assert!(is_text_file(&PathBuf::from("test.lhs")));
-        assert!(is_text_file(&PathBuf::from("test.kt")));
-        assert!(is_text_file(&PathBuf::from("test.scala")));
-        assert!(is_text_file(&PathBuf::from("test.dart")));
-        assert!(is_text_file(&PathBuf::from("test.jl")));
-        assert!(is_text_file(&PathBuf::from("test.txt")));
-        assert!(is_text_file(&PathBuf::from("test.md")));
-        assert!(!is_text_file(&PathBuf::from("test.exe")));
-        assert!(!is_text_file(&PathBuf::from("test.png")));
-        assert!(!is_text_file(&PathBuf::from("test")));
+        use std::fs::File;
+        use std::io::Write;
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path();
+
+        // Create a text file (no NUL bytes)
+        let text_file = temp_path.join("test.txt");
+        let mut file = File::create(&text_file).unwrap();
+        file.write_all(b"Hello world\nThis is text content")
+            .unwrap();
+        assert!(is_text_file(&text_file));
+
+        // Create a text file with unusual extension
+        let log_file = temp_path.join("app.log");
+        let mut file = File::create(&log_file).unwrap();
+        file.write_all(b"2024-01-15 ERROR: Failed to connect")
+            .unwrap();
+        assert!(is_text_file(&log_file));
+
+        // Create a file without extension but with text content
+        let no_ext_file = temp_path.join("README");
+        let mut file = File::create(&no_ext_file).unwrap();
+        file.write_all(b"This is a README file").unwrap();
+        assert!(is_text_file(&no_ext_file));
+
+        // Create a binary file with NUL bytes
+        let binary_file = temp_path.join("test.bin");
+        let mut file = File::create(&binary_file).unwrap();
+        file.write_all(&[
+            0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x00, 0x57, 0x6F, 0x72, 0x6C, 0x64,
+        ])
+        .unwrap(); // "Hello\0World"
+        assert!(!is_text_file(&binary_file));
+
+        // Create an empty file (should be considered text)
+        let empty_file = temp_path.join("empty.txt");
+        File::create(&empty_file).unwrap();
+        assert!(is_text_file(&empty_file));
+
+        // Test non-existent file (should return false)
+        let nonexistent = temp_path.join("nonexistent.txt");
+        assert!(!is_text_file(&nonexistent));
     }
 
     #[test]
