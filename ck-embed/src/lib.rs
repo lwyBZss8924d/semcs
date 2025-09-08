@@ -1,6 +1,6 @@
 use anyhow::Result;
-use std::path::PathBuf;
 use std::path::Path;
+use std::path::PathBuf;
 
 pub trait Embedder: Send + Sync {
     fn id(&self) -> &'static str;

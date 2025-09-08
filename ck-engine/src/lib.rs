@@ -311,9 +311,10 @@ async fn lexical_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
 
                 // Apply threshold filtering with normalized score
                 if let Some(threshold) = options.threshold
-                    && normalized_score < threshold {
-                        continue;
-                    }
+                    && normalized_score < threshold
+                {
+                    continue;
+                }
 
                 result.score = normalized_score;
                 results.push(result);
@@ -445,9 +446,10 @@ async fn build_tantivy_index(options: &SearchOptions) -> Result<Vec<SearchResult
 
                 // Apply threshold filtering with normalized score
                 if let Some(threshold) = options.threshold
-                    && normalized_score < threshold {
-                        continue;
-                    }
+                    && normalized_score < threshold
+                {
+                    continue;
+                }
 
                 result.score = normalized_score;
                 results.push(result);
@@ -541,9 +543,10 @@ async fn semantic_search_with_progress(
     for (doc_id, similarity) in similar_docs {
         // Apply threshold filtering
         if let Some(threshold) = options.threshold
-            && similarity < threshold {
-                continue;
-            }
+            && similarity < threshold
+        {
+            continue;
+        }
 
         if let Some((file_path, content)) = file_embeddings.get(doc_id as usize) {
             // Filter by target file if specified
@@ -733,9 +736,10 @@ async fn build_semantic_index_with_progress(
     for (doc_id, similarity) in similar_docs {
         // Apply threshold filtering
         if let Some(threshold) = options.threshold
-            && similarity < threshold {
-                continue;
-            }
+            && similarity < threshold
+        {
+            continue;
+        }
 
         if let Some((file_path, content)) = file_embeddings.get(doc_id as usize) {
             // Filter by target file if specified
@@ -812,7 +816,9 @@ async fn hybrid_search_with_progress(
     }
 
     // Calculate RRF scores according to original paper: RRFscore(d) = Σ(r∈R) 1/(k + r(d))
-    let mut rrf_results: Vec<SearchResult> = combined.into_values().map(|ranks| {
+    let mut rrf_results: Vec<SearchResult> = combined
+        .into_values()
+        .map(|ranks| {
             let mut result = ranks[0].1.clone();
             let rrf_score = ranks
                 .iter()
@@ -864,9 +870,10 @@ fn should_exclude_path(path: &Path, exclude_patterns: &[String]) -> bool {
     }
     for component in path.components() {
         if let std::path::Component::Normal(name) = component
-            && globset.is_match(name) {
-                return true;
-            }
+            && globset.is_match(name)
+        {
+            return true;
+        }
     }
     false
 }
