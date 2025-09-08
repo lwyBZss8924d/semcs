@@ -42,6 +42,10 @@ pub fn chunk_text(text: &str, language: Option<&str>) -> Result<Vec<Chunk>> {
             tracing::debug!("Using Ruby tree-sitter parser");
             chunk_ruby(text)
         },
+        Some("go") => {
+            tracing::debug!("Using Go tree-sitter parser");
+            chunk_go(text)
+        },
         _ => {
             tracing::debug!("Using generic chunking strategy");
             chunk_generic(text)
@@ -201,6 +205,26 @@ fn chunk_ruby(text: &str) -> Result<Vec<Chunk>> {
     Ok(chunks)
 }
 
+fn chunk_go(text: &str) -> Result<Vec<Chunk>> {
+    let mut parser = tree_sitter::Parser::new();
+    parser.set_language(&tree_sitter_go::language())?;
+    
+    let tree = parser.parse(text, None).ok_or_else(|| {
+        anyhow::anyhow!("Failed to parse Go code")
+    })?;
+    
+    let mut chunks = Vec::new();
+    let mut cursor = tree.root_node().walk();
+    
+    extract_code_chunks(&mut cursor, text, &mut chunks, "go");
+    
+    if chunks.is_empty() {
+        return chunk_generic(text);
+    }
+    
+    Ok(chunks)
+}
+
 
 fn extract_code_chunks(
     cursor: &mut tree_sitter::TreeCursor,
@@ -230,6 +254,10 @@ fn extract_code_chunks(
             node_kind,
             "method" | "class" | "module" | "singleton_method"
         ),
+        "go" => matches!(
+            node_kind,
+            "function_declaration" | "method_declaration" | "type_declaration" | "var_declaration" | "const_declaration"
+        ),
         _ => false,
     };
     
@@ -243,9 +271,9 @@ fn extract_code_chunks(
         
         let chunk_type = match node_kind {
             "function_definition" | "function_declaration" | "arrow_function" | "function" | "signature" | "function_item" | "def" | "defp" | "method" | "singleton_method" | "defn" | "defn-" => ChunkType::Function,
-            "class_definition" | "class_declaration" | "instance_declaration" | "class" | "instance" | "struct_item" | "enum_item" | "defstruct" | "defrecord" | "deftype" => ChunkType::Class,
-            "method_definition" | "defmacro" => ChunkType::Method,
-            "data_type" | "newtype" | "type_synomym" | "type_family" | "impl_item" | "trait_item" | "mod_item" | "defmodule" | "module" | "defprotocol" | "ns" => ChunkType::Module,
+            "class_definition" | "class_declaration" | "instance_declaration" | "class" | "instance" | "struct_item" | "enum_item" | "defstruct" | "defrecord" | "deftype" | "type_declaration" => ChunkType::Class,
+            "method_definition" | "method_declaration" | "defmacro" => ChunkType::Method,
+            "data_type" | "newtype" | "type_synomym" | "type_family" | "impl_item" | "trait_item" | "mod_item" | "defmodule" | "module" | "defprotocol" | "ns" | "var_declaration" | "const_declaration" => ChunkType::Module,
             _ => ChunkType::Text,
         };
         
@@ -407,5 +435,48 @@ end
         // Should produce the same result
         assert_eq!(chunks_unknown.len(), chunks_generic.len());
         assert_eq!(chunks_unknown[0].text, chunks_generic[0].text);
+    }
+
+    #[test]
+    fn test_chunk_go() {
+        let go_code = r#"
+package main
+
+import "fmt"
+
+const Pi = 3.14159
+
+var memory float64
+
+type Calculator struct {
+    memory float64
+}
+
+type Operation interface {
+    Calculate(a, b float64) float64
+}
+
+func NewCalculator() *Calculator {
+    return &Calculator{memory: 0.0}
+}
+
+func (c *Calculator) Add(a, b float64) float64 {
+    return a + b
+}
+
+func main() {
+    calc := NewCalculator()
+}
+"#;
+        
+        let chunks = chunk_go(go_code).unwrap();
+        assert!(!chunks.is_empty());
+        
+        // Should find const, var, type declarations, functions, and methods
+        let chunk_types: Vec<&ChunkType> = chunks.iter().map(|c| &c.chunk_type).collect();
+        assert!(chunk_types.contains(&&ChunkType::Module)); // const and var
+        assert!(chunk_types.contains(&&ChunkType::Class));  // struct and interface
+        assert!(chunk_types.contains(&&ChunkType::Function)); // functions
+        assert!(chunk_types.contains(&&ChunkType::Method));   // methods
     }
 }

@@ -602,6 +602,7 @@ fn index_single_file(
         Some("hs") | Some("lhs") => Some("haskell"),
         Some("rs") => Some("rust"),
         Some("rb") => Some("ruby"),
+        Some("go") => Some("go"),
         _ => None,
     };
 
