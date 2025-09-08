@@ -110,9 +110,10 @@ pub async fn semantic_search_v3_with_progress(
     for (similarity, file_path, chunk) in similarities.into_iter().take(limit) {
         // Apply threshold filtering
         if let Some(threshold) = options.threshold
-            && similarity < threshold {
-                continue;
-            }
+            && similarity < threshold
+        {
+            continue;
+        }
 
         // Check if we're filtering by a specific file or directory
         if options.path.is_file() {

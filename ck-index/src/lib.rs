@@ -336,11 +336,11 @@ pub fn cleanup_index(path: &Path, respect_gitignore: bool) -> Result<CleanupStat
                     // Try to reconstruct the original file path
                     if let Some(original_path) = sidecar_to_original_path(path, &index_dir, path)
                         && !current_files.contains(&original_path)
-                            && !manifest.files.contains_key(&original_path)
-                        {
-                            fs::remove_file(path)?;
-                            stats.orphaned_sidecars_removed += 1;
-                        }
+                        && !manifest.files.contains_key(&original_path)
+                    {
+                        fs::remove_file(path)?;
+                        stats.orphaned_sidecars_removed += 1;
+                    }
                 }
             }
         }
@@ -381,18 +381,19 @@ pub fn get_index_stats(path: &Path) -> Result<IndexStats> {
     for file_path in manifest.files.keys() {
         let sidecar_path = get_sidecar_path(path, file_path);
         if sidecar_path.exists()
-            && let Ok(entry) = load_index_entry(&sidecar_path) {
-                stats.total_chunks += entry.chunks.len();
-                stats.total_size_bytes += entry.metadata.size;
+            && let Ok(entry) = load_index_entry(&sidecar_path)
+        {
+            stats.total_chunks += entry.chunks.len();
+            stats.total_size_bytes += entry.metadata.size;
 
-                // Count embedded chunks
-                let embedded = entry
-                    .chunks
-                    .iter()
-                    .filter(|c| c.embedding.is_some())
-                    .count();
-                stats.embedded_chunks += embedded;
-            }
+            // Count embedded chunks
+            let embedded = entry
+                .chunks
+                .iter()
+                .filter(|c| c.embedding.is_some())
+                .count();
+            stats.embedded_chunks += embedded;
+        }
     }
 
     // Calculate index size on disk
@@ -402,9 +403,10 @@ pub fn get_index_stats(path: &Path) -> Result<IndexStats> {
     {
         for entry in entries {
             if entry.file_type().is_file()
-                && let Ok(metadata) = entry.metadata() {
-                    stats.index_size_bytes += metadata.len();
-                }
+                && let Ok(metadata) = entry.metadata()
+            {
+                stats.index_size_bytes += metadata.len();
+            }
         }
     }
 
@@ -516,9 +518,10 @@ pub async fn smart_update_index_with_progress(
             .iter()
             .filter_map(|file_path| {
                 if let Some(ref callback) = progress_callback
-                    && let Some(file_name) = file_path.file_name() {
-                        callback(&file_name.to_string_lossy());
-                    }
+                    && let Some(file_name) = file_path.file_name()
+                {
+                    callback(&file_name.to_string_lossy());
+                }
                 match index_single_file(file_path, path, Some(&mut embedder)) {
                     Ok(entry) => Some((file_path.clone(), entry)),
                     Err(e) => {
@@ -534,9 +537,10 @@ pub async fn smart_update_index_with_progress(
             .par_iter()
             .filter_map(|file_path| {
                 if let Some(ref callback) = progress_callback
-                    && let Some(file_name) = file_path.file_name() {
-                        callback(&file_name.to_string_lossy());
-                    }
+                    && let Some(file_name) = file_path.file_name()
+                {
+                    callback(&file_name.to_string_lossy());
+                }
                 match index_single_file(file_path, path, None) {
                     Ok(entry) => Some((file_path.clone(), entry)),
                     Err(e) => {
