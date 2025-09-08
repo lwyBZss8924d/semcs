@@ -22,29 +22,9 @@ pub fn chunk_text(text: &str, language: Option<&str>) -> Result<Vec<Chunk>> {
     tracing::debug!("Chunking text with language: {:?}, length: {} chars", language, text.len());
     
     let result = match language {
-        Some("python") => {
-            tracing::debug!("Using Python tree-sitter parser");
-            chunk_python(text)
-        },
-        Some("typescript") | Some("javascript") => {
-            tracing::debug!("Using TypeScript/JavaScript tree-sitter parser");
-            chunk_typescript(text)
-        },
-        Some("haskell") => {
-            tracing::debug!("Using Haskell tree-sitter parser");
-            chunk_haskell(text)
-        },
-        Some("rust") => {
-            tracing::debug!("Using Rust tree-sitter parser");
-            chunk_rust(text)
-        },
-        Some("ruby") => {
-            tracing::debug!("Using Ruby tree-sitter parser");
-            chunk_ruby(text)
-        },
-        Some("go") => {
-            tracing::debug!("Using Go tree-sitter parser");
-            chunk_go(text)
+        Some(lang @ ("python" | "typescript" | "javascript" | "haskell" | "rust" | "ruby" | "go")) => {
+            tracing::debug!("Using {} tree-sitter parser", lang);
+            chunk_language(text, lang)
         },
         _ => {
             tracing::debug!("Using generic chunking strategy");
@@ -104,119 +84,27 @@ fn chunk_generic(text: &str) -> Result<Vec<Chunk>> {
     Ok(chunks)
 }
 
-fn chunk_python(text: &str) -> Result<Vec<Chunk>> {
+fn chunk_language(text: &str, language: &str) -> Result<Vec<Chunk>> {
     let mut parser = tree_sitter::Parser::new();
-    parser.set_language(&tree_sitter_python::language())?;
     
-    let tree = parser.parse(text, None).ok_or_else(|| {
-        anyhow::anyhow!("Failed to parse Python code")
-    })?;
-    
-    let mut chunks = Vec::new();
-    let mut cursor = tree.root_node().walk();
-    
-    extract_code_chunks(&mut cursor, text, &mut chunks, "python");
-    
-    if chunks.is_empty() {
-        return chunk_generic(text);
+    match language {
+        "python" => parser.set_language(&tree_sitter_python::language())?,
+        "typescript" | "javascript" => parser.set_language(&tree_sitter_typescript::language_typescript())?,
+        "haskell" => parser.set_language(&tree_sitter_haskell::language())?,
+        "rust" => parser.set_language(&tree_sitter_rust::language())?,
+        "ruby" => parser.set_language(&tree_sitter_ruby::language())?,
+        "go" => parser.set_language(&tree_sitter_go::language())?,
+        _ => return Err(anyhow::anyhow!("Unsupported language: {}", language)),
     }
     
-    Ok(chunks)
-}
-
-fn chunk_typescript(text: &str) -> Result<Vec<Chunk>> {
-    let mut parser = tree_sitter::Parser::new();
-    parser.set_language(&tree_sitter_typescript::language_typescript())?;
-    
     let tree = parser.parse(text, None).ok_or_else(|| {
-        anyhow::anyhow!("Failed to parse TypeScript code")
+        anyhow::anyhow!("Failed to parse {} code", language)
     })?;
     
     let mut chunks = Vec::new();
     let mut cursor = tree.root_node().walk();
     
-    extract_code_chunks(&mut cursor, text, &mut chunks, "typescript");
-    
-    if chunks.is_empty() {
-        return chunk_generic(text);
-    }
-    
-    Ok(chunks)
-}
-
-fn chunk_haskell(text: &str) -> Result<Vec<Chunk>> {
-    let mut parser = tree_sitter::Parser::new();
-    parser.set_language(&tree_sitter_haskell::language())?;
-    
-    let tree = parser.parse(text, None).ok_or_else(|| {
-        anyhow::anyhow!("Failed to parse Haskell code")
-    })?;
-    
-    let mut chunks = Vec::new();
-    let mut cursor = tree.root_node().walk();
-    
-    extract_code_chunks(&mut cursor, text, &mut chunks, "haskell");
-    
-    if chunks.is_empty() {
-        return chunk_generic(text);
-    }
-    
-    Ok(chunks)
-}
-
-fn chunk_rust(text: &str) -> Result<Vec<Chunk>> {
-    let mut parser = tree_sitter::Parser::new();
-    parser.set_language(&tree_sitter_rust::language())?;
-    
-    let tree = parser.parse(text, None).ok_or_else(|| {
-        anyhow::anyhow!("Failed to parse Rust code")
-    })?;
-    
-    let mut chunks = Vec::new();
-    let mut cursor = tree.root_node().walk();
-    
-    extract_code_chunks(&mut cursor, text, &mut chunks, "rust");
-    
-    if chunks.is_empty() {
-        return chunk_generic(text);
-    }
-    
-    Ok(chunks)
-}
-
-
-fn chunk_ruby(text: &str) -> Result<Vec<Chunk>> {
-    let mut parser = tree_sitter::Parser::new();
-    parser.set_language(&tree_sitter_ruby::language())?;
-    
-    let tree = parser.parse(text, None).ok_or_else(|| {
-        anyhow::anyhow!("Failed to parse Ruby code")
-    })?;
-    
-    let mut chunks = Vec::new();
-    let mut cursor = tree.root_node().walk();
-    
-    extract_code_chunks(&mut cursor, text, &mut chunks, "ruby");
-    
-    if chunks.is_empty() {
-        return chunk_generic(text);
-    }
-    
-    Ok(chunks)
-}
-
-fn chunk_go(text: &str) -> Result<Vec<Chunk>> {
-    let mut parser = tree_sitter::Parser::new();
-    parser.set_language(&tree_sitter_go::language())?;
-    
-    let tree = parser.parse(text, None).ok_or_else(|| {
-        anyhow::anyhow!("Failed to parse Go code")
-    })?;
-    
-    let mut chunks = Vec::new();
-    let mut cursor = tree.root_node().walk();
-    
-    extract_code_chunks(&mut cursor, text, &mut chunks, "go");
+    extract_code_chunks(&mut cursor, text, &mut chunks, language);
     
     if chunks.is_empty() {
         return chunk_generic(text);
@@ -370,7 +258,7 @@ pub mod utils {
 }
 "#;
         
-        let chunks = chunk_rust(rust_code).unwrap();
+        let chunks = chunk_language(rust_code, "rust").unwrap();
         assert!(!chunks.is_empty());
         
         // Should find struct, impl, functions, and module
@@ -414,7 +302,7 @@ def main
 end
 "#;
         
-        let chunks = chunk_ruby(ruby_code).unwrap();
+        let chunks = chunk_language(ruby_code, "ruby").unwrap();
         assert!(!chunks.is_empty());
         
         // Should find class, module, and methods
@@ -469,7 +357,7 @@ func main() {
 }
 "#;
         
-        let chunks = chunk_go(go_code).unwrap();
+        let chunks = chunk_language(go_code, "go").unwrap();
         assert!(!chunks.is_empty());
         
         // Should find const, var, type declarations, functions, and methods
