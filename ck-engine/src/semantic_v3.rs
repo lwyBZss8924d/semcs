@@ -3,7 +3,7 @@ use ck_core::{CkError, SearchOptions, SearchResult};
 use std::path::Path;
 use walkdir::WalkDir;
 
-use super::{SearchProgressCallback, extract_content_from_span, find_nearest_index_root, detect_language};
+use super::{SearchProgressCallback, extract_content_from_span, find_nearest_index_root};
 
 /// New semantic search implementation using span-based storage
 pub async fn semantic_search_v3(options: &SearchOptions) -> Result<Vec<SearchResult>> {
@@ -133,7 +133,7 @@ pub async fn semantic_search_v3_with_progress(options: &SearchOptions, progress_
             span: chunk.span.clone(),
             score: similarity,
             preview: content,
-            lang: detect_language(file_path),
+            lang: ck_core::Language::from_path(file_path),
             symbol: None,
         });
     }
