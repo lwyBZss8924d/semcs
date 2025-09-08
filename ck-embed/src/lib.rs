@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::path::PathBuf;
+use std::path::Path;
 
 pub trait Embedder: Send + Sync {
     fn id(&self) -> &'static str;
@@ -148,7 +149,7 @@ impl FastEmbedder {
         Ok(cache_dir.join("models"))
     }
 
-    fn check_model_exists(cache_dir: &PathBuf, model_name: &str) -> bool {
+    fn check_model_exists(cache_dir: &Path, model_name: &str) -> bool {
         // Simple heuristic - check if model directory exists
         let model_dir = cache_dir.join(model_name.replace("/", "_"));
         model_dir.exists()
