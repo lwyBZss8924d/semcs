@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.7] - 2025-09-08
+
+### Improved
+- **Smart binary detection**: Replaced restrictive extension-based file detection with ripgrep-style content analysis using NUL byte detection
+- **Broader text file support**: Now automatically indexes log files (`.log`), config files (`.env`, `.conf`), and any other text format regardless of extension
+- **Improved accuracy**: Files without extensions containing text content are now correctly detected and indexed
+- **Binary file exclusion**: Files containing NUL bytes (executables, images, etc.) are correctly identified as binary and excluded from indexing
+- **Performance**: Fast detection using only the first 8KB of file content, similar to ripgrep's approach
+
+### Technical
+- **Content-based detection**: `is_text_file()` function now reads file content instead of checking against a hardcoded extension allowlist
+- **Test coverage**: Added comprehensive tests for binary detection with various file types and edge cases
+
+## [0.3.6] - 2025-09-08
+
+### Fixed
+- **Exclude patterns functionality**: Fixed critical bug where `--exclude` patterns were completely ignored during indexing operations
+- **Directory exclusion**: `--exclude "node_modules"` and similar patterns now work correctly to exclude directories and files
+- **Pattern matching**: Added support for gitignore-style glob patterns using ripgrep's `OverrideBuilder` for consistent, performant exclusion
+- **Multiple exclusions**: Fixed support for multiple `--exclude` flags (e.g., `--exclude "node_modules" --exclude "*.log"`)
+
+### Technical
+- **ripgrep alignment**: Leveraged the `ignore` crate's `OverrideBuilder` for exclude pattern matching, aligning with ripgrep's proven approach
+- **Streaming integration**: Exclude patterns now work correctly with the new streaming indexing architecture
+- **API consistency**: Updated all indexing functions (`index_directory`, `smart_update_index`, etc.) to support exclude patterns
+
 ## [0.3.5] - 2025-09-07
 
 ### Added

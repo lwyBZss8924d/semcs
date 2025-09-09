@@ -103,6 +103,10 @@ ck --no-ignore "pattern" .               # Search all files including ignored on
 # Override defaults:
 ck --no-default-excludes "pattern" .     # Search everything
 ck --exclude "dist" --exclude "logs" .   # Add custom exclusions
+
+# Works with indexing too (NEW in v0.3.6!):
+ck --index --exclude "node_modules" .    # Exclude from index
+ck --index --exclude "*.test.js" .       # Support glob patterns
 ```
 
 ## How It Works
@@ -189,7 +193,9 @@ ck --add new_file.rs
 | TypeScript | ✅ | ✅ | ✅ Functions, classes, methods |
 | Haskell | ✅ | ✅ | ✅ Functions, types, instances |
 
-**Text Formats:** Markdown, JSON, YAML, TOML, XML, HTML, CSS, shell scripts, SQL, and plain text.
+**Text Formats:** Markdown, JSON, YAML, TOML, XML, HTML, CSS, shell scripts, SQL, log files, config files, and any other text format.
+
+**Smart Binary Detection:** Uses ripgrep-style content analysis (NUL byte detection) instead of extension-based filtering, automatically indexing any text file regardless of extension while correctly excluding binary files.
 
 **Smart Exclusions:** Automatically skips `.git`, `node_modules`, `target/`, `build/`, `dist/`, `__pycache__/`, `.fastembed_cache`, `.venv`, `venv`, and other common build/cache/virtual environment directories.
 
@@ -368,7 +374,7 @@ cargo test
 - ✅ FastEmbed integration with BGE models
 - ✅ File exclusion patterns and glob support
 - ✅ Threshold filtering and relevance scoring with visual highlighting
-- ✅ Tree-sitter parsing and intelligent chunking (Python, TypeScript, JavaScript, Haskell)
+- ✅ Tree-sitter parsing and intelligent chunking (Python, TypeScript, JavaScript, Go, Haskell, Rust, Ruby)
 - ✅ Complete code section extraction (`--full-section`)
 - ✅ Enhanced indexing strategy with v3 semantic search optimization
 - ✅ Clean stdout/stderr separation for reliable scripting

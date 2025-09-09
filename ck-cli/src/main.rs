@@ -434,6 +434,13 @@ async fn run_main() -> Result<()> {
         status.section_header("Indexing Repository");
         status.info(&format!("Scanning files in {}", path.display()));
 
+        // Build exclusion patterns
+        let mut exclude_patterns = Vec::new();
+        if !cli.no_default_excludes {
+            exclude_patterns.extend(ck_core::get_default_exclude_patterns());
+        }
+        exclude_patterns.extend(cli.exclude.clone());
+
         let indexing_progress = status.create_spinner("Building index...");
 
         // Create progress callback to show current file being processed
@@ -454,6 +461,7 @@ async fn run_main() -> Result<()> {
             progress_callback,
             true,
             !cli.no_ignore,
+            &exclude_patterns,
         )
         .await?;
         status.finish_progress(indexing_progress, "Index built successfully");
@@ -493,8 +501,16 @@ async fn run_main() -> Result<()> {
             status.section_header("Cleaning Orphaned Files");
             status.info(&format!("Scanning for orphans in {}", clean_path.display()));
 
+            // Build exclusion patterns
+            let mut exclude_patterns = Vec::new();
+            if !cli.no_default_excludes {
+                exclude_patterns.extend(ck_core::get_default_exclude_patterns());
+            }
+            exclude_patterns.extend(cli.exclude.clone());
+
             let cleanup_spinner = status.create_spinner("Removing orphaned entries...");
-            let cleanup_stats = ck_index::cleanup_index(&clean_path, !cli.no_ignore)?;
+            let cleanup_stats =
+                ck_index::cleanup_index(&clean_path, !cli.no_ignore, &exclude_patterns)?;
             status.finish_progress(cleanup_spinner, "Cleanup complete");
 
             if cleanup_stats.orphaned_entries_removed > 0
@@ -932,7 +948,13 @@ async fn run_search(
 
     if options.reindex {
         let reindex_spinner = status.create_spinner("Updating index...");
-        ck_index::update_index(&options.path, true, options.respect_gitignore).await?;
+        ck_index::update_index(
+            &options.path,
+            true,
+            options.respect_gitignore,
+            &options.exclude_patterns,
+        )
+        .await?;
         status.finish_progress(reindex_spinner, "Index updated");
     }
 
