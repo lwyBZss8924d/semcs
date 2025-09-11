@@ -2,9 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2025-09-11
+
+### Fixed
+- **Hidden file indexing bug**: Fixed critical bug where hidden directories (especially `.git`) were being indexed despite exclusion patterns
+- **Semantic search pollution**: Eliminated `.git` files appearing in semantic search results for unrelated queries
+- **Index size reduction**: Significantly reduced index size by properly excluding hidden files and directories
+
+### Technical
+- **WalkBuilder configuration**: Changed `.hidden(false)` to `.hidden(true)` to respect hidden file conventions
+- **Exclusion pattern enforcement**: Hidden file exclusion now takes precedence, preventing override patterns from being ignored
+- **Performance improvement**: Reduced indexing time and storage by not processing `.git` and other hidden directories
+
 ## [0.4.1] - 2025-09-10
 
 ### Added
+- **JSONL output format**: Stream-friendly `--jsonl` flag for AI agent workflows with structured output
+- **No-snippet mode**: `--no-snippet` flag for metadata-only output to reduce bandwidth for agents
+- **Agent documentation**: Comprehensive README section explaining JSONL benefits over traditional JSON
+- **Agent examples**: Python code demonstrating stream processing patterns for AI workflows
+- **UTF-8 warning suppression**: Eliminated noisy warnings for binary files in .git directories
 - **JSONL output format**: Stream-friendly `--jsonl` flag for AI agent workflows with structured output
 - **No-snippet mode**: `--no-snippet` flag for metadata-only output to reduce bandwidth for agents
 - **Agent documentation**: Comprehensive README section explaining JSONL benefits over traditional JSON
