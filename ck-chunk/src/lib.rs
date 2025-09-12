@@ -2,11 +2,28 @@ use anyhow::Result;
 use ck_core::Span;
 use serde::{Deserialize, Serialize};
 
+/// Information about chunk striding for large chunks that exceed token limits
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StrideInfo {
+    /// Unique ID for the original chunk before striding
+    pub original_chunk_id: String,
+    /// Index of this stride (0-based)
+    pub stride_index: usize,
+    /// Total number of strides for the original chunk
+    pub total_strides: usize,
+    /// Byte offset where overlap with previous stride begins
+    pub overlap_start: usize,
+    /// Byte offset where overlap with next stride ends
+    pub overlap_end: usize,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Chunk {
     pub span: Span,
     pub text: String,
     pub chunk_type: ChunkType,
+    /// Stride information if this chunk was created by striding a larger chunk
+    pub stride_info: Option<StrideInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -65,10 +82,40 @@ impl TryFrom<ck_core::Language> for ParseableLanguage {
 }
 
 pub fn chunk_text(text: &str, language: Option<ck_core::Language>) -> Result<Vec<Chunk>> {
+    chunk_text_with_config(text, language, &ChunkConfig::default())
+}
+
+/// Configuration for chunking behavior
+#[derive(Debug, Clone)]
+pub struct ChunkConfig {
+    /// Maximum tokens per chunk (for striding)
+    pub max_tokens: usize,
+    /// Overlap size for striding (in tokens)
+    pub stride_overlap: usize,
+    /// Enable striding for chunks that exceed max_tokens
+    pub enable_striding: bool,
+}
+
+impl Default for ChunkConfig {
+    fn default() -> Self {
+        Self {
+            max_tokens: 8192,     // Default to Nomic model limit
+            stride_overlap: 1024, // 12.5% overlap
+            enable_striding: true,
+        }
+    }
+}
+
+pub fn chunk_text_with_config(
+    text: &str,
+    language: Option<ck_core::Language>,
+    config: &ChunkConfig,
+) -> Result<Vec<Chunk>> {
     tracing::debug!(
-        "Chunking text with language: {:?}, length: {} chars",
+        "Chunking text with language: {:?}, length: {} chars, config: {:?}",
         language,
-        text.len()
+        text.len(),
+        config
     );
 
     let result = match language.map(ParseableLanguage::try_from) {
@@ -86,12 +133,15 @@ pub fn chunk_text(text: &str, language: Option<ck_core::Language>) -> Result<Vec
         }
     };
 
-    match &result {
-        Ok(chunks) => tracing::debug!("Successfully created {} chunks", chunks.len()),
-        Err(e) => tracing::warn!("Chunking failed: {}", e),
+    let mut chunks = result?;
+
+    // Apply striding if enabled and necessary
+    if config.enable_striding {
+        chunks = apply_striding(chunks, config)?;
     }
 
-    result
+    tracing::debug!("Successfully created {} final chunks", chunks.len());
+    Ok(chunks)
 }
 
 fn chunk_generic(text: &str) -> Result<Vec<Chunk>> {
@@ -127,6 +177,7 @@ fn chunk_generic(text: &str) -> Result<Vec<Chunk>> {
             },
             text: chunk_text,
             chunk_type: ChunkType::Text,
+            stride_info: None,
         });
 
         i += chunk_size - overlap;
@@ -261,6 +312,7 @@ fn extract_code_chunks(
             },
             text: text.to_string(),
             chunk_type,
+            stride_info: None,
         });
     }
 
@@ -273,6 +325,126 @@ fn extract_code_chunks(
         }
         cursor.goto_parent();
     }
+}
+
+/// Apply striding to chunks that exceed the token limit
+fn apply_striding(chunks: Vec<Chunk>, config: &ChunkConfig) -> Result<Vec<Chunk>> {
+    let mut result = Vec::new();
+
+    for chunk in chunks {
+        let estimated_tokens = estimate_tokens(&chunk.text);
+
+        if estimated_tokens <= config.max_tokens {
+            // Chunk fits within limit, no striding needed
+            result.push(chunk);
+        } else {
+            // Chunk exceeds limit, apply striding
+            tracing::debug!(
+                "Chunk with {} tokens exceeds limit of {}, applying striding",
+                estimated_tokens,
+                config.max_tokens
+            );
+
+            let strided_chunks = stride_large_chunk(chunk, config)?;
+            result.extend(strided_chunks);
+        }
+    }
+
+    Ok(result)
+}
+
+/// Create strided chunks from a large chunk that exceeds token limits
+fn stride_large_chunk(chunk: Chunk, config: &ChunkConfig) -> Result<Vec<Chunk>> {
+    let text = &chunk.text;
+    let text_len = text.len();
+
+    // Calculate stride parameters in characters (approximate)
+    // Use a conservative estimate to ensure we stay under token limits
+    let chars_per_token = text_len as f32 / estimate_tokens(text) as f32;
+    let window_chars = ((config.max_tokens as f32 * 0.9) * chars_per_token) as usize; // 10% buffer
+    let overlap_chars = (config.stride_overlap as f32 * chars_per_token) as usize;
+    let stride_chars = window_chars.saturating_sub(overlap_chars);
+
+    if stride_chars == 0 {
+        return Err(anyhow::anyhow!("Stride size is too small"));
+    }
+
+    let mut strided_chunks = Vec::new();
+    let original_chunk_id = format!("{}:{}", chunk.span.byte_start, chunk.span.byte_end);
+    let mut start_pos = 0;
+    let mut stride_index = 0;
+
+    // Calculate total number of strides
+    let total_strides = if text_len <= window_chars {
+        1
+    } else {
+        ((text_len - overlap_chars) as f32 / stride_chars as f32).ceil() as usize
+    };
+
+    while start_pos < text_len {
+        let end_pos = (start_pos + window_chars).min(text_len);
+        let stride_text = &text[start_pos..end_pos];
+
+        // Calculate overlap information
+        let overlap_start = if stride_index > 0 { overlap_chars } else { 0 };
+        let overlap_end = if end_pos < text_len { overlap_chars } else { 0 };
+
+        // Calculate span for this stride
+        let byte_offset_start = chunk.span.byte_start + start_pos;
+        let byte_offset_end = chunk.span.byte_start + end_pos;
+
+        // Estimate line numbers (approximate)
+        let text_before_start = &text[..start_pos];
+        let line_offset_start = text_before_start.lines().count().saturating_sub(1);
+        let stride_lines = stride_text.lines().count();
+
+        let stride_chunk = Chunk {
+            span: Span {
+                byte_start: byte_offset_start,
+                byte_end: byte_offset_end,
+                line_start: chunk.span.line_start + line_offset_start,
+                line_end: chunk.span.line_start + line_offset_start + stride_lines,
+            },
+            text: stride_text.to_string(),
+            chunk_type: chunk.chunk_type.clone(),
+            stride_info: Some(StrideInfo {
+                original_chunk_id: original_chunk_id.clone(),
+                stride_index,
+                total_strides,
+                overlap_start,
+                overlap_end,
+            }),
+        };
+
+        strided_chunks.push(stride_chunk);
+
+        // Move to next stride
+        if end_pos >= text_len {
+            break;
+        }
+
+        start_pos += stride_chars;
+        stride_index += 1;
+    }
+
+    tracing::debug!(
+        "Created {} strides from chunk of {} tokens",
+        strided_chunks.len(),
+        estimate_tokens(text)
+    );
+
+    Ok(strided_chunks)
+}
+
+/// Simple token estimation (matches the one in ck-embed)
+fn estimate_tokens(text: &str) -> usize {
+    if text.is_empty() {
+        return 0;
+    }
+
+    // Rough estimation: ~4.5 characters per token on average
+    let char_count = text.chars().count();
+    (char_count as f32 / 4.5).ceil() as usize
 }
 
 #[cfg(test)]
