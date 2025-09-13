@@ -1043,7 +1043,6 @@ fn collect_files(
     Ok(files)
 }
 
-
 async fn ensure_index_updated_with_progress(
     path: &Path,
     force_reindex: bool,
