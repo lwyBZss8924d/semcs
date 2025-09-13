@@ -57,6 +57,10 @@ pub struct IndexManifest {
     pub created: u64,
     pub updated: u64,
     pub files: HashMap<PathBuf, FileMetadata>,
+    /// Embedding model used for this index (added in v0.4.2+)
+    pub embedding_model: Option<String>,
+    /// Embedding model dimensions (for validation)
+    pub embedding_dimensions: Option<usize>,
 }
 
 impl Default for IndexManifest {
@@ -71,6 +75,8 @@ impl Default for IndexManifest {
             created: now,
             updated: now,
             files: HashMap::new(),
+            embedding_model: None, // Default to None for backward compatibility
+            embedding_dimensions: None,
         }
     }
 }
@@ -142,6 +148,7 @@ pub async fn index_directory(
     compute_embeddings: bool,
     respect_gitignore: bool,
     exclude_patterns: &[String],
+    model: Option<&str>,
 ) -> Result<()> {
     tracing::info!(
         "index_directory called with compute_embeddings={}",
@@ -153,13 +160,49 @@ pub async fn index_directory(
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
 
+    // Handle model configuration for embeddings
+    let resolved_model = if compute_embeddings {
+        // Resolve the model name and get its dimensions
+        let model_registry = ck_models::ModelRegistry::default();
+        let selected_model = if let Some(model_name) = model {
+            // User specified a model
+            if let Some(model_config) = model_registry.get_model(model_name) {
+                model_config.name.clone()
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Unknown model '{}'. Available models: bge-small, nomic-v1.5, jina-code",
+                    model_name
+                ));
+            }
+        } else {
+            // Use default model
+            let default_config = model_registry
+                .get_default_model()
+                .ok_or_else(|| anyhow::anyhow!("No default model available"))?;
+            default_config.name.clone()
+        };
+
+        // Set the model info in the manifest for new indexes
+        manifest.embedding_model = Some(selected_model.clone());
+        if let Some(model_name) = model {
+            if let Some(model_config) = model_registry.get_model(model_name) {
+                manifest.embedding_dimensions = Some(model_config.dimensions);
+            }
+        } else if let Some(default_config) = model_registry.get_default_model() {
+            manifest.embedding_dimensions = Some(default_config.dimensions);
+        }
+
+        Some(selected_model)
+    } else {
+        None
+    };
+
     let files = collect_files(path, respect_gitignore, exclude_patterns)?;
 
     if compute_embeddings {
-        // Sequential processing with streaming - write each file immediately
+        // Sequential processing with small-batch embeddings for streaming performance
         tracing::info!("Creating embedder for {} files", files.len());
-        let mut embedder = ck_embed::create_embedder(None)?;
-        let mut _processed_count = 0;
+        let mut embedder = ck_embed::create_embedder(resolved_model.as_deref())?;
 
         for file_path in files.iter() {
             match index_single_file(file_path, path, Some(&mut embedder)) {
@@ -175,7 +218,6 @@ pub async fn index_directory(
                         .unwrap()
                         .as_secs();
                     save_manifest(&manifest_path, &manifest)?;
-                    _processed_count += 1;
                 }
                 Err(e) => {
                     // Suppress warnings for binary files and UTF-8 errors in .git directories
@@ -267,7 +309,9 @@ pub async fn index_file(file_path: &Path, compute_embeddings: bool) -> Result<()
     let mut manifest = load_or_create_manifest(&manifest_path)?;
 
     let entry = if compute_embeddings {
-        let mut embedder = ck_embed::create_embedder(None)?;
+        // Use the model from the existing index, or default if none specified
+        let model_name = manifest.embedding_model.as_deref();
+        let mut embedder = ck_embed::create_embedder(model_name)?;
         index_single_file(file_path, &repo_root, Some(&mut embedder))?
     } else {
         index_single_file(file_path, &repo_root, None)?
@@ -301,6 +345,7 @@ pub async fn update_index(
             compute_embeddings,
             respect_gitignore,
             exclude_patterns,
+            None, // model - use existing from manifest for update
         )
         .await;
     }
@@ -311,8 +356,9 @@ pub async fn update_index(
     let files = collect_files(path, respect_gitignore, exclude_patterns)?;
 
     let updates: Vec<(PathBuf, IndexEntry)> = if compute_embeddings {
-        // Sequential processing when computing embeddings
-        let mut embedder = ck_embed::create_embedder(None)?;
+        // Sequential processing when computing embeddings (for memory efficiency)
+        let model_name = manifest.embedding_model.as_deref();
+        let mut embedder = ck_embed::create_embedder(model_name)?;
         files
             .iter()
             .filter_map(|file_path| {
@@ -548,6 +594,7 @@ pub async fn smart_update_index(
         compute_embeddings,
         respect_gitignore,
         exclude_patterns,
+        None, // model - use default for backward compatibility
     )
     .await
 }
@@ -559,6 +606,7 @@ pub async fn smart_update_index_with_progress(
     compute_embeddings: bool,
     respect_gitignore: bool,
     exclude_patterns: &[String],
+    model: Option<&str>,
 ) -> Result<UpdateStats> {
     let index_dir = path.join(".ck");
     let mut stats = UpdateStats::default();
@@ -581,6 +629,7 @@ pub async fn smart_update_index_with_progress(
             compute_embeddings,
             respect_gitignore,
             exclude_patterns,
+            model,
         )
         .await?;
         let index_stats = get_index_stats(path)?;
@@ -597,6 +646,64 @@ pub async fn smart_update_index_with_progress(
     fs::create_dir_all(&index_dir)?;
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
+
+    // Handle model configuration for embeddings
+    let (resolved_model, _model_dimensions) = if compute_embeddings {
+        // Resolve the model name and get its dimensions
+        let model_registry = ck_models::ModelRegistry::default();
+        let (selected_model, model_dims) = if let Some(model_name) = model {
+            // User specified a model
+            if let Some(model_config) = model_registry.get_model(model_name) {
+                (model_config.name.clone(), model_config.dimensions)
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Unknown model '{}'. Available models: bge-small, nomic-v1.5, jina-code",
+                    model_name
+                ));
+            }
+        } else {
+            // Use default model
+            let default_config = model_registry
+                .get_default_model()
+                .ok_or_else(|| anyhow::anyhow!("No default model available"))?;
+            (default_config.name.clone(), default_config.dimensions)
+        };
+
+        // Check for model compatibility with existing index
+        let (final_model, final_dims) = if let Some(existing_model) = &manifest.embedding_model {
+            // If we're updating an existing index and no model was specified,
+            // use the existing model from the index
+            if model.is_none() {
+                // Use the existing model - this is an auto-update during search
+                (
+                    existing_model.clone(),
+                    manifest.embedding_dimensions.unwrap_or(384),
+                )
+            } else if existing_model != &selected_model {
+                // User explicitly specified a different model - that's an error
+                return Err(anyhow::anyhow!(
+                    "Model mismatch: Index was created with '{}', but you're trying to use '{}'. \
+                    Please run 'ck --clean .' to remove the old index, then 'ck --index --model {}' to rebuild with the new model.",
+                    existing_model,
+                    selected_model,
+                    model.unwrap_or("default")
+                ));
+            } else {
+                // Model matches, proceed
+                (selected_model, model_dims)
+            }
+        } else {
+            // This is either a new index or an old index without model info
+            // Set the model info in the manifest
+            manifest.embedding_model = Some(selected_model.clone());
+            manifest.embedding_dimensions = Some(model_dims);
+            (selected_model, model_dims)
+        };
+
+        (Some(final_model), Some(final_dims))
+    } else {
+        (None, None)
+    };
 
     let current_files = collect_files(path, respect_gitignore, exclude_patterns)?;
 
@@ -668,7 +775,7 @@ pub async fn smart_update_index_with_progress(
     // Second pass: index the files that need updating
     if compute_embeddings {
         // Sequential processing with streaming - write each file immediately
-        let mut embedder = ck_embed::create_embedder(None)?;
+        let mut embedder = ck_embed::create_embedder(resolved_model.as_deref())?;
         let mut _processed_count = 0;
 
         for file_path in files_to_update.iter() {
@@ -729,16 +836,20 @@ pub async fn smart_update_index_with_progress(
 
         // Spawn worker thread for parallel processing
         let worker_handle = thread::spawn(move || {
-            files_clone.par_iter().for_each(|file_path| {
+            use rayon::prelude::*;
+
+            // Use par_iter with try_for_each to allow early exit on interrupt
+            let result = files_clone.par_iter().try_for_each(|file_path| {
                 // Check for interrupt
                 if INTERRUPTED.load(Ordering::SeqCst) {
-                    return;
+                    return Err("interrupted");
                 }
 
                 match index_single_file(file_path, &path_clone, None) {
                     Ok(entry) => {
                         if tx.send((file_path.clone(), entry)).is_err() {
                             // Receiver dropped, stop processing
+                            return Err("receiver_dropped");
                         }
                     }
                     Err(e) => {
@@ -754,7 +865,13 @@ pub async fn smart_update_index_with_progress(
                         }
                     }
                 }
+                Ok(())
             });
+
+            // Log the result for debugging
+            if let Err(reason) = result {
+                tracing::debug!("Worker thread stopped due to: {}", reason);
+            }
         });
 
         // Main thread: stream results as they arrive

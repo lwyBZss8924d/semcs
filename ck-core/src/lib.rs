@@ -200,6 +200,9 @@ pub struct SearchOptions {
     pub exclude_patterns: Vec<String>,
     pub respect_gitignore: bool,
     pub full_section: bool,
+    // Enhanced embedding options (search-time only)
+    pub rerank: bool,
+    pub rerank_model: Option<String>,
 }
 
 impl JsonlSearchResult {
@@ -251,6 +254,9 @@ impl Default for SearchOptions {
             exclude_patterns: get_default_exclude_patterns(),
             respect_gitignore: true,
             full_section: false,
+            // Enhanced embedding options (search-time only)
+            rerank: false,
+            rerank_model: None,
         }
     }
 }
