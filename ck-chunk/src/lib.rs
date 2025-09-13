@@ -266,15 +266,13 @@ fn extract_code_chunks(
                 | "var_declaration"
                 | "const_declaration"
         ),
-        ParseableLanguage::CSharp => {
-            matches!(
-                node_kind,
-                "method_declaration"
-                    | "class_declaration"
-                    | "interface_declaration"
-                    | "variable_declaration"
-            )
-        }
+        ParseableLanguage::CSharp => matches!(
+            node_kind,
+            "method_declaration"
+                | "class_declaration"
+                | "interface_declaration"
+                | "variable_declaration"
+        ),
     };
 
     if is_chunk {
@@ -310,9 +308,21 @@ fn extract_code_chunks(
             | "deftype"
             | "type_declaration" => ChunkType::Class,
             "method_definition" | "method_declaration" | "defmacro" => ChunkType::Method,
-            "data_type" | "newtype" | "type_synomym" | "type_family" | "impl_item"
-            | "trait_item" | "mod_item" | "defmodule" | "module" | "defprotocol" | "ns"
-            | "var_declaration" | "const_declaration" => ChunkType::Module,
+            "data_type"
+            | "newtype"
+            | "type_synomym"
+            | "type_family"
+            | "impl_item"
+            | "trait_item"
+            | "mod_item"
+            | "defmodule"
+            | "module"
+            | "defprotocol"
+            | "interface_declaration"
+            | "ns"
+            | "var_declaration"
+            | "const_declaration"
+            | "variable_declaration" => ChunkType::Module,
             _ => ChunkType::Text,
         };
 
