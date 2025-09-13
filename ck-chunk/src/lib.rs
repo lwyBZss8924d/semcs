@@ -669,6 +669,7 @@ public interface ICalculator
 public class Calculator 
 {
     public static const double PI = 3.14159;
+    private double _memory;
 
     public Calculator() 
     {
