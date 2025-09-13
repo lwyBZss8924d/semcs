@@ -1,4 +1,6 @@
 use anyhow::Result;
+
+#[cfg(feature = "fastembed")]
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -35,6 +37,7 @@ pub fn create_reranker_with_progress(
 
     #[cfg(not(feature = "fastembed"))]
     {
+        let _ = model; // Suppress unused variable warning
         if let Some(callback) = progress_callback {
             callback("Using dummy reranker (no model download required)");
         }

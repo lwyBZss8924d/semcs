@@ -1,6 +1,7 @@
 use anyhow::Result;
-use std::path::Path;
-use std::path::PathBuf;
+
+#[cfg(feature = "fastembed")]
+use std::path::{Path, PathBuf};
 
 pub mod reranker;
 pub mod tokenizer;
@@ -36,6 +37,7 @@ pub fn create_embedder_with_progress(
 
     #[cfg(not(feature = "fastembed"))]
     {
+        let _ = model; // Suppress unused variable warning
         if let Some(callback) = progress_callback {
             callback("Using dummy embedder (no model download required)");
         }
