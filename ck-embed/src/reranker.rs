@@ -248,7 +248,7 @@ mod tests {
                     "user interface design".to_string(),
                 ];
 
-                let result = reranker.rerank(&query, &documents);
+                let result = reranker.rerank(query, &documents);
                 assert!(result.is_ok());
 
                 let results = result.unwrap();

@@ -112,7 +112,7 @@ mod tests {
         let text = "Hello, world!";
         let tokens = TokenEstimator::estimate_tokens(text);
         // Should be around 3 tokens, estimation might vary
-        assert!(tokens >= 2 && tokens <= 4, "Got {} tokens", tokens);
+        assert!((2..=4).contains(&tokens), "Got {} tokens", tokens);
     }
 
     #[test]
@@ -126,7 +126,7 @@ fn main() {
 "#;
         let tokens = TokenEstimator::estimate_tokens(code);
         // Code typically has more tokens due to symbols
-        assert!(tokens >= 15 && tokens <= 25, "Got {} tokens", tokens);
+        assert!((15..=25).contains(&tokens), "Got {} tokens", tokens);
     }
 
     #[test]

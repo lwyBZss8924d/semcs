@@ -37,7 +37,7 @@ fn run_example() {
     }
 
     let results = reranker
-        .rerank(&query, &documents)
+        .rerank(query, &documents)
         .expect("Failed to rerank documents");
 
     println!("\nReranked results:");

@@ -11,9 +11,10 @@ fn estimate_tokens(text: &str) -> usize {
     (char_count as f32 / 4.5).ceil() as usize
 }
 
+#[allow(dead_code)]
 fn test_file(path: &str, language: Language) {
     println!("=== Testing {} ===", path);
-    let code = std::fs::read_to_string(path).expect(&format!("Failed to read {}", path));
+    let code = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("Failed to read {}", path));
 
     println!("File length: {} characters", code.len());
     println!("Estimated tokens: {}", estimate_tokens(&code));
@@ -58,6 +59,7 @@ fn test_file(path: &str, language: Language) {
     );
 }
 
+#[allow(dead_code)]
 fn test_striding() {
     println!("=== Testing Striding Functionality ===");
 
