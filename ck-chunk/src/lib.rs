@@ -44,6 +44,7 @@ pub enum ParseableLanguage {
     Rust,
     Ruby,
     Go,
+    CSharp,
 }
 
 impl std::fmt::Display for ParseableLanguage {
@@ -56,6 +57,7 @@ impl std::fmt::Display for ParseableLanguage {
             ParseableLanguage::Rust => "rust",
             ParseableLanguage::Ruby => "ruby",
             ParseableLanguage::Go => "go",
+            ParseableLanguage::CSharp => "csharp",
         };
         write!(f, "{}", name)
     }
@@ -73,6 +75,7 @@ impl TryFrom<ck_core::Language> for ParseableLanguage {
             ck_core::Language::Rust => Ok(ParseableLanguage::Rust),
             ck_core::Language::Ruby => Ok(ParseableLanguage::Ruby),
             ck_core::Language::Go => Ok(ParseableLanguage::Go),
+            ck_core::Language::CSharp => Ok(ParseableLanguage::CSharp),
             _ => Err(anyhow::anyhow!(
                 "Language {:?} is not supported for parsing",
                 lang
@@ -201,6 +204,7 @@ fn chunk_language(text: &str, language: ParseableLanguage) -> Result<Vec<Chunk>>
         ParseableLanguage::Rust => parser.set_language(&tree_sitter_rust::language())?,
         ParseableLanguage::Ruby => parser.set_language(&tree_sitter_ruby::language())?,
         ParseableLanguage::Go => parser.set_language(&tree_sitter_go::language())?,
+        ParseableLanguage::CSharp => parser.set_language(&tree_sitter_c_sharp::language())?,
     }
 
     let tree = parser
@@ -262,6 +266,15 @@ fn extract_code_chunks(
                 | "var_declaration"
                 | "const_declaration"
         ),
+        ParseableLanguage::CSharp => {
+            matches!(
+                node_kind,
+                "method_declaration"
+                    | "class_declaration"
+                    | "interface_declaration"
+                    | "variable_declaration"
+            )
+        }
     };
 
     if is_chunk {
