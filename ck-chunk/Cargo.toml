@@ -26,4 +26,4 @@ tree-sitter-go = { workspace = true }
 tree-sitter-c-sharp = { workspace = true }
 tracing = { workspace = true }
 hf-hub = "0.3"
-tokenizers = "0.21"
+tokenizers = { version = "0.22", default-features = false, features = ["onig", "progressbar"] }
