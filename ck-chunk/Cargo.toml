@@ -23,6 +23,7 @@ tree-sitter-haskell = { workspace = true }
 tree-sitter-rust = { workspace = true }
 tree-sitter-ruby = { workspace = true }
 tree-sitter-go = { workspace = true }
+tree-sitter-c-sharp = { workspace = true }
 tracing = { workspace = true }
 hf-hub = "0.3"
 tokenizers = "0.21"

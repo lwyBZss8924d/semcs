@@ -79,6 +79,7 @@ pub enum ParseableLanguage {
     Rust,
     Ruby,
     Go,
+    CSharp,
 }
 
 impl std::fmt::Display for ParseableLanguage {
@@ -91,6 +92,7 @@ impl std::fmt::Display for ParseableLanguage {
             ParseableLanguage::Rust => "rust",
             ParseableLanguage::Ruby => "ruby",
             ParseableLanguage::Go => "go",
+            ParseableLanguage::CSharp => "csharp",
         };
         write!(f, "{}", name)
     }
@@ -108,6 +110,7 @@ impl TryFrom<ck_core::Language> for ParseableLanguage {
             ck_core::Language::Rust => Ok(ParseableLanguage::Rust),
             ck_core::Language::Ruby => Ok(ParseableLanguage::Ruby),
             ck_core::Language::Go => Ok(ParseableLanguage::Go),
+            ck_core::Language::CSharp => Ok(ParseableLanguage::CSharp),
             _ => Err(anyhow::anyhow!(
                 "Language {:?} is not supported for parsing",
                 lang
@@ -277,6 +280,7 @@ fn chunk_language(text: &str, language: ParseableLanguage) -> Result<Vec<Chunk>>
         ParseableLanguage::Rust => parser.set_language(&tree_sitter_rust::language())?,
         ParseableLanguage::Ruby => parser.set_language(&tree_sitter_ruby::language())?,
         ParseableLanguage::Go => parser.set_language(&tree_sitter_go::language())?,
+        ParseableLanguage::CSharp => parser.set_language(&tree_sitter_c_sharp::language())?,
     }
 
     let tree = parser
@@ -349,6 +353,13 @@ fn extract_code_chunks(
                 | "var_declaration"
                 | "const_declaration"
         ),
+        ParseableLanguage::CSharp => matches!(
+            node_kind,
+            "method_declaration"
+                | "class_declaration"
+                | "interface_declaration"
+                | "variable_declaration"
+        ),
     };
 
     if is_chunk {
@@ -384,9 +395,21 @@ fn extract_code_chunks(
             | "deftype"
             | "type_declaration" => ChunkType::Class,
             "method_definition" | "method_declaration" | "defmacro" => ChunkType::Method,
-            "data_type" | "newtype" | "type_synomym" | "type_family" | "impl_item"
-            | "trait_item" | "mod_item" | "defmodule" | "module" | "defprotocol" | "ns"
-            | "var_declaration" | "const_declaration" => ChunkType::Module,
+            "data_type"
+            | "newtype"
+            | "type_synomym"
+            | "type_family"
+            | "impl_item"
+            | "trait_item"
+            | "mod_item"
+            | "defmodule"
+            | "module"
+            | "defprotocol"
+            | "interface_declaration"
+            | "ns"
+            | "var_declaration"
+            | "const_declaration"
+            | "variable_declaration" => ChunkType::Module,
             _ => ChunkType::Text,
         };
 
@@ -708,6 +731,48 @@ func main() {
         assert!(chunk_types.contains(&&ChunkType::Module)); // const and var
         assert!(chunk_types.contains(&&ChunkType::Class)); // struct and interface
         assert!(chunk_types.contains(&&ChunkType::Function)); // functions
+        assert!(chunk_types.contains(&&ChunkType::Method)); // methods
+    }
+
+    #[test]
+    fn test_chunk_csharp() {
+        let csharp_code = r#"
+namespace Calculator;
+
+public interface ICalculator 
+{
+    double Add(double x, double y);
+}
+
+public class Calculator 
+{
+    public static const double PI = 3.14159;
+    private double _memory;
+
+    public Calculator() 
+    {
+        _memory = 0.0;
+    }
+
+    public double Add(double x, double y) 
+    {
+        return x + y;
+    }
+
+    public static void Main(string[] args)
+    {
+        var calc = new Calculator();
+    }
+}
+"#;
+
+        let chunks = chunk_language(csharp_code, ParseableLanguage::CSharp).unwrap();
+        assert!(!chunks.is_empty());
+
+        // Should find variable, class, method and interface declarations
+        let chunk_types: Vec<&ChunkType> = chunks.iter().map(|c| &c.chunk_type).collect();
+        assert!(chunk_types.contains(&&ChunkType::Module)); // var, interface
+        assert!(chunk_types.contains(&&ChunkType::Class)); // class
         assert!(chunk_types.contains(&&ChunkType::Method)); // methods
     }
 }
