@@ -63,6 +63,12 @@ QUICK START EXAMPLES:
     ck -w "test" .                    # Match whole words only
     ck -F "log.Error()" .             # Fixed string (no regex)
 
+  Model and embedding options:
+    ck --index --model nomic-v1.5      # Index with higher-quality model (8k context)
+    ck --index --model jina-code       # Index with code-specialized model
+    ck --sem "auth" --rerank           # Enable reranking for better relevance  
+    ck --sem "login" --rerank-model bge # Use specific reranking model
+
 SEARCH MODES:
   --regex   : Classic grep behavior (default, no index needed)
   --lex     : BM25 lexical search (requires index)  
@@ -263,6 +269,28 @@ struct Cli {
         help = "Show detailed metadata for a specific file (chunks, embeddings, tree-sitter parsing info)"
     )]
     inspect: bool,
+
+    // Model selection (index-time only)
+    #[arg(
+        long = "model",
+        value_name = "MODEL",
+        help = "Embedding model to use for indexing (bge-small, nomic-v1.5, jina-code) [default: bge-small]. Only used with --index."
+    )]
+    model: Option<String>,
+
+    // Search-time enhancement options
+    #[arg(
+        long = "rerank",
+        help = "Enable reranking with cross-encoder model for improved relevance"
+    )]
+    rerank: bool,
+
+    #[arg(
+        long = "rerank-model",
+        value_name = "MODEL",
+        help = "Reranking model to use (jina, bge) [default: jina]"
+    )]
+    rerank_model: Option<String>,
 }
 
 fn expand_glob_patterns(paths: &[PathBuf], exclude_patterns: &[String]) -> Result<Vec<PathBuf>> {
@@ -474,6 +502,7 @@ async fn run_main() -> Result<()> {
             true,
             !cli.no_ignore,
             &exclude_patterns,
+            cli.model.as_deref(), // Pass the model selection from CLI
         )
         .await?;
         status.finish_progress(indexing_progress, "Index built successfully");
@@ -765,6 +794,9 @@ fn build_options(cli: &Cli, reindex: bool) -> SearchOptions {
         exclude_patterns,
         respect_gitignore: !cli.no_ignore,
         full_section: cli.full_section,
+        // Enhanced embedding options (search-time only)
+        rerank: cli.rerank,
+        rerank_model: cli.rerank_model.clone(),
     }
 }
 

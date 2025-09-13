@@ -975,7 +975,8 @@ async fn ensure_index_updated(
             None,
             need_embeddings,
             true,
-            &[], // Empty exclude patterns for internal engine use
+            &[],  // Empty exclude patterns for internal engine use
+            None, // model - use existing from index
         )
         .await?;
         if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {
@@ -996,6 +997,7 @@ async fn ensure_index_updated(
         need_embeddings,
         true,
         &[],
+        None, // model - use existing from index
     )
     .await?;
     if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {

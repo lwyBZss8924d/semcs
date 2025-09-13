@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3] - 2025-09-13
+
+### Added
+- **Enhanced embedding models**: Added support for Nomic V1.5 (8192 tokens, 768 dimensions) and Jina Code (8192 tokens, code-specialized) models
+- **Model selection**: New `--model` flag for choosing embedding model during indexing (`bge-small`, `nomic-v1.5`, `jina-code`)
+- **Index-time model configuration**: Model selection is now properly configured at index creation time and stored in index manifest
+- **Automatic model detection**: Search operations automatically use the model stored in the index manifest
+- **Reranking support**: Added cross-encoder reranking with `--rerank` flag and `--rerank-model` option for improved search relevance
+- **Striding for large chunks**: Implemented text striding with overlap for chunks exceeding model token limits
+- **Token estimation**: Added token counting utilities to optimize chunk sizes for different models
+
+### Fixed
+- **Ctrl-C interrupt handling**: Fixed issue where indexing could not be properly cancelled - now uses `try_for_each` to stop all parallel workers immediately
+- **Model compatibility checking**: Index operations now validate model compatibility and provide clear error messages for mismatches
+
+### Technical
+- **Model registry system**: New `ck-models` crate with centralized model configuration and limits
+- **Index manifest enhancement**: Added `embedding_model` and `embedding_dimensions` fields to track model used for indexing
+- **Backward compatibility**: Existing indexes without model metadata continue to work with default BGE model
+- **Architecture fix**: Corrected design where model selection was incorrectly a search-time option instead of index-time configuration
+
+### Documentation
+- **README model guide**: Added comprehensive section explaining embedding model options and their trade-offs
+- **CLI help improvements**: Enhanced help text with clear model selection examples and implications
+
 ## [0.4.2] - 2025-09-11
 
 ### Fixed

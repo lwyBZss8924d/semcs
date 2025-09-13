@@ -156,12 +156,33 @@ ck --sem "error handling" .
 ck --sem "authentication" .
 ```
 
-### 2. **Three Search Modes**
+### 2. **Embedding Model Selection**
+Choose the right model for your needs when creating the index:
+
+```bash
+# Default: BGE-Small (fast, 512 tokens, 384 dimensions)
+ck --index .
+
+# Enhanced: Nomic V1.5 (16x larger context, 2x dimensions)  
+ck --index --model nomic-v1.5 .
+
+# Code-specialized: Jina Code (optimized for programming languages)
+ck --index --model jina-code .
+```
+
+**Model Comparison:**
+- **`bge-small`** (default): Fast, 512 token limit, good for most code
+- **`nomic-v1.5`**: 8192 tokens (16x more context), 768 dimensions, better for large functions
+- **`jina-code`**: 8192 tokens, specialized for code understanding
+
+**Note:** Model choice is set during indexing. Existing indexes will automatically use their original model.
+
+### 3. **Three Search Modes**
 - **`--regex`** (default): Classic grep behavior, no indexing required
 - **`--sem`**: Pure semantic search using embeddings (requires index)
 - **`--hybrid`**: Combines regex + semantic with intelligent ranking
 
-### 3. **Relevance Scoring**
+### 4. **Relevance Scoring**
 ```bash
 ck --sem --scores "machine learning" docs/
 # [0.847] ./ai_guide.txt: Machine learning introduction...

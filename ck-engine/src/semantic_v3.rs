@@ -77,7 +77,17 @@ pub async fn semantic_search_v3_with_progress(
         callback("Loading embedding model...");
     }
 
-    let mut embedder = ck_embed::create_embedder(None)?;
+    // Read the model configuration from the index manifest
+    let manifest_path = index_dir.join("manifest.json");
+    let resolved_model = if manifest_path.exists() {
+        let manifest_data = std::fs::read(&manifest_path)?;
+        let manifest: ck_index::IndexManifest = serde_json::from_slice(&manifest_data)?;
+        manifest.embedding_model.clone()
+    } else {
+        None // Use default model for old indexes
+    };
+
+    let mut embedder = ck_embed::create_embedder(resolved_model.as_deref())?;
     let query_embeddings = embedder.embed(std::slice::from_ref(&options.query))?;
 
     if query_embeddings.is_empty() {
@@ -160,6 +170,59 @@ pub async fn semantic_search_v3_with_progress(
             chunk_hash: None,
             index_epoch: None,
         });
+    }
+
+    // Apply reranking if enabled
+    if options.rerank && !results.is_empty() {
+        if let Some(ref callback) = progress_callback {
+            callback("Reranking results for improved relevance...");
+        }
+
+        let rerank_model_name = match options.rerank_model.as_deref() {
+            Some("jina") => Some("jina-reranker-v1-base-en"),
+            Some("bge") => Some("BAAI/bge-reranker-base"),
+            Some(name) => Some(name), // Pass through custom model names
+            None => Some("jina-reranker-v1-base-en"), // Default to jina
+        };
+
+        match ck_embed::create_reranker(rerank_model_name) {
+            Ok(mut reranker) => {
+                let documents: Vec<String> = results.iter().map(|r| r.preview.clone()).collect();
+
+                match reranker.rerank(&options.query, &documents) {
+                    Ok(rerank_results) => {
+                        // Update results with reranked scores
+                        // The reranker returns results in reranked order, so we match by document text
+                        for rerank_result in rerank_results.iter() {
+                            if let Some(result) = results
+                                .iter_mut()
+                                .find(|r| r.preview == rerank_result.document)
+                            {
+                                result.score = rerank_result.score;
+                            }
+                        }
+
+                        // Re-sort by reranked scores
+                        results.sort_by(|a, b| {
+                            b.score
+                                .partial_cmp(&a.score)
+                                .unwrap_or(std::cmp::Ordering::Equal)
+                        });
+
+                        // Apply top_k limit again after reranking
+                        if let Some(limit) = options.top_k {
+                            results.truncate(limit);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Reranking failed, using original scores: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to create reranker, using original scores: {}", e);
+            }
+        }
     }
 
     Ok(results)
