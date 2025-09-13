@@ -1,6 +1,20 @@
-use fastembed::{EmbeddingModel, TextEmbedding};
+#[cfg(feature = "fastembed")]
+use fastembed::EmbeddingModel;
 
 fn main() {
+    #[cfg(not(feature = "fastembed"))]
+    {
+        println!("This example requires the 'fastembed' feature to be enabled.");
+        println!("Run with: cargo run --example list_models --features fastembed");
+        return;
+    }
+
+    #[cfg(feature = "fastembed")]
+    run_example();
+}
+
+#[cfg(feature = "fastembed")]
+fn run_example() {
     println!("Available Embedding Models in fastembed-rs:");
     println!("============================================");
 

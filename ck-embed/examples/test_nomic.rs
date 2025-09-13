@@ -1,6 +1,20 @@
+#[cfg(feature = "fastembed")]
 use ck_embed::create_embedder;
 
 fn main() {
+    #[cfg(not(feature = "fastembed"))]
+    {
+        println!("This example requires the 'fastembed' feature to be enabled.");
+        println!("Run with: cargo run --example test_nomic --features fastembed");
+        return;
+    }
+
+    #[cfg(feature = "fastembed")]
+    run_example();
+}
+
+#[cfg(feature = "fastembed")]
+fn run_example() {
     println!("=== Testing Nomic Model ===");
 
     println!("Attempting to create Nomic Embed Text V1.5 embedder...");

@@ -1,6 +1,20 @@
+#[cfg(feature = "fastembed")]
 use ck_embed::create_reranker;
 
 fn main() {
+    #[cfg(not(feature = "fastembed"))]
+    {
+        println!("This example requires the 'fastembed' feature to be enabled.");
+        println!("Run with: cargo run --example test_reranking --features fastembed");
+        return;
+    }
+
+    #[cfg(feature = "fastembed")]
+    run_example();
+}
+
+#[cfg(feature = "fastembed")]
+fn run_example() {
     println!("=== Reranking Test ===");
 
     let mut reranker = create_reranker(None).expect("Failed to create reranker");
