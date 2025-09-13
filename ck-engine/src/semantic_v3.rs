@@ -6,14 +6,14 @@ use walkdir::WalkDir;
 use super::{SearchProgressCallback, extract_content_from_span, find_nearest_index_root};
 
 /// New semantic search implementation using span-based storage
-pub async fn semantic_search_v3(options: &SearchOptions) -> Result<Vec<SearchResult>> {
+pub async fn semantic_search_v3(options: &SearchOptions) -> Result<ck_core::SearchResults> {
     semantic_search_v3_with_progress(options, None).await
 }
 
 pub async fn semantic_search_v3_with_progress(
     options: &SearchOptions,
     progress_callback: Option<SearchProgressCallback>,
-) -> Result<Vec<SearchResult>> {
+) -> Result<ck_core::SearchResults> {
     // Find the index root
     let index_root = find_nearest_index_root(&options.path).unwrap_or_else(|| {
         if options.path.is_file() {
@@ -91,7 +91,10 @@ pub async fn semantic_search_v3_with_progress(
     let query_embeddings = embedder.embed(std::slice::from_ref(&options.query))?;
 
     if query_embeddings.is_empty() {
-        return Ok(Vec::new());
+        return Ok(ck_core::SearchResults {
+            matches: Vec::new(),
+            closest_below_threshold: None,
+        });
     }
 
     let query_embedding = &query_embeddings[0];
@@ -115,18 +118,16 @@ pub async fn semantic_search_v3_with_progress(
 
     // Apply threshold and top_k filtering
     let mut results = Vec::new();
+    let mut closest_below_threshold: Option<SearchResult> = None;
     let limit = options.top_k.unwrap_or(similarities.len());
 
     for (similarity, file_path, chunk) in similarities.into_iter().take(limit) {
-        // Apply threshold filtering
-        if let Some(threshold) = options.threshold
-            && similarity < threshold
-        {
-            continue;
-        }
+        let is_below_threshold = options
+            .threshold
+            .is_some_and(|threshold| similarity < threshold);
 
-        // Check if we're filtering by a specific file or directory
-        if options.path.is_file() {
+        // Check if we're filtering by a specific file or directory (apply to both above/below threshold)
+        let passes_path_filter = if options.path.is_file() {
             let target_file = options
                 .path
                 .canonicalize()
@@ -134,9 +135,7 @@ pub async fn semantic_search_v3_with_progress(
             let result_file = file_path
                 .canonicalize()
                 .unwrap_or_else(|_| file_path.clone());
-            if result_file != target_file {
-                continue;
-            }
+            result_file == target_file
         } else if options.path != Path::new(".") {
             // Filter by directory path - only include files within the specified directory
             let target_dir = options
@@ -146,9 +145,13 @@ pub async fn semantic_search_v3_with_progress(
             let result_file = file_path
                 .canonicalize()
                 .unwrap_or_else(|_| file_path.clone());
-            if !result_file.starts_with(&target_dir) {
-                continue;
-            }
+            result_file.starts_with(&target_dir)
+        } else {
+            true
+        };
+
+        if !passes_path_filter {
+            continue;
         }
 
         // Extract content from the file using the span
@@ -160,7 +163,7 @@ pub async fn semantic_search_v3_with_progress(
             full_content.lines().take(3).collect::<Vec<_>>().join("\n")
         };
 
-        results.push(SearchResult {
+        let search_result = SearchResult {
             file: file_path.clone(),
             span: chunk.span.clone(),
             score: similarity,
@@ -169,7 +172,17 @@ pub async fn semantic_search_v3_with_progress(
             symbol: None,
             chunk_hash: None,
             index_epoch: None,
-        });
+        };
+
+        if is_below_threshold {
+            // Track the closest below-threshold result (first one since sorted by highest first)
+            if closest_below_threshold.is_none() {
+                closest_below_threshold = Some(search_result);
+            }
+        } else {
+            // Add to main results if above threshold
+            results.push(search_result);
+        }
     }
 
     // Apply reranking if enabled
@@ -225,7 +238,10 @@ pub async fn semantic_search_v3_with_progress(
         }
     }
 
-    Ok(results)
+    Ok(ck_core::SearchResults {
+        matches: results,
+        closest_below_threshold,
+    })
 }
 
 fn reconstruct_original_path(

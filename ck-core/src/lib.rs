@@ -132,6 +132,14 @@ pub struct SearchResult {
     pub index_epoch: Option<u64>,
 }
 
+/// Enhanced search results that include near-miss information for threshold queries
+#[derive(Debug, Clone)]
+pub struct SearchResults {
+    pub matches: Vec<SearchResult>,
+    /// The highest scoring result below the threshold (if any)
+    pub closest_below_threshold: Option<SearchResult>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonSearchResult {
     pub file: String,

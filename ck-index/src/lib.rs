@@ -14,6 +14,58 @@ use walkdir::WalkDir;
 
 pub type ProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 
+/// Detailed progress information for embedding operations
+#[derive(Debug, Clone)]
+pub struct EmbeddingProgress {
+    pub file_name: String,
+    pub file_index: usize,
+    pub total_files: usize,
+    pub chunk_index: usize,
+    pub total_chunks: usize,
+    pub chunk_size: usize,
+}
+
+pub type DetailedProgressCallback = Box<dyn Fn(EmbeddingProgress) + Send + Sync>;
+
+/// Enhanced progress information for granular indexing feedback
+#[derive(Debug, Clone)]
+pub enum IndexingProgress {
+    /// Starting indexing process
+    Starting { total_files: usize },
+    /// Processing a specific file
+    ProcessingFile {
+        file: String,
+        file_number: usize,
+        total_files: usize,
+        file_size: u64,
+    },
+    /// Chunking a file
+    ChunkingFile { file: String, chunks_found: usize },
+    /// Processing chunk for embedding
+    ProcessingChunk {
+        file: String,
+        chunk_number: usize,
+        total_chunks: usize,
+        chunk_size: usize,
+    },
+    /// Finished processing a file
+    FileComplete {
+        file: String,
+        chunks_processed: usize,
+        file_number: usize,
+        total_files: usize,
+        elapsed_ms: u64,
+    },
+    /// Overall completion
+    Complete {
+        total_files: usize,
+        total_chunks: usize,
+        total_elapsed_ms: u64,
+    },
+}
+
+pub type EnhancedProgressCallback = Box<dyn Fn(IndexingProgress) + Send + Sync>;
+
 // Global interrupt flag
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 static HANDLER_INIT: Once = Once::new();
@@ -608,6 +660,31 @@ pub async fn smart_update_index_with_progress(
     exclude_patterns: &[String],
     model: Option<&str>,
 ) -> Result<UpdateStats> {
+    smart_update_index_with_detailed_progress(
+        path,
+        force_rebuild,
+        progress_callback,
+        None, // No detailed progress callback for backward compatibility
+        compute_embeddings,
+        respect_gitignore,
+        exclude_patterns,
+        model,
+    )
+    .await
+}
+
+/// Enhanced indexing with detailed embedding progress
+#[allow(clippy::too_many_arguments)]
+pub async fn smart_update_index_with_detailed_progress(
+    path: &Path,
+    force_rebuild: bool,
+    progress_callback: Option<ProgressCallback>,
+    detailed_progress_callback: Option<DetailedProgressCallback>,
+    compute_embeddings: bool,
+    respect_gitignore: bool,
+    exclude_patterns: &[String],
+    model: Option<&str>,
+) -> Result<UpdateStats> {
     let index_dir = path.join(".ck");
     let mut stats = UpdateStats::default();
 
@@ -794,7 +871,21 @@ pub async fn smart_update_index_with_progress(
                 callback(&file_name.to_string_lossy());
             }
 
-            match index_single_file(file_path, path, Some(&mut embedder)) {
+            // Call detailed progress version if callback is provided, otherwise use regular version
+            let result = if let Some(ref detailed_callback) = detailed_progress_callback {
+                index_single_file_with_progress(
+                    file_path,
+                    path,
+                    Some(&mut embedder),
+                    Some(detailed_callback),
+                    _processed_count,
+                    files_to_update.len(),
+                )
+            } else {
+                index_single_file(file_path, path, Some(&mut embedder))
+            };
+
+            match result {
                 Ok(entry) => {
                     // Write sidecar immediately
                     let sidecar_path = get_sidecar_path(path, file_path);
@@ -935,6 +1026,17 @@ fn index_single_file(
     _repo_root: &Path,
     embedder: Option<&mut Box<dyn ck_embed::Embedder>>,
 ) -> Result<IndexEntry> {
+    index_single_file_with_progress(file_path, _repo_root, embedder, None, 0, 1)
+}
+
+fn index_single_file_with_progress(
+    file_path: &Path,
+    _repo_root: &Path,
+    embedder: Option<&mut Box<dyn ck_embed::Embedder>>,
+    detailed_progress: Option<&DetailedProgressCallback>,
+    file_index: usize,
+    total_files: usize,
+) -> Result<IndexEntry> {
     // Skip binary files to avoid UTF-8 warnings
     if !is_text_file(file_path) {
         return Err(anyhow::anyhow!("Binary file, skipping"));
@@ -960,19 +1062,37 @@ fn index_single_file(
     let chunks = ck_chunk::chunk_text(&content, lang)?;
 
     let chunk_entries: Vec<ChunkEntry> = if let Some(embedder) = embedder {
-        // Compute embeddings for all chunks
-        let chunk_texts: Vec<String> = chunks.iter().map(|c| c.text.clone()).collect();
-        tracing::info!(
-            "Computing embeddings for {} chunks in {:?}",
-            chunk_texts.len(),
-            file_path
-        );
-        let embeddings = embedder.embed(&chunk_texts)?;
+        let total_chunks = chunks.len();
+        let file_name = file_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
 
-        chunks
-            .into_iter()
-            .zip(embeddings)
-            .map(|(chunk, embedding)| {
+        // Process chunks with progress reporting
+        if let Some(ref callback) = detailed_progress {
+            tracing::info!(
+                "Computing embeddings for {} chunks in {:?}",
+                total_chunks,
+                file_path
+            );
+
+            let mut chunk_entries = Vec::new();
+            for (chunk_index, chunk) in chunks.into_iter().enumerate() {
+                // Report progress before processing chunk
+                callback(EmbeddingProgress {
+                    file_name: file_name.clone(),
+                    file_index,
+                    total_files,
+                    chunk_index,
+                    total_chunks,
+                    chunk_size: chunk.text.len(),
+                });
+
+                // Embed single chunk
+                let embeddings = embedder.embed(std::slice::from_ref(&chunk.text))?;
+                let embedding = embeddings.into_iter().next().unwrap();
+
                 let chunk_type_str = match chunk.chunk_type {
                     ck_chunk::ChunkType::Function => Some("function".to_string()),
                     ck_chunk::ChunkType::Class => Some("class".to_string()),
@@ -980,13 +1100,43 @@ fn index_single_file(
                     ck_chunk::ChunkType::Module => Some("module".to_string()),
                     ck_chunk::ChunkType::Text => None,
                 };
-                ChunkEntry {
+
+                chunk_entries.push(ChunkEntry {
                     span: chunk.span,
                     embedding: Some(embedding),
                     chunk_type: chunk_type_str,
-                }
-            })
-            .collect()
+                });
+            }
+            chunk_entries
+        } else {
+            // Fallback to batch processing for backward compatibility
+            let chunk_texts: Vec<String> = chunks.iter().map(|c| c.text.clone()).collect();
+            tracing::info!(
+                "Computing embeddings for {} chunks in {:?}",
+                chunk_texts.len(),
+                file_path
+            );
+            let embeddings = embedder.embed(&chunk_texts)?;
+
+            chunks
+                .into_iter()
+                .zip(embeddings)
+                .map(|(chunk, embedding)| {
+                    let chunk_type_str = match chunk.chunk_type {
+                        ck_chunk::ChunkType::Function => Some("function".to_string()),
+                        ck_chunk::ChunkType::Class => Some("class".to_string()),
+                        ck_chunk::ChunkType::Method => Some("method".to_string()),
+                        ck_chunk::ChunkType::Module => Some("module".to_string()),
+                        ck_chunk::ChunkType::Text => None,
+                    };
+                    ChunkEntry {
+                        span: chunk.span,
+                        embedding: Some(embedding),
+                        chunk_type: chunk_type_str,
+                    }
+                })
+                .collect()
+        }
     } else {
         // No embedder, just store spans without embeddings
         chunks

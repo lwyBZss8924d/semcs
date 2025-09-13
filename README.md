@@ -15,15 +15,15 @@ cargo build --release
 ```
 
 ```bash
-# Index your project for semantic search
+# Index your project for semantic search (one-time setup)
 ck --index src/
 
-# Search by meaning
+# Search by meaning - automatically updates index for changed files
 ck --sem "error handling" src/
 ck --sem "authentication logic" src/
 ck --sem "database connection pooling" src/
 
-# Traditional grep-compatible search still works  
+# Traditional grep-compatible search still works
 ck -n "TODO" *.rs
 ck -R "TODO|FIXME" .
 
@@ -160,10 +160,10 @@ ck --sem "authentication" .
 Choose the right model for your needs when creating the index:
 
 ```bash
-# Default: BGE-Small (fast, 512 tokens, 384 dimensions)
+# Default: BGE-Small (fast, precise chunking)
 ck --index .
 
-# Enhanced: Nomic V1.5 (16x larger context, 2x dimensions)  
+# Enhanced: Nomic V1.5 (8K context, optimal for large functions)
 ck --index --model nomic-v1.5 .
 
 # Code-specialized: Jina Code (optimized for programming languages)
@@ -171,9 +171,11 @@ ck --index --model jina-code .
 ```
 
 **Model Comparison:**
-- **`bge-small`** (default): Fast, 512 token limit, good for most code
-- **`nomic-v1.5`**: 8192 tokens (16x more context), 768 dimensions, better for large functions
-- **`jina-code`**: 8192 tokens, specialized for code understanding
+- **`bge-small`** (default): 400-token chunks, fast indexing, good for most code
+- **`nomic-v1.5`**: 1024-token chunks with 8K model capacity, better for large functions and classes
+- **`jina-code`**: 1024-token chunks with 8K model capacity, specialized for code understanding
+
+**New in v0.4.5:** Token-aware chunking uses actual model tokenizers for precise sizing, with model-specific chunk configurations balancing precision vs context.
 
 **Note:** Model choice is set during indexing. Existing indexes will automatically use their original model.
 
@@ -239,6 +241,28 @@ ck --index .
 ck --add new_file.rs
 ```
 
+### File Inspection (New in v0.4.5)
+Analyze how files will be chunked for embedding with the enhanced `--inspect` command:
+
+```bash
+# Inspect file chunking and token usage
+ck --inspect src/main.rs
+# Output: File info, chunk count, token statistics, and chunk details
+
+# Example output:
+# File: src/main.rs (49.6 KB, 1378 lines, 12083 tokens)
+# Language: rust
+#
+# Chunks: 17 (tokens: min=4, max=3942, avg=644)
+#    1. mod: 4 tokens | L9-9 | mod progress;
+#    2. func: 1185 tokens | L88-294 | struct Cli { ... }
+#    3. func: 442 tokens | L296-341 | fn expand_glob_patterns(...
+
+# Check different model configurations
+ck --inspect --model bge-small src/main.rs      # 400-token chunking
+ck --inspect --model nomic-v1.5 src/main.rs    # 1024-token chunking
+```
+
 ## File Support
 
 | Language | Indexing | Tree-sitter Parsing | Semantic Chunking |
@@ -261,6 +285,12 @@ ck --add new_file.rs
 git clone https://github.com/BeaconBay/ck
 cd ck
 cargo install --path ck-cli
+```
+
+### From crates.io
+```bash
+# Install latest release from crates.io
+cargo install ck-search
 ```
 
 ### Package Managers (Planned)
@@ -383,12 +413,13 @@ embedding_model = "BAAI/bge-small-en-v1.5"
 
 ## Performance
 
-- **Indexing:** ~1M LOC in under 2 minutes (with smart exclusions and optimized embedding computation)
-- **Search:** Sub-500ms queries on typical codebases  
+- **Indexing:** ~1M LOC in under 2 minutes (with smart exclusions and token-aware chunking)
+- **Search:** Sub-500ms queries on typical codebases
 - **Index size:** ~2x source code size with compression
 - **Memory:** Efficient streaming for large repositories with span-based content extraction
 - **File filtering:** Automatic exclusion of virtual environments and build artifacts
 - **Output:** Clean stdout/stderr separation for reliable piping and scripting
+- **Token precision:** HuggingFace tokenizers for exact model-specific token counting (v0.4.5+)
 
 ## Testing
 
@@ -424,9 +455,9 @@ cargo test
 
 ## Roadmap
 
-### Current (v0.3+)
+### Current (v0.4+)
 - ✅ grep-compatible CLI with semantic search and file listing flags (`-l`, `-L`)
-- ✅ FastEmbed integration with BGE models
+- ✅ FastEmbed integration with BGE models and enhanced model selection
 - ✅ File exclusion patterns and glob support
 - ✅ Threshold filtering and relevance scoring with visual highlighting
 - ✅ Tree-sitter parsing and intelligent chunking (Python, TypeScript, JavaScript, Go, Haskell, Rust, Ruby)
@@ -434,10 +465,15 @@ cargo test
 - ✅ Enhanced indexing strategy with v3 semantic search optimization
 - ✅ Clean stdout/stderr separation for reliable scripting
 - ✅ Incremental index updates with hash-based change detection
+- ✅ Token-aware chunking with HuggingFace tokenizers (v0.4.5)
+- ✅ Model-specific chunk sizing and FastEmbed capacity utilization (v0.4.5)
+- ✅ Enhanced `--inspect` command with token analysis (v0.4.5)
+- ✅ Granular indexing progress with file-level and chunk-level progress bars (v0.4.5)
 
-### Next (v0.4-0.5)  
+### Next (v0.5+)
+- ✅ Published to crates.io (`cargo install ck-search`)
 - 🚧 Configuration file support
-- 🚧 Package manager distributions
+- 🚧 Package manager distributions (brew, apt)
 
 ## FAQ
 

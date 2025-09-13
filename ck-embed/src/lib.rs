@@ -131,9 +131,26 @@ impl FastEmbedder {
             }
         }
 
+        // Configure max_length based on model capacity
+        let max_length = match model {
+            // Small models - keep at 512
+            EmbeddingModel::BGESmallENV15 | EmbeddingModel::AllMiniLML6V2 => 512,
+            EmbeddingModel::BGEBaseENV15 => 512,
+
+            // Large context models - use their full capacity!
+            EmbeddingModel::NomicEmbedTextV1 | EmbeddingModel::NomicEmbedTextV15 => 8192,
+            EmbeddingModel::JinaEmbeddingsV2BaseCode => 8192,
+
+            // BGE large can handle more
+            EmbeddingModel::BGELargeENV15 => 512, // Conservative for BGE
+
+            _ => 512, // Safe default
+        };
+
         let init_options = InitOptions::new(model.clone())
             .with_show_download_progress(progress_callback.is_some())
-            .with_cache_dir(model_cache_dir);
+            .with_cache_dir(model_cache_dir)
+            .with_max_length(max_length);
 
         let embedding = TextEmbedding::try_new(init_options)?;
 
