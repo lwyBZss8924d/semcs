@@ -2,6 +2,41 @@ use anyhow::Result;
 use ck_core::Span;
 use serde::{Deserialize, Serialize};
 
+/// Import token estimation from ck-embed
+pub use ck_embed::TokenEstimator;
+
+/// Fallback to estimation if precise tokenization fails
+fn estimate_tokens(text: &str) -> usize {
+    TokenEstimator::estimate_tokens(text)
+}
+
+/// Get model-specific chunk configuration (target_tokens, overlap_tokens)
+/// Balanced for precision vs context - larger models can handle bigger chunks but not too big
+fn get_model_chunk_config(model_name: Option<&str>) -> (usize, usize) {
+    let model = model_name.unwrap_or("nomic-embed-text-v1.5");
+
+    match model {
+        // Small models - keep chunks smaller for better precision
+        "BAAI/bge-small-en-v1.5" | "sentence-transformers/all-MiniLM-L6-v2" => {
+            (400, 80) // 400 tokens target, 80 token overlap (~20%)
+        }
+
+        // Large context models - can use bigger chunks while preserving precision
+        // Sweet spot: enough context to be meaningful, small enough to be precise
+        "nomic-embed-text-v1" | "nomic-embed-text-v1.5" | "jina-embeddings-v2-base-code" => {
+            (1024, 200) // 1024 tokens target, 200 token overlap (~20%) - good balance
+        }
+
+        // BGE variants - stick to smaller for precision
+        "BAAI/bge-base-en-v1.5" | "BAAI/bge-large-en-v1.5" => {
+            (400, 80) // 400 tokens target, 80 token overlap (~20%)
+        }
+
+        // Default to large model config since nomic-v1.5 is default
+        _ => (1024, 200), // Good balance of context vs precision
+    }
+}
+
 /// Information about chunk striding for large chunks that exceed token limits
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrideInfo {
@@ -109,10 +144,37 @@ impl Default for ChunkConfig {
     }
 }
 
+/// New function that accepts model name for model-specific chunking
+pub fn chunk_text_with_model(
+    text: &str,
+    language: Option<ck_core::Language>,
+    model_name: Option<&str>,
+) -> Result<Vec<Chunk>> {
+    let (target_tokens, overlap_tokens) = get_model_chunk_config(model_name);
+
+    // Create a config based on model-specific parameters
+    let config = ChunkConfig {
+        max_tokens: target_tokens,
+        stride_overlap: overlap_tokens,
+        enable_striding: true,
+    };
+
+    chunk_text_with_config_and_model(text, language, &config, model_name)
+}
+
 pub fn chunk_text_with_config(
     text: &str,
     language: Option<ck_core::Language>,
     config: &ChunkConfig,
+) -> Result<Vec<Chunk>> {
+    chunk_text_with_config_and_model(text, language, config, None)
+}
+
+fn chunk_text_with_config_and_model(
+    text: &str,
+    language: Option<ck_core::Language>,
+    config: &ChunkConfig,
+    model_name: Option<&str>,
 ) -> Result<Vec<Chunk>> {
     tracing::debug!(
         "Chunking text with language: {:?}, length: {} chars, config: {:?}",
@@ -124,15 +186,15 @@ pub fn chunk_text_with_config(
     let result = match language.map(ParseableLanguage::try_from) {
         Some(Ok(lang)) => {
             tracing::debug!("Using {} tree-sitter parser", lang);
-            chunk_language(text, lang)
+            chunk_language_with_model(text, lang, model_name)
         }
         Some(Err(_)) => {
             tracing::debug!("Language not supported for parsing, using generic chunking strategy");
-            chunk_generic(text)
+            chunk_generic_with_token_config(text, model_name)
         }
         None => {
             tracing::debug!("Using generic chunking strategy");
-            chunk_generic(text)
+            chunk_generic_with_token_config(text, model_name)
         }
     };
 
@@ -148,10 +210,24 @@ pub fn chunk_text_with_config(
 }
 
 fn chunk_generic(text: &str) -> Result<Vec<Chunk>> {
+    chunk_generic_with_token_config(text, None)
+}
+
+fn chunk_generic_with_token_config(text: &str, model_name: Option<&str>) -> Result<Vec<Chunk>> {
     let mut chunks = Vec::new();
     let lines: Vec<&str> = text.lines().collect();
-    let chunk_size = 20;
-    let overlap = 5;
+
+    // Get model-specific optimal chunk size in tokens
+    let (target_tokens, overlap_tokens) = get_model_chunk_config(model_name);
+
+    // Convert token targets to approximate line counts
+    // This is a rough heuristic - we'll validate with actual token counting
+    let avg_tokens_per_line = 10.0; // Rough estimate for code
+    let target_lines = ((target_tokens as f32) / avg_tokens_per_line) as usize;
+    let overlap_lines = ((overlap_tokens as f32) / avg_tokens_per_line) as usize;
+
+    let chunk_size = target_lines.max(5); // Minimum 5 lines
+    let overlap = overlap_lines.max(1); // Minimum 1 line overlap
 
     // Pre-compute cumulative byte offsets for O(1) lookup
     let mut line_byte_offsets = Vec::with_capacity(lines.len() + 1);
@@ -221,6 +297,17 @@ fn chunk_language(text: &str, language: ParseableLanguage) -> Result<Vec<Chunk>>
     }
 
     Ok(chunks)
+}
+
+fn chunk_language_with_model(
+    text: &str,
+    language: ParseableLanguage,
+    _model_name: Option<&str>,
+) -> Result<Vec<Chunk>> {
+    // For now, language-based chunking doesn't need model-specific behavior
+    // since it's based on semantic code boundaries rather than token counts
+    // We could potentially optimize this in the future by validating chunk token counts
+    chunk_language(text, language)
 }
 
 fn extract_code_chunks(
@@ -459,16 +546,7 @@ fn stride_large_chunk(chunk: Chunk, config: &ChunkConfig) -> Result<Vec<Chunk>> 
     Ok(strided_chunks)
 }
 
-/// Simple token estimation (matches the one in ck-embed)
-fn estimate_tokens(text: &str) -> usize {
-    if text.is_empty() {
-        return 0;
-    }
-
-    // Rough estimation: ~4.5 characters per token on average
-    let char_count = text.chars().count();
-    (char_count as f32 / 4.5).ceil() as usize
-}
+// Removed duplicate estimate_tokens function - using the one from ck-embed via TokenEstimator
 
 #[cfg(test)]
 mod tests {

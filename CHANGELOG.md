@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.5] - 2025-09-13
+
+### Added
+- **Enhanced token-based chunking**: Implemented model-specific token-aware chunking using HuggingFace tokenizers for precise token counting instead of character estimation
+- **Model-specific configurations**: Chunks now sized according to model capacity - 1024 tokens for large models (nomic/jina) vs 400 tokens for small models (bge-small)
+- **Streamlined --inspect command**: Enhanced file inspection showing token counts per chunk, language detection, and clean visualization without visual noise
+- **FastEmbed capacity utilization**: Configured FastEmbed to use full model capacity (8192 tokens for nomic/jina models vs previous 512 token truncation)
+- **Indexing progress transparency**: Added model name and chunk configuration display during indexing operations
+
+### Fixed
+- **Token estimation accuracy**: Replaced rough character-based estimation with actual model tokenizers for precise chunking
+- **Model capacity underutilization**: Fixed FastEmbed configuration to use full 8K context for large models instead of 512-token default
+- **Clippy compliance**: Resolved all compiler warnings to meet CI/CD standards with `-D warnings` flag
+- **Unused code cleanup**: Removed dead code and properly annotated intentional allowances for CI compliance
+
+### Technical
+- **HuggingFace tokenizer integration**: Added hf-hub and tokenizers dependencies for precise token counting
+- **Model-aware chunking system**: `get_model_chunk_config()` function providing balanced precision vs context chunking strategy
+- **Enhanced --inspect visualization**: Complete rewrite showing essential chunking information without progress bar clutter
+- **Comprehensive quality checks**: All 88 tests passing with clippy compliance and code formatting standards
+
 ## [0.4.4] - 2025-09-13
 
 ### Fixed

@@ -356,13 +356,12 @@ fn should_exclude_path(path: &Path, exclude_patterns: &[String]) -> bool {
 }
 
 async fn inspect_file_metadata(file_path: &PathBuf, status: &StatusReporter) -> Result<()> {
+    use ck_embed::TokenEstimator;
+    use console::style;
     use std::fs;
     use std::path::Path;
 
     let path = Path::new(file_path);
-
-    // Basic file info
-    status.info(&format!("📁 File: {}", path.display()));
 
     if !path.exists() {
         status.error("File does not exist");
@@ -370,64 +369,102 @@ async fn inspect_file_metadata(file_path: &PathBuf, status: &StatusReporter) -> 
     }
 
     let metadata = fs::metadata(path)?;
-    status.info(&format!("📏 Size: {} bytes", metadata.len()));
-
     let detected_lang = ck_core::Language::from_path(path);
-
-    status.info(&format!(
-        "🔍 Language: {}",
-        detected_lang
-            .map(|l| l.to_string())
-            .unwrap_or_else(|| "unknown".to_string())
-    ));
-
-    // Read file content
     let content = fs::read_to_string(path)?;
-    status.info(&format!("📄 Lines: {}", content.lines().count()));
+    let total_tokens = TokenEstimator::estimate_tokens(&content);
 
-    // Try chunking with detected language
-    status.info("🧩 Chunking Analysis:");
-    let chunks = ck_chunk::chunk_text(&content, detected_lang)?;
-    status.info(&format!("  • Total chunks: {}", chunks.len()));
+    // Basic file info
+    println!(
+        "File: {} ({:.1} KB, {} lines, {} tokens)",
+        style(path.display()).cyan().bold(),
+        metadata.len() as f64 / 1024.0,
+        content.lines().count(),
+        style(total_tokens).yellow()
+    );
 
-    for (i, chunk) in chunks.iter().take(15).enumerate() {
-        status.info(&format!(
-            "  • Chunk {}: {:?} ({}:{}-{}:{})",
-            i + 1,
-            chunk.chunk_type,
+    if let Some(lang) = detected_lang {
+        println!("Language: {}", style(lang.to_string()).green());
+    }
+
+    // Use model-aware chunking
+    let default_model = "nomic-embed-text-v1.5";
+    let chunks = ck_chunk::chunk_text_with_model(&content, detected_lang, Some(default_model))?;
+
+    if chunks.is_empty() {
+        println!("No chunks generated");
+        return Ok(());
+    }
+
+    // Token analysis
+    let token_counts: Vec<usize> = chunks
+        .iter()
+        .map(|chunk| TokenEstimator::estimate_tokens(&chunk.text))
+        .collect();
+
+    let min_tokens = *token_counts.iter().min().unwrap();
+    let max_tokens = *token_counts.iter().max().unwrap();
+    let avg_tokens = token_counts.iter().sum::<usize>() as f64 / token_counts.len() as f64;
+
+    println!(
+        "\nChunks: {} (tokens: min={}, max={}, avg={:.0})",
+        style(chunks.len()).green().bold(),
+        style(min_tokens).cyan(),
+        style(max_tokens).cyan(),
+        style(avg_tokens as usize).cyan()
+    );
+
+    // Show chunk details (limit to 10)
+    let display_limit = 10;
+    for (i, chunk) in chunks.iter().take(display_limit).enumerate() {
+        let chunk_tokens = token_counts[i];
+
+        let type_display = match chunk.chunk_type {
+            ck_chunk::ChunkType::Function => "func",
+            ck_chunk::ChunkType::Class => "class",
+            ck_chunk::ChunkType::Method => "method",
+            ck_chunk::ChunkType::Module => "mod",
+            ck_chunk::ChunkType::Text => "text",
+        };
+
+        // Simple preview - first 80 chars
+        let preview = chunk
+            .text
+            .lines()
+            .find(|line| !line.trim().is_empty())
+            .unwrap_or("")
+            .chars()
+            .take(80)
+            .collect::<String>()
+            .trim()
+            .to_string();
+
+        println!(
+            "  {} {}: {} tokens | L{}-{} | {}{}",
+            style(format!("{:2}.", i + 1)).dim(),
+            style(type_display).blue(),
+            style(chunk_tokens).yellow(),
             chunk.span.line_start,
             chunk.span.line_end,
-            chunk.span.byte_start,
-            chunk.span.byte_end
-        ));
-
-        // Show preview of chunk content (first 100 chars)
-        let preview = if chunk.text.chars().count() > 100 {
-            let truncated: String = chunk.text.chars().take(100).collect();
-            format!("{}...", truncated)
-        } else {
-            chunk.text.clone()
-        };
-        status.info(&format!("    Preview: {}", preview.replace('\n', "\\n")));
+            preview,
+            if chunk.text.len() > 80 { "..." } else { "" }
+        );
     }
 
-    if chunks.len() > 15 {
-        status.info(&format!("    ... and {} more chunks", chunks.len() - 15));
+    if chunks.len() > display_limit {
+        println!("  ... and {} more chunks", chunks.len() - display_limit);
     }
 
-    // Check if file is indexed
+    // Index status
     let parent_dir = path.parent().unwrap_or(Path::new("."));
     if let Ok(stats) = ck_index::get_index_stats(parent_dir) {
         if stats.total_files > 0 {
-            status.info("📚 Index Status: File's directory is indexed");
-            status.info(&format!("  • Total indexed files: {}", stats.total_files));
-            status.info(&format!(
-                "  • Total chunks in index: {}",
-                stats.total_chunks
-            ));
+            println!(
+                "\nIndexed: {} files, {} chunks in directory",
+                style(stats.total_files).green(),
+                style(stats.total_chunks).green()
+            );
         } else {
-            status.warn("📚 Index Status: File's directory is not indexed");
-            status.info("  Run 'ck --index .' to create an index for semantic search");
+            println!("\nNot indexed. Run 'ck --index .' to enable semantic search");
         }
     }
 
@@ -474,6 +511,26 @@ async fn run_main() -> Result<()> {
         status.section_header("Indexing Repository");
         status.info(&format!("Scanning files in {}", path.display()));
 
+        // Show indexing configuration information
+        let model_name = cli.model.as_deref().unwrap_or("nomic-embed-text-v1.5"); // Default model
+        status.info(&format!("🤖 Model: {}", model_name));
+
+        // Show model-specific limits and chunk config
+        let (max_tokens, chunk_tokens, overlap_tokens) = match model_name {
+            "BAAI/bge-small-en-v1.5" | "sentence-transformers/all-MiniLM-L6-v2" => (512, 400, 80),
+            "nomic-embed-text-v1" | "nomic-embed-text-v1.5" | "jina-embeddings-v2-base-code" => {
+                (8192, 1024, 200)
+            }
+            "BAAI/bge-base-en-v1.5" | "BAAI/bge-large-en-v1.5" => (512, 400, 80),
+            _ => (8192, 1024, 200), // Default to nomic config
+        };
+
+        status.info(&format!("📏 FastEmbed Config: {} token limit", max_tokens));
+        status.info(&format!(
+            "📄 Chunk Config: {} tokens target, {} token overlap (~20%)",
+            chunk_tokens, overlap_tokens
+        ));
+
         // Build exclusion patterns
         let mut exclude_patterns = Vec::new();
         if !cli.no_default_excludes {
@@ -481,48 +538,133 @@ async fn run_main() -> Result<()> {
         }
         exclude_patterns.extend(cli.exclude.clone());
 
-        let indexing_progress = status.create_spinner("Building index...");
+        let start_time = std::time::Instant::now();
 
-        // Create progress callback to show current file being processed
-        let progress_callback = if !cli.quiet {
-            let pb_clone = indexing_progress.clone();
-            Some(Box::new(move |file_name: &str| {
-                if let Some(pb) = &pb_clone {
-                    pb.set_message(format!("Processing {}", file_name));
-                }
-            }) as ck_index::ProgressCallback)
+        // Create enhanced progress system with multiple progress bars
+        let (
+            file_progress_bar,
+            overall_progress_bar,
+            progress_callback,
+            detailed_progress_callback,
+        ) = if !cli.quiet {
+            use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+
+            let multi_progress = MultiProgress::new();
+
+            // Overall progress bar (files)
+            let overall_pb = multi_progress.add(ProgressBar::new(0));
+            overall_pb.set_style(ProgressStyle::default_bar()
+                .template("📂 Embedding Files: [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({percent}%) {msg}")
+                .unwrap()
+                .progress_chars("━━╸ "));
+
+            // Current file progress bar (chunks)
+            let file_pb = multi_progress.add(ProgressBar::new(0));
+            file_pb.set_style(ProgressStyle::default_bar()
+                .template("📄 Embedding Chunks: [{elapsed_precise}] [{bar:40.green/yellow}] {pos}/{len} ({percent}%) {msg}")
+                .unwrap()
+                .progress_chars("━━╸ "));
+
+            // MultiProgress is automatically managed
+
+            let overall_pb_clone = overall_pb.clone();
+            let _file_pb_clone = file_pb.clone();
+            let overall_pb_clone2 = overall_pb.clone();
+            let file_pb_clone2 = file_pb.clone();
+
+            // Basic progress callback for file-level updates
+            let progress_callback = Some(Box::new(move |file_name: &str| {
+                let short_name = file_name.split('/').next_back().unwrap_or(file_name);
+                overall_pb_clone.set_message(format!("Processing {}", short_name));
+                overall_pb_clone.inc(1);
+            }) as ck_index::ProgressCallback);
+
+            // Detailed progress callback for chunk-level updates
+            let detailed_progress_callback =
+                Some(Box::new(move |progress: ck_index::EmbeddingProgress| {
+                    // Update overall progress bar
+                    if overall_pb_clone2.length().unwrap_or(0) != progress.total_files as u64 {
+                        overall_pb_clone2.set_length(progress.total_files as u64);
+                    }
+                    overall_pb_clone2.set_position(progress.file_index as u64);
+
+                    // Update file progress bar
+                    if file_pb_clone2.length().unwrap_or(0) != progress.total_chunks as u64 {
+                        file_pb_clone2.set_length(progress.total_chunks as u64);
+                        file_pb_clone2.reset();
+                    }
+                    file_pb_clone2.set_position(progress.chunk_index as u64);
+
+                    let short_name = progress
+                        .file_name
+                        .split('/')
+                        .next_back()
+                        .unwrap_or(&progress.file_name);
+                    file_pb_clone2.set_message(format!(
+                        "{} (chunk {}/{}, {}B)",
+                        short_name,
+                        progress.chunk_index + 1,
+                        progress.total_chunks,
+                        progress.chunk_size
+                    ));
+                }) as ck_index::DetailedProgressCallback);
+
+            (
+                Some(file_pb),
+                Some(overall_pb),
+                progress_callback,
+                detailed_progress_callback,
+            )
         } else {
-            None
+            (None, None, None, None)
         };
 
-        let stats = ck_index::smart_update_index_with_progress(
+        let stats = ck_index::smart_update_index_with_detailed_progress(
             &path,
             false,
             progress_callback,
+            detailed_progress_callback,
             true,
             !cli.no_ignore,
             &exclude_patterns,
             cli.model.as_deref(), // Pass the model selection from CLI
         )
         .await?;
-        status.finish_progress(indexing_progress, "Index built successfully");
+        let elapsed = start_time.elapsed();
+        let files_per_sec = if elapsed.as_secs() > 0 {
+            stats.files_indexed as f64 / elapsed.as_secs() as f64
+        } else {
+            stats.files_indexed as f64
+        };
 
-        status.success(&format!("Indexed {} files", stats.files_indexed));
+        // Finish progress bars
+        if let Some(file_pb) = file_progress_bar {
+            file_pb.finish_with_message("✅ All chunks processed");
+        }
+        if let Some(overall_pb) = overall_progress_bar {
+            overall_pb.finish_with_message(format!(
+                "✅ Index built in {:.2}s ({:.1} files/sec)",
+                elapsed.as_secs_f64(),
+                files_per_sec
+            ));
+        }
+
+        status.success(&format!("🚀 Indexed {} files", stats.files_indexed));
         if stats.files_added > 0 {
-            status.info(&format!("  {} new files added", stats.files_added));
+            status.info(&format!("  ➕ {} new files added", stats.files_added));
         }
         if stats.files_modified > 0 {
-            status.info(&format!("  {} files updated", stats.files_modified));
+            status.info(&format!("  🔄 {} files updated", stats.files_modified));
         }
         if stats.files_up_to_date > 0 {
             status.info(&format!(
-                "  {} files already current",
+                "  ✅ {} files already current",
                 stats.files_up_to_date
             ));
         }
         if stats.orphaned_files_removed > 0 {
             status.info(&format!(
-                "  {} orphaned entries cleaned",
+                "  🧹 {} orphaned entries cleaned",
                 stats.orphaned_files_removed
             ));
         }
@@ -725,18 +867,50 @@ async fn run_main() -> Result<()> {
             show_filenames = true;
         }
         let mut any_matches = false;
+        let mut closest_overall: Option<ck_core::SearchResult> = None;
+
         for file_path in files {
             let mut options = build_options(&cli, reindex);
             options.show_filenames = show_filenames;
-            let had_matches = run_search(pattern.clone(), file_path, options, &status).await?;
-            if had_matches {
+            let summary = run_search(pattern.clone(), file_path, options, &status).await?;
+            if summary.had_matches {
                 any_matches = true;
+            }
+            // Track the highest-scoring closest match across all searches
+            if let Some(closest) = summary.closest_below_threshold
+                && (closest_overall.is_none()
+                    || closest.score > closest_overall.as_ref().unwrap().score)
+            {
+                closest_overall = Some(closest);
             }
         }
 
         // grep-like exit codes: 0 if matches found, 1 if none
         if !any_matches {
             eprintln!("No matches found");
+
+            // Show the closest match below threshold if available
+            if let Some(closest) = closest_overall {
+                // Format like a regular result but in red
+                let score_text = format!("[{:.3}] ", closest.score);
+                let file_text = format!("{}:", closest.file.display());
+
+                // Get the pattern as a string
+                let options = build_options(&cli, false);
+                let highlighted_preview = highlight_matches(&closest.preview, pattern, &options);
+
+                // Print in red with same format as regular results, with header
+                eprintln!();
+                eprintln!("{}", style("(nearest match beneath the threshold)").dim());
+                eprintln!(
+                    "{}{}{}:{}",
+                    style(score_text).red(),
+                    style(file_text).red(),
+                    style(closest.span.line_start).red(),
+                    style(highlighted_preview).red()
+                );
+            }
+
             std::process::exit(1);
         }
     } else {
@@ -997,12 +1171,17 @@ fn apply_heatmap_color(token: &str, score: f32) -> String {
     }
 }
 
+struct SearchSummary {
+    had_matches: bool,
+    closest_below_threshold: Option<ck_core::SearchResult>,
+}
+
 async fn run_search(
     pattern: String,
     path: PathBuf,
     mut options: SearchOptions,
     status: &StatusReporter,
-) -> Result<bool> {
+) -> Result<SearchSummary> {
     options.query = pattern;
     options.path = path;
 
@@ -1018,33 +1197,42 @@ async fn run_search(
         status.finish_progress(reindex_spinner, "Index updated");
     }
 
-    // Show search progress for non-regex searches or when explicitly enabled
-    let search_spinner = if !matches!(options.mode, ck_core::SearchMode::Regex) {
-        let mode_name = match options.mode {
-            ck_core::SearchMode::Semantic => "semantic",
-            ck_core::SearchMode::Lexical => "lexical",
-            ck_core::SearchMode::Hybrid => "hybrid",
-            _ => "regex",
+    // Show search parameters for semantic mode
+    if matches!(options.mode, ck_core::SearchMode::Semantic) {
+        let topk_info = options
+            .top_k
+            .map_or("unlimited".to_string(), |k| k.to_string());
+        let threshold_info = options
+            .threshold
+            .map_or("none".to_string(), |t| format!("{:.1}", t));
+        eprintln!(
+            "ℹ Semantic search: top {} results, threshold ≥{}",
+            topk_info, threshold_info
+        );
+
+        // Show indexing configuration for semantic search
+        let model_name = "nomic-embed-text-v1.5"; // Default model for semantic search
+        eprintln!("🤖 Model: {}", model_name);
+
+        // Show model-specific limits and chunk config
+        let (max_tokens, chunk_tokens, overlap_tokens) = match model_name {
+            "BAAI/bge-small-en-v1.5" | "sentence-transformers/all-MiniLM-L6-v2" => (512, 400, 80),
+            "nomic-embed-text-v1" | "nomic-embed-text-v1.5" | "jina-embeddings-v2-base-code" => {
+                (8192, 1024, 200)
+            }
+            "BAAI/bge-base-en-v1.5" | "BAAI/bge-large-en-v1.5" => (512, 400, 80),
+            _ => (8192, 1024, 200), // Default to nomic config
         };
 
-        // Show search parameters for semantic mode
-        if matches!(options.mode, ck_core::SearchMode::Semantic) {
-            let topk_info = options
-                .top_k
-                .map_or("unlimited".to_string(), |k| k.to_string());
-            let threshold_info = options
-                .threshold
-                .map_or("none".to_string(), |t| format!("{:.1}", t));
-            eprintln!(
-                "ℹ Semantic search: top {} results, threshold ≥{}",
-                topk_info, threshold_info
-            );
-        }
+        eprintln!("📏 FastEmbed Config: {} token limit", max_tokens);
+        eprintln!(
+            "📄 Chunk Config: {} tokens target, {} token overlap (~20%)",
+            chunk_tokens, overlap_tokens
+        );
+    }
 
-        status.create_spinner(&format!("Searching with {} mode...", mode_name))
-    } else {
-        None
-    };
+    // We'll create the search spinner after indexing is complete to avoid conflicts
+    let search_spinner: Option<indicatif::ProgressBar> = None;
 
     // Create progress callback for search operations
     let search_progress_callback = if !status.quiet && search_spinner.is_some() {
@@ -1058,7 +1246,94 @@ async fn run_search(
         None
     };
 
-    let results = ck_engine::search_with_progress(&options, search_progress_callback).await?;
+    // Create indexing progress callbacks for automatic indexing during semantic search
+    let (indexing_progress_callback, detailed_indexing_progress_callback) = if !status.quiet
+        && matches!(
+            options.mode,
+            ck_core::SearchMode::Semantic | ck_core::SearchMode::Hybrid
+        ) {
+        // Create the same enhanced progress system for automatic indexing during semantic search
+        use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+
+        let multi_progress = MultiProgress::new();
+
+        // Overall progress bar (files)
+        let overall_pb = multi_progress.add(ProgressBar::new(0));
+        overall_pb.set_style(ProgressStyle::default_bar()
+            .template("📂 Embedding Files: [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({percent}%) {msg}")
+            .unwrap()
+            .progress_chars("━━╸ "));
+
+        // Current file progress bar (chunks)
+        let file_pb = multi_progress.add(ProgressBar::new(0));
+        file_pb.set_style(ProgressStyle::default_bar()
+            .template("📄 Embedding Chunks: [{elapsed_precise}] [{bar:40.green/yellow}] {pos}/{len} ({percent}%) {msg}")
+            .unwrap()
+            .progress_chars("━━╸ "));
+
+        let overall_pb_clone = overall_pb.clone();
+        let _file_pb_clone = file_pb.clone();
+        let overall_pb_clone2 = overall_pb.clone();
+        let file_pb_clone2 = file_pb.clone();
+
+        // Basic progress callback for file-level updates
+        let indexing_progress_callback = Some(Box::new(move |file_name: &str| {
+            let short_name = file_name.split('/').next_back().unwrap_or(file_name);
+            overall_pb_clone.set_message(format!("Processing {}", short_name));
+            overall_pb_clone.inc(1);
+        }) as ck_engine::IndexingProgressCallback);
+
+        // Detailed progress callback for chunk-level updates
+        let detailed_indexing_progress_callback =
+            Some(Box::new(move |progress: ck_index::EmbeddingProgress| {
+                // Update overall progress bar
+                if overall_pb_clone2.length().unwrap_or(0) != progress.total_files as u64 {
+                    overall_pb_clone2.set_length(progress.total_files as u64);
+                }
+                overall_pb_clone2.set_position(progress.file_index as u64);
+
+                // Update file progress bar
+                if file_pb_clone2.length().unwrap_or(0) != progress.total_chunks as u64 {
+                    file_pb_clone2.set_length(progress.total_chunks as u64);
+                    file_pb_clone2.reset();
+                }
+                file_pb_clone2.set_position(progress.chunk_index as u64);
+
+                let short_name = progress
+                    .file_name
+                    .split('/')
+                    .next_back()
+                    .unwrap_or(&progress.file_name);
+                file_pb_clone2.set_message(format!(
+                    "{} (chunk {}/{}, {}B)",
+                    short_name,
+                    progress.chunk_index + 1,
+                    progress.total_chunks,
+                    progress.chunk_size
+                ));
+            })
+                as ck_engine::DetailedIndexingProgressCallback);
+
+        // Store progress bars for cleanup
+        let _file_pb_ref = file_pb;
+        let _overall_pb_ref = overall_pb;
+
+        (
+            indexing_progress_callback,
+            detailed_indexing_progress_callback,
+        )
+    } else {
+        (None, None)
+    };
+
+    let search_results = ck_engine::search_enhanced_with_indexing_progress(
+        &options,
+        search_progress_callback,
+        indexing_progress_callback,
+        detailed_indexing_progress_callback,
+    )
+    .await?;
+    let results = &search_results.matches;
 
     if let Some(spinner) = search_spinner {
         status.finish_progress(Some(spinner), &format!("Found {} results", results.len()));
@@ -1069,7 +1344,7 @@ async fn run_search(
         for result in results {
             has_matches = true;
             let jsonl_result =
-                ck_core::JsonlSearchResult::from_search_result(&result, !options.no_snippet);
+                ck_core::JsonlSearchResult::from_search_result(result, !options.no_snippet);
             println!("{}", serde_json::to_string(&jsonl_result)?);
         }
     } else if options.json_output {
@@ -1077,16 +1352,16 @@ async fn run_search(
             has_matches = true;
             let json_result = ck_core::JsonSearchResult {
                 file: result.file.display().to_string(),
-                span: result.span,
+                span: result.span.clone(),
                 lang: result.lang,
-                symbol: result.symbol,
+                symbol: result.symbol.clone(),
                 score: result.score,
                 signals: ck_core::SearchSignals {
                     lex_rank: None,
                     vec_rank: None,
                     rrf_score: result.score,
                 },
-                preview: result.preview,
+                preview: result.preview.clone(),
                 model: "none".to_string(),
             };
             println!("{}", serde_json::to_string(&json_result)?);
@@ -1148,5 +1423,8 @@ async fn run_search(
         println!("{}", options.path.display());
     }
 
-    Ok(has_matches)
+    Ok(SearchSummary {
+        had_matches: has_matches,
+        closest_below_threshold: search_results.closest_below_threshold,
+    })
 }
