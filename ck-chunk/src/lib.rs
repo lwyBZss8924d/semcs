@@ -655,4 +655,45 @@ func main() {
         assert!(chunk_types.contains(&&ChunkType::Function)); // functions
         assert!(chunk_types.contains(&&ChunkType::Method)); // methods
     }
+
+    #[test]
+    fn test_chunk_csharp() {
+        let csharp_code = r#"
+namespace Calculator;
+
+public interface ICalculator 
+{
+    double Add(double x, double y);
+}
+
+public class Calculator 
+{
+    public static const double PI = 3.14159;
+
+    public Calculator() 
+    {
+        _memory = 0.0;
+    }
+
+    public double Add(double x, double y) 
+    {
+        return x + y;
+    }
+
+    public static void Main(string[] args)
+    {
+        var calc = new Calculator();
+    }
+}
+"#;
+
+        let chunks = chunk_language(csharp_code, ParseableLanguage::CSharp).unwrap();
+        assert!(!chunks.is_empty());
+
+        // Should find variable, class, method and interface declarations
+        let chunk_types: Vec<&ChunkType> = chunks.iter().map(|c| &c.chunk_type).collect();
+        assert!(chunk_types.contains(&&ChunkType::Module)); // var, interface
+        assert!(chunk_types.contains(&&ChunkType::Class)); // class
+        assert!(chunk_types.contains(&&ChunkType::Method)); // methods
+    }
 }
