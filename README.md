@@ -247,6 +247,10 @@ ck --add new_file.rs
 | JavaScript | ✅ | ✅ | ✅ Functions, classes, methods |
 | TypeScript | ✅ | ✅ | ✅ Functions, classes, methods |
 | Haskell | ✅ | ✅ | ✅ Functions, types, instances |
+| Rust | ✅ | ✅ | ✅ Functions, structs, traits |
+| Ruby | ✅ | ✅ | ✅ Classes, methods, modules |
+| Go | ✅ | ✅ | ✅ Functions, types, methods, variables |
+| C# | ✅ | ✅ | ✅ Classes, interfaces, methods, variables |
 
 **Text Formats:** Markdown, JSON, YAML, TOML, XML, HTML, CSS, shell scripts, SQL, log files, config files, and any other text format.
 

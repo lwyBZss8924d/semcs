@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.4.3"
+version = "0.4.4"
 edition = "2024"
 authors = ["Mike Renwick"]
 license = "MIT OR Apache-2.0"
@@ -43,6 +43,7 @@ tree-sitter-haskell = "0.21"
 tree-sitter-rust = "0.21"
 tree-sitter-ruby = "0.21"
 tree-sitter-go = "0.21"
+tree-sitter-c-sharp = "0.21"
 fastembed = { version = "5.1", default-features = false, features = ["hf-hub-rustls-tls", "ort-download-binaries"] }
 openssl = { version = "0.10" }
 tempfile = "3.8"
