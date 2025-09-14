@@ -21,7 +21,6 @@ pub type SearchProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 pub type IndexingProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 pub type DetailedIndexingProgressCallback = Box<dyn Fn(ck_index::EmbeddingProgress) + Send + Sync>;
 
-
 /// Read content from file for search result extraction
 /// Regular files: read directly from source
 /// PDFs: read from preprocessed cache
@@ -30,7 +29,9 @@ fn read_file_content(file_path: &Path, repo_root: &Path) -> Result<String> {
         // PDFs: Read from cached extracted text
         let cache_path = ck_core::pdf::get_content_cache_path(repo_root, file_path);
         if !cache_path.exists() {
-            return Err(anyhow::anyhow!("PDF not preprocessed. Run 'ck --index' first."));
+            return Err(anyhow::anyhow!(
+                "PDF not preprocessed. Run 'ck --index' first."
+            ));
         }
         cache_path
     } else {
@@ -44,7 +45,8 @@ fn read_file_content(file_path: &Path, repo_root: &Path) -> Result<String> {
 /// Extract content from a file using a span
 async fn extract_content_from_span(file_path: &Path, span: &ck_core::Span) -> Result<String> {
     // Find repo root to locate cache
-    let repo_root = find_nearest_index_root(file_path).unwrap_or_else(|| file_path.parent().unwrap_or(file_path).to_path_buf());
+    let repo_root = find_nearest_index_root(file_path)
+        .unwrap_or_else(|| file_path.parent().unwrap_or(file_path).to_path_buf());
     let content = read_file_content(file_path, &repo_root)?;
     let lines: Vec<&str> = content.lines().collect();
 
@@ -235,7 +237,8 @@ fn search_file(
     options: &SearchOptions,
 ) -> Result<Vec<SearchResult>> {
     // Find repo root to locate cache
-    let repo_root = find_nearest_index_root(file_path).unwrap_or_else(|| file_path.parent().unwrap_or(file_path).to_path_buf());
+    let repo_root = find_nearest_index_root(file_path)
+        .unwrap_or_else(|| file_path.parent().unwrap_or(file_path).to_path_buf());
     let content = read_file_content(file_path, &repo_root)?;
     let lines: Vec<&str> = content.lines().collect();
     let mut results = Vec::new();
@@ -1097,8 +1100,8 @@ async fn ensure_index_updated_with_progress(
             detailed_progress_callback,
             need_embeddings,
             respect_gitignore,
-            exclude_patterns,  // Use search-specific exclude patterns
-            None, // model - use existing from index
+            exclude_patterns, // Use search-specific exclude patterns
+            None,             // model - use existing from index
         )
         .await?;
         if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {

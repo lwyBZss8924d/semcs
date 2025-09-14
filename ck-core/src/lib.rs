@@ -325,8 +325,22 @@ pub fn get_sidecar_path(repo_root: &Path, file_path: &Path) -> PathBuf {
 }
 
 pub fn compute_file_hash(path: &Path) -> Result<String> {
-    let data = std::fs::read(path)?;
-    let hash = blake3::hash(&data);
+    use std::io::Read;
+
+    let mut file = std::fs::File::open(path)?;
+    let mut hasher = blake3::Hasher::new();
+
+    // Stream the file in 64KB chunks to avoid loading entire file into memory
+    let mut buffer = [0u8; 65536]; // 64KB buffer
+    loop {
+        let bytes_read = file.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes_read]);
+    }
+
+    let hash = hasher.finalize();
     Ok(hash.to_hex().to_string())
 }
 
@@ -338,7 +352,7 @@ pub mod pdf {
     pub fn is_pdf_file(path: &Path) -> bool {
         path.extension()
             .and_then(|ext| ext.to_str())
-            .map(|ext| ext.eq_ignore_ascii_case("pdf"))  // Avoids allocation vs to_lowercase()
+            .map(|ext| ext.eq_ignore_ascii_case("pdf")) // Avoids allocation vs to_lowercase()
             .unwrap_or(false)
     }
 
@@ -349,7 +363,8 @@ pub mod pdf {
         cache_path.push(relative);
 
         // Add .txt extension to the cached file
-        let ext = relative.extension()
+        let ext = relative
+            .extension()
             .map(|e| format!("{}.txt", e.to_string_lossy()))
             .unwrap_or_else(|| "txt".to_string());
         cache_path.set_extension(ext);
@@ -365,11 +380,11 @@ pub mod pdf {
         #[test]
         fn test_is_pdf_file() {
             assert!(is_pdf_file(&PathBuf::from("test.pdf")));
-            assert!(is_pdf_file(&PathBuf::from("test.PDF")));  // Case insensitive
+            assert!(is_pdf_file(&PathBuf::from("test.PDF"))); // Case insensitive
             assert!(is_pdf_file(&PathBuf::from("test.Pdf")));
             assert!(!is_pdf_file(&PathBuf::from("test.txt")));
-            assert!(!is_pdf_file(&PathBuf::from("test")));  // No extension
-            assert!(!is_pdf_file(&PathBuf::from("pdf")));   // Just "pdf", no extension
+            assert!(!is_pdf_file(&PathBuf::from("test"))); // No extension
+            assert!(!is_pdf_file(&PathBuf::from("pdf"))); // Just "pdf", no extension
         }
 
         #[test]
@@ -378,7 +393,10 @@ pub mod pdf {
             let file_path = PathBuf::from("/project/docs/manual.pdf");
 
             let cache_path = get_content_cache_path(&repo_root, &file_path);
-            assert_eq!(cache_path, PathBuf::from("/project/.ck/content/docs/manual.pdf.txt"));
+            assert_eq!(
+                cache_path,
+                PathBuf::from("/project/.ck/content/docs/manual.pdf.txt")
+            );
         }
 
         #[test]
@@ -387,16 +405,22 @@ pub mod pdf {
             let file_path = PathBuf::from("/project/docs/manual");
 
             let cache_path = get_content_cache_path(&repo_root, &file_path);
-            assert_eq!(cache_path, PathBuf::from("/project/.ck/content/docs/manual.txt"));
+            assert_eq!(
+                cache_path,
+                PathBuf::from("/project/.ck/content/docs/manual.txt")
+            );
         }
 
         #[test]
         fn test_get_content_cache_path_relative() {
             let repo_root = PathBuf::from("/project");
-            let file_path = PathBuf::from("docs/manual.pdf");  // Relative path
+            let file_path = PathBuf::from("docs/manual.pdf"); // Relative path
 
             let cache_path = get_content_cache_path(&repo_root, &file_path);
-            assert_eq!(cache_path, PathBuf::from("/project/.ck/content/docs/manual.pdf.txt"));
+            assert_eq!(
+                cache_path,
+                PathBuf::from("/project/.ck/content/docs/manual.pdf.txt")
+            );
         }
     }
 }
@@ -576,6 +600,28 @@ mod tests {
     fn test_compute_file_hash_nonexistent() {
         let result = compute_file_hash(&PathBuf::from("nonexistent.txt"));
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_compute_file_hash_large_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("large_test.txt");
+
+        // Create a file larger than the buffer size (64KB) to test streaming
+        let large_content = "a".repeat(100_000); // 100KB content
+        fs::write(&file_path, &large_content).unwrap();
+
+        let hash1 = compute_file_hash(&file_path).unwrap();
+        let hash2 = compute_file_hash(&file_path).unwrap();
+
+        // Streaming hash should be consistent
+        assert_eq!(hash1, hash2);
+        assert!(!hash1.is_empty());
+
+        // Verify it's different from smaller content
+        fs::write(&file_path, "small content").unwrap();
+        let hash3 = compute_file_hash(&file_path).unwrap();
+        assert_ne!(hash1, hash3);
     }
 
     #[test]
