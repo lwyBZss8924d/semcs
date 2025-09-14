@@ -52,7 +52,8 @@ pub enum Language {
 
 impl Language {
     pub fn from_extension(ext: &str) -> Option<Self> {
-        match ext {
+        // Convert to lowercase for case-insensitive matching
+        match ext.to_lowercase().as_str() {
             "rs" => Some(Language::Rust),
             "py" => Some(Language::Python),
             "js" => Some(Language::JavaScript),
@@ -680,6 +681,53 @@ mod tests {
     }
 
     #[test]
+    fn test_language_from_extension_case_insensitive() {
+        // Test uppercase extensions - only for actually supported languages
+        assert_eq!(Language::from_extension("RS"), Some(Language::Rust));
+        assert_eq!(Language::from_extension("PY"), Some(Language::Python));
+        assert_eq!(Language::from_extension("JS"), Some(Language::JavaScript));
+        assert_eq!(Language::from_extension("TS"), Some(Language::TypeScript));
+        assert_eq!(Language::from_extension("TSX"), Some(Language::TypeScript));
+        assert_eq!(Language::from_extension("HS"), Some(Language::Haskell));
+        assert_eq!(Language::from_extension("LHS"), Some(Language::Haskell));
+        assert_eq!(Language::from_extension("GO"), Some(Language::Go));
+        assert_eq!(Language::from_extension("JAVA"), Some(Language::Java));
+        assert_eq!(Language::from_extension("C"), Some(Language::C));
+        assert_eq!(Language::from_extension("CPP"), Some(Language::Cpp));
+        assert_eq!(Language::from_extension("CC"), Some(Language::Cpp));
+        assert_eq!(Language::from_extension("CXX"), Some(Language::Cpp));
+        assert_eq!(Language::from_extension("H"), Some(Language::Cpp));
+        assert_eq!(Language::from_extension("HPP"), Some(Language::Cpp));
+        assert_eq!(Language::from_extension("CS"), Some(Language::CSharp));
+        assert_eq!(Language::from_extension("RB"), Some(Language::Ruby));
+        assert_eq!(Language::from_extension("PHP"), Some(Language::Php));
+        assert_eq!(Language::from_extension("SWIFT"), Some(Language::Swift));
+        assert_eq!(Language::from_extension("KT"), Some(Language::Kotlin));
+        assert_eq!(Language::from_extension("KTS"), Some(Language::Kotlin));
+        assert_eq!(Language::from_extension("PDF"), Some(Language::Pdf));
+
+        // Test mixed case extensions
+        assert_eq!(Language::from_extension("Rs"), Some(Language::Rust));
+        assert_eq!(Language::from_extension("Py"), Some(Language::Python));
+        assert_eq!(Language::from_extension("Js"), Some(Language::JavaScript));
+        assert_eq!(Language::from_extension("Ts"), Some(Language::TypeScript));
+        assert_eq!(Language::from_extension("TsX"), Some(Language::TypeScript));
+        assert_eq!(Language::from_extension("Hs"), Some(Language::Haskell));
+        assert_eq!(Language::from_extension("Go"), Some(Language::Go));
+        assert_eq!(Language::from_extension("Java"), Some(Language::Java));
+        assert_eq!(Language::from_extension("Cpp"), Some(Language::Cpp));
+        assert_eq!(Language::from_extension("Rb"), Some(Language::Ruby));
+        assert_eq!(Language::from_extension("Php"), Some(Language::Php));
+        assert_eq!(Language::from_extension("Swift"), Some(Language::Swift));
+        assert_eq!(Language::from_extension("Kt"), Some(Language::Kotlin));
+        assert_eq!(Language::from_extension("Pdf"), Some(Language::Pdf));
+
+        // Unknown extensions should still return None
+        assert_eq!(Language::from_extension("UNKNOWN"), None);
+        assert_eq!(Language::from_extension("Unknown"), None);
+    }
+
+    #[test]
     fn test_language_from_path() {
         assert_eq!(
             Language::from_path(&PathBuf::from("test.rs")),
@@ -707,6 +755,109 @@ mod tests {
         );
         assert_eq!(Language::from_path(&PathBuf::from("test.unknown")), None); // unknown extensions return None
         assert_eq!(Language::from_path(&PathBuf::from("noext")), None); // no extension
+    }
+
+    #[test]
+    fn test_language_from_path_case_insensitive() {
+        // Test uppercase extensions in file paths - only supported languages
+        assert_eq!(
+            Language::from_path(&PathBuf::from("MAIN.RS")),
+            Some(Language::Rust)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("app.PY")),
+            Some(Language::Python)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("script.JS")),
+            Some(Language::JavaScript)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("types.TS")),
+            Some(Language::TypeScript)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("Component.TSX")),
+            Some(Language::TypeScript)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("module.HS")),
+            Some(Language::Haskell)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("server.GO")),
+            Some(Language::Go)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("App.JAVA")),
+            Some(Language::Java)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("main.C")),
+            Some(Language::C)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("utils.CPP")),
+            Some(Language::Cpp)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("Program.CS")),
+            Some(Language::CSharp)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("script.RB")),
+            Some(Language::Ruby)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("index.PHP")),
+            Some(Language::Php)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("App.SWIFT")),
+            Some(Language::Swift)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("Main.KT")),
+            Some(Language::Kotlin)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("document.PDF")),
+            Some(Language::Pdf)
+        );
+
+        // Test mixed case extensions in file paths
+        assert_eq!(
+            Language::from_path(&PathBuf::from("config.Rs")),
+            Some(Language::Rust)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("helper.Py")),
+            Some(Language::Python)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("utils.Js")),
+            Some(Language::JavaScript)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("interfaces.Ts")),
+            Some(Language::TypeScript)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("Component.TsX")),
+            Some(Language::TypeScript)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("main.Cpp")),
+            Some(Language::Cpp)
+        );
+        assert_eq!(
+            Language::from_path(&PathBuf::from("report.Pdf")),
+            Some(Language::Pdf)
+        );
+
+        // Unknown extensions should still return None regardless of case
+        assert_eq!(Language::from_path(&PathBuf::from("test.UNKNOWN")), None);
+        assert_eq!(Language::from_path(&PathBuf::from("test.Unknown")), None);
     }
 
     #[test]
