@@ -679,10 +679,12 @@ pub async fn smart_update_index_with_detailed_progress(
         return Ok(stats);
     }
 
-    // Cleanup should always be done from repository root with no exclusions to ensure index reflects reality
+    // Find repo root for path normalization
     let repo_root = find_repo_root(path)?;
-    let cleanup_stats = cleanup_index(&repo_root, true, &[])?;
-    stats.orphaned_files_removed = cleanup_stats.orphaned_entries_removed;
+
+    // Skip cleanup during incremental updates to avoid removing valid entries
+    // that may be outside the current search scope or have path normalization issues
+    // Cleanup should be done explicitly with --clean-orphans when needed
 
     // Then perform incremental update
     fs::create_dir_all(&index_dir)?;
@@ -1031,7 +1033,7 @@ fn index_single_file_with_progress(
     };
 
     // Detect language for tree-sitter parsing
-    let lang = if is_pdf_file(file_path) {
+    let lang = if ck_core::pdf::is_pdf_file(file_path) {
         Some(Language::Pdf)
     } else {
         ck_core::Language::from_path(file_path)
@@ -1194,28 +1196,6 @@ fn find_repo_root(path: &Path) -> Result<PathBuf> {
     }
 }
 
-/// Check if a file is a PDF by extension
-fn is_pdf_file(path: &Path) -> bool {
-    path.extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| ext.to_lowercase() == "pdf")
-        .unwrap_or(false)
-}
-
-/// Get path for cached content (PDFs only)
-fn get_content_cache_path(repo_root: &Path, file_path: &Path) -> PathBuf {
-    let relative = file_path.strip_prefix(repo_root).unwrap_or(file_path);
-    let mut cache_path = repo_root.join(".ck").join("content");
-    cache_path.push(relative);
-
-    // Add .txt extension to the cached file
-    let ext = relative.extension()
-        .map(|e| format!("{}.txt", e.to_string_lossy()))
-        .unwrap_or_else(|| "txt".to_string());
-    cache_path.set_extension(ext);
-
-    cache_path
-}
 
 /// Check if content needs re-extraction
 fn should_reextract(source_path: &Path, cache_path: &Path) -> Result<bool> {
@@ -1239,8 +1219,8 @@ fn extract_pdf_text(path: &Path) -> Result<String> {
 /// For regular files: returns the original path (no preprocessing)
 /// For PDFs: extracts text to cache, returns cache path
 fn preprocess_file(file_path: &Path, repo_root: &Path) -> Result<PathBuf> {
-    if is_pdf_file(file_path) {
-        let cache_path = get_content_cache_path(repo_root, file_path);
+    if ck_core::pdf::is_pdf_file(file_path) {
+        let cache_path = ck_core::pdf::get_content_cache_path(repo_root, file_path);
 
         // Check if re-extraction needed
         if should_reextract(file_path, &cache_path)? {
@@ -1264,7 +1244,7 @@ fn preprocess_file(file_path: &Path, repo_root: &Path) -> Result<PathBuf> {
 
 fn is_text_file(path: &Path) -> bool {
     // PDFs are considered indexable even though they're binary
-    if is_pdf_file(path) {
+    if ck_core::pdf::is_pdf_file(path) {
         return true;
     }
 
@@ -1291,7 +1271,26 @@ fn is_text_file(path: &Path) -> bool {
     }
 }
 
-// This function is now replaced by path_utils::sidecar_to_standard_path
+fn sidecar_to_original_path(
+    sidecar_path: &Path,
+    index_dir: &Path,
+    _repo_root: &Path,
+) -> Option<PathBuf> {
+    let relative_path = sidecar_path.strip_prefix(index_dir).ok()?;
+    let original_path = relative_path.with_extension("");
+
+    // Handle the .ck extension removal
+    if let Some(name) = original_path.file_name() {
+        let name_str = name.to_string_lossy();
+        if let Some(original_name) = name_str.strip_suffix(".ck") {
+            let mut result = original_path.clone();
+            result.set_file_name(original_name);
+            return Some(result);
+        }
+    }
+
+    Some(original_path)
+}
 
 fn remove_empty_dirs(dir: &Path) -> Result<()> {
     if !dir.is_dir() {
@@ -1602,8 +1601,8 @@ mod cleanup_validation {
         }
         
         // Remove content cache for PDFs
-        if is_pdf_file(manifest_path) {
-            let cache_path = get_content_cache_path(index_dir, manifest_path);
+        if ck_core::pdf::is_pdf_file(manifest_path) {
+            let cache_path = ck_core::pdf::get_content_cache_path(index_dir, manifest_path);
             if cache_path.exists() {
                 fs::remove_file(&cache_path)?;
                 tracing::debug!("Removed orphaned content cache: {:?}", cache_path);

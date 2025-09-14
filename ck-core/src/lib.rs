@@ -330,6 +330,77 @@ pub fn compute_file_hash(path: &Path) -> Result<String> {
     Ok(hash.to_hex().to_string())
 }
 
+/// PDF-specific utilities
+pub mod pdf {
+    use std::path::{Path, PathBuf};
+
+    /// Check if a file is a PDF by extension (optimized to avoid allocations)
+    pub fn is_pdf_file(path: &Path) -> bool {
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("pdf"))  // Avoids allocation vs to_lowercase()
+            .unwrap_or(false)
+    }
+
+    /// Get path for cached PDF content
+    pub fn get_content_cache_path(repo_root: &Path, file_path: &Path) -> PathBuf {
+        let relative = file_path.strip_prefix(repo_root).unwrap_or(file_path);
+        let mut cache_path = repo_root.join(".ck").join("content");
+        cache_path.push(relative);
+
+        // Add .txt extension to the cached file
+        let ext = relative.extension()
+            .map(|e| format!("{}.txt", e.to_string_lossy()))
+            .unwrap_or_else(|| "txt".to_string());
+        cache_path.set_extension(ext);
+
+        cache_path
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use std::path::PathBuf;
+
+        #[test]
+        fn test_is_pdf_file() {
+            assert!(is_pdf_file(&PathBuf::from("test.pdf")));
+            assert!(is_pdf_file(&PathBuf::from("test.PDF")));  // Case insensitive
+            assert!(is_pdf_file(&PathBuf::from("test.Pdf")));
+            assert!(!is_pdf_file(&PathBuf::from("test.txt")));
+            assert!(!is_pdf_file(&PathBuf::from("test")));  // No extension
+            assert!(!is_pdf_file(&PathBuf::from("pdf")));   // Just "pdf", no extension
+        }
+
+        #[test]
+        fn test_get_content_cache_path() {
+            let repo_root = PathBuf::from("/project");
+            let file_path = PathBuf::from("/project/docs/manual.pdf");
+
+            let cache_path = get_content_cache_path(&repo_root, &file_path);
+            assert_eq!(cache_path, PathBuf::from("/project/.ck/content/docs/manual.pdf.txt"));
+        }
+
+        #[test]
+        fn test_get_content_cache_path_no_extension() {
+            let repo_root = PathBuf::from("/project");
+            let file_path = PathBuf::from("/project/docs/manual");
+
+            let cache_path = get_content_cache_path(&repo_root, &file_path);
+            assert_eq!(cache_path, PathBuf::from("/project/.ck/content/docs/manual.txt"));
+        }
+
+        #[test]
+        fn test_get_content_cache_path_relative() {
+            let repo_root = PathBuf::from("/project");
+            let file_path = PathBuf::from("docs/manual.pdf");  // Relative path
+
+            let cache_path = get_content_cache_path(&repo_root, &file_path);
+            assert_eq!(cache_path, PathBuf::from("/project/.ck/content/docs/manual.pdf.txt"));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

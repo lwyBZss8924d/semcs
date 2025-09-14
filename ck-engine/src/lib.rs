@@ -21,36 +21,14 @@ pub type SearchProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 pub type IndexingProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 pub type DetailedIndexingProgressCallback = Box<dyn Fn(ck_index::EmbeddingProgress) + Send + Sync>;
 
-/// Check if a file is a PDF by extension
-fn is_pdf_file(path: &Path) -> bool {
-    path.extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| ext.to_lowercase() == "pdf")
-        .unwrap_or(false)
-}
-
-/// Get path for cached content (PDFs only)
-fn get_content_cache_path(repo_root: &Path, file_path: &Path) -> PathBuf {
-    let relative = file_path.strip_prefix(repo_root).unwrap_or(file_path);
-    let mut cache_path = repo_root.join(".ck").join("content");
-    cache_path.push(relative);
-
-    // Add .txt extension to the cached file
-    let ext = relative.extension()
-        .map(|e| format!("{}.txt", e.to_string_lossy()))
-        .unwrap_or_else(|| "txt".to_string());
-    cache_path.set_extension(ext);
-
-    cache_path
-}
 
 /// Read content from file for search result extraction
 /// Regular files: read directly from source
 /// PDFs: read from preprocessed cache
 fn read_file_content(file_path: &Path, repo_root: &Path) -> Result<String> {
-    let content_path = if is_pdf_file(file_path) {
+    let content_path = if ck_core::pdf::is_pdf_file(file_path) {
         // PDFs: Read from cached extracted text
-        let cache_path = get_content_cache_path(repo_root, file_path);
+        let cache_path = ck_core::pdf::get_content_cache_path(repo_root, file_path);
         if !cache_path.exists() {
             return Err(anyhow::anyhow!("PDF not preprocessed. Run 'ck --index' first."));
         }
