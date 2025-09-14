@@ -1434,33 +1434,6 @@ async fn run_search(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{self, Write};
-
-    /// Capture stderr output during test execution
-    struct StderrCapture {
-        buffer: Vec<u8>,
-    }
-
-    impl StderrCapture {
-        fn new() -> Self {
-            Self { buffer: Vec::new() }
-        }
-
-        fn get_output(&self) -> String {
-            String::from_utf8_lossy(&self.buffer).to_string()
-        }
-    }
-
-    impl Write for StderrCapture {
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            self.buffer.extend_from_slice(buf);
-            Ok(buf.len())
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
-    }
 
     #[test]
     fn test_highlight_regex_matches_with_valid_pattern() {
