@@ -1074,7 +1074,13 @@ fn index_single_file_with_progress(
 
                 // Embed single chunk
                 let embeddings = embedder.embed(std::slice::from_ref(&chunk.text))?;
-                let embedding = embeddings.into_iter().next().unwrap();
+                let embedding = embeddings.into_iter().next().ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Embedder returned empty results for chunk {} in file {:?}. This may indicate an issue with the embedding model or chunk content.",
+                        chunk_index,
+                        file_path
+                    )
+                })?;
 
                 let chunk_type_str = match chunk.chunk_type {
                     ck_chunk::ChunkType::Function => Some("function".to_string()),
@@ -1100,6 +1106,16 @@ fn index_single_file_with_progress(
                 file_path
             );
             let embeddings = embedder.embed(&chunk_texts)?;
+
+            // Validate that embedder returned the expected number of embeddings
+            if embeddings.len() != chunks.len() {
+                return Err(anyhow::anyhow!(
+                    "Embedder returned {} embeddings for {} chunks in file {:?}. Expected equal counts.",
+                    embeddings.len(),
+                    chunks.len(),
+                    file_path
+                ));
+            }
 
             chunks
                 .into_iter()
@@ -1351,6 +1367,154 @@ mod tests {
     use super::*;
     use std::fs;
     use tempfile::TempDir;
+
+    /// Test embedder that can return empty results to test error handling
+    struct EmptyResultsEmbedder;
+
+    impl ck_embed::Embedder for EmptyResultsEmbedder {
+        fn id(&self) -> &'static str {
+            "empty-results-test"
+        }
+
+        fn dim(&self) -> usize {
+            384
+        }
+
+        fn embed(&mut self, _texts: &[String]) -> Result<Vec<Vec<f32>>> {
+            // Always return empty vector to trigger the panic scenario
+            Ok(Vec::new())
+        }
+    }
+
+    /// Test embedder that returns mismatched count of embeddings
+    struct MismatchedCountEmbedder;
+
+    impl ck_embed::Embedder for MismatchedCountEmbedder {
+        fn id(&self) -> &'static str {
+            "mismatched-count-test"
+        }
+
+        fn dim(&self) -> usize {
+            384
+        }
+
+        fn embed(&mut self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
+            // Always return one less embedding than requested
+            if texts.is_empty() {
+                Ok(Vec::new())
+            } else {
+                Ok(vec![vec![0.0; self.dim()]; texts.len() - 1])
+            }
+        }
+    }
+
+    #[test]
+    fn test_index_single_file_handles_empty_embedding_results() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_path = temp_dir.path();
+
+        // Create a simple test file
+        let test_file = test_path.join("test.txt");
+        fs::write(&test_file, "hello world").unwrap();
+
+        // Create an embedder that returns empty results
+        let mut empty_embedder: Box<dyn ck_embed::Embedder> = Box::new(EmptyResultsEmbedder);
+
+        // This should return an error, not panic
+        let result = index_single_file(&test_file, test_path, Some(&mut empty_embedder));
+
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        // The empty embedder triggers the count mismatch error (0 embeddings for 1 chunk)
+        assert!(error_msg.contains("Embedder returned 0 embeddings for 1 chunks"));
+        assert!(error_msg.contains("Expected equal counts"));
+        assert!(error_msg.contains("test.txt"));
+    }
+
+    #[test]
+    fn test_index_single_file_with_progress_handles_empty_embedding_results() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_path = temp_dir.path();
+
+        // Create a simple test file
+        let test_file = test_path.join("test.txt");
+        fs::write(&test_file, "hello world").unwrap();
+
+        // Create an embedder that returns empty results
+        let mut empty_embedder: Box<dyn ck_embed::Embedder> = Box::new(EmptyResultsEmbedder);
+
+        // Use the detailed progress callback to trigger the single-chunk processing path
+        let dummy_callback: DetailedProgressCallback = Box::new(|_progress: EmbeddingProgress| {});
+        let result = index_single_file_with_progress(
+            &test_file,
+            test_path,
+            Some(&mut empty_embedder),
+            Some(&dummy_callback),
+            0,
+            1,
+        );
+
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        // This should hit the single-chunk path and get the specific error
+        assert!(error_msg.contains("Embedder returned empty results"));
+        assert!(error_msg.contains("chunk 0"));
+        assert!(error_msg.contains("test.txt"));
+    }
+
+    #[test]
+    fn test_index_single_file_handles_mismatched_embedding_count() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_path = temp_dir.path();
+
+        // Create a test file with multiple chunks (use some code content)
+        let test_file = test_path.join("test.rs");
+        fs::write(
+            &test_file,
+            "fn main() {\n    println!(\"hello\");\n}\n\nfn other() {\n    println!(\"world\");\n}",
+        )
+        .unwrap();
+
+        // Create an embedder that returns mismatched count
+        let mut mismatched_embedder: Box<dyn ck_embed::Embedder> =
+            Box::new(MismatchedCountEmbedder);
+
+        // This should return an error, not silently mismatch
+        let result = index_single_file(&test_file, test_path, Some(&mut mismatched_embedder));
+
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("Embedder returned"));
+        assert!(error_msg.contains("embeddings for"));
+        assert!(error_msg.contains("chunks"));
+        assert!(error_msg.contains("Expected equal counts"));
+    }
+
+    #[test]
+    fn test_index_single_file_with_valid_embedder_still_works() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_path = temp_dir.path();
+
+        // Create a simple test file
+        let test_file = test_path.join("test.txt");
+        fs::write(&test_file, "hello world").unwrap();
+
+        // Create a dummy embedder that returns proper results
+        let dummy_embedder = ck_embed::DummyEmbedder::new();
+        let mut boxed_embedder: Box<dyn ck_embed::Embedder> = Box::new(dummy_embedder);
+
+        // This should work fine
+        let result = index_single_file(&test_file, test_path, Some(&mut boxed_embedder));
+
+        assert!(result.is_ok());
+        let entry = result.unwrap();
+        assert!(!entry.chunks.is_empty());
+        // Verify that embeddings are present
+        for chunk in &entry.chunks {
+            assert!(chunk.embedding.is_some());
+            assert_eq!(chunk.embedding.as_ref().unwrap().len(), 384); // DummyEmbedder dimension
+        }
+    }
 
     #[tokio::test]
     async fn test_smart_update_index() {
