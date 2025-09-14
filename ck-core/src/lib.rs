@@ -25,6 +25,9 @@ pub enum CkError {
     #[error("Embedding error: {0}")]
     Embedding(String),
 
+    #[error("Span validation error: {0}")]
+    SpanValidation(String),
+
     #[error("Other error: {0}")]
     Other(String),
 }
@@ -110,6 +113,93 @@ pub struct Span {
     pub byte_end: usize,
     pub line_start: usize,
     pub line_end: usize,
+}
+
+impl Span {
+    /// Create a new Span with validation
+    pub fn new(
+        byte_start: usize,
+        byte_end: usize,
+        line_start: usize,
+        line_end: usize,
+    ) -> Result<Self> {
+        let span = Self {
+            byte_start,
+            byte_end,
+            line_start,
+            line_end,
+        };
+        span.validate()?;
+        Ok(span)
+    }
+
+    /// Create a new Span without validation (for backward compatibility)
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure the span is valid. Use `new()` for validated construction.
+    pub fn new_unchecked(
+        byte_start: usize,
+        byte_end: usize,
+        line_start: usize,
+        line_end: usize,
+    ) -> Self {
+        Self {
+            byte_start,
+            byte_end,
+            line_start,
+            line_end,
+        }
+    }
+
+    /// Validate span invariants
+    pub fn validate(&self) -> Result<()> {
+        // Check for zero line numbers first (lines should be 1-indexed)
+        if self.line_start == 0 {
+            return Err(CkError::SpanValidation(
+                "Line start cannot be zero (lines are 1-indexed)".to_string(),
+            ));
+        }
+
+        if self.line_end == 0 {
+            return Err(CkError::SpanValidation(
+                "Line end cannot be zero (lines are 1-indexed)".to_string(),
+            ));
+        }
+
+        // Check byte range validity
+        if self.byte_start > self.byte_end {
+            return Err(CkError::SpanValidation(format!(
+                "Invalid byte range: start ({}) > end ({})",
+                self.byte_start, self.byte_end
+            )));
+        }
+
+        // Check line range validity
+        if self.line_start > self.line_end {
+            return Err(CkError::SpanValidation(format!(
+                "Invalid line range: start ({}) > end ({})",
+                self.line_start, self.line_end
+            )));
+        }
+
+        Ok(())
+    }
+
+    /// Check if this span is valid
+    pub fn is_valid(&self) -> bool {
+        self.validate().is_ok()
+    }
+
+    /// Get byte length of the span
+    pub fn byte_len(&self) -> usize {
+        self.byte_end.saturating_sub(self.byte_start)
+    }
+
+    /// Get line count of the span
+    pub fn line_count(&self) -> usize {
+        self.line_end.saturating_sub(self.line_start) + 1
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -433,7 +523,137 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn test_span_creation() {
+    fn test_span_valid_creation() {
+        // Test valid span creation
+        let span = Span::new(0, 10, 1, 2).unwrap();
+        assert_eq!(span.byte_start, 0);
+        assert_eq!(span.byte_end, 10);
+        assert_eq!(span.line_start, 1);
+        assert_eq!(span.line_end, 2);
+        assert!(span.is_valid());
+    }
+
+    #[test]
+    fn test_span_validation_valid_cases() {
+        // Same byte positions (empty span)
+        let span = Span::new(10, 10, 1, 1).unwrap();
+        assert!(span.is_valid());
+        assert_eq!(span.byte_len(), 0);
+        assert_eq!(span.line_count(), 1);
+
+        // Multi-line span
+        let span = Span::new(0, 100, 1, 10).unwrap();
+        assert!(span.is_valid());
+        assert_eq!(span.byte_len(), 100);
+        assert_eq!(span.line_count(), 10);
+
+        // Single line span
+        let span = Span::new(5, 25, 3, 3).unwrap();
+        assert!(span.is_valid());
+        assert_eq!(span.byte_len(), 20);
+        assert_eq!(span.line_count(), 1);
+    }
+
+    #[test]
+    fn test_span_validation_invalid_byte_range() {
+        // Reversed byte range
+        let result = Span::new(10, 5, 1, 2);
+        assert!(result.is_err());
+        if let Err(CkError::SpanValidation(msg)) = result {
+            assert!(msg.contains("Invalid byte range"));
+            assert!(msg.contains("start (10) > end (5)"));
+        } else {
+            panic!("Expected SpanValidation error");
+        }
+    }
+
+    #[test]
+    fn test_span_validation_invalid_line_range() {
+        // Reversed line range
+        let result = Span::new(0, 10, 5, 2);
+        assert!(result.is_err());
+        if let Err(CkError::SpanValidation(msg)) = result {
+            assert!(msg.contains("Invalid line range"));
+            assert!(msg.contains("start (5) > end (2)"));
+        } else {
+            panic!("Expected SpanValidation error");
+        }
+    }
+
+    #[test]
+    fn test_span_validation_zero_line_numbers() {
+        // Zero line start
+        let result = Span::new(0, 10, 0, 2);
+        assert!(result.is_err());
+        if let Err(CkError::SpanValidation(msg)) = result {
+            assert!(msg.contains("Line start cannot be zero"));
+        } else {
+            panic!("Expected SpanValidation error");
+        }
+
+        // Zero line end
+        let result = Span::new(0, 10, 1, 0);
+        assert!(result.is_err());
+        if let Err(CkError::SpanValidation(msg)) = result {
+            assert!(msg.contains("Line end cannot be zero"));
+        } else {
+            panic!("Expected SpanValidation error");
+        }
+    }
+
+    #[test]
+    fn test_span_unchecked_creation() {
+        // Test backward compatibility with unchecked creation
+        let span = Span::new_unchecked(10, 5, 0, 1);
+        assert_eq!(span.byte_start, 10);
+        assert_eq!(span.byte_end, 5);
+        assert_eq!(span.line_start, 0);
+        assert_eq!(span.line_end, 1);
+        assert!(!span.is_valid()); // Should be invalid
+    }
+
+    #[test]
+    fn test_span_validation_methods() {
+        // Valid span
+        let valid_span = Span::new_unchecked(0, 10, 1, 2);
+        assert!(valid_span.validate().is_ok());
+        assert!(valid_span.is_valid());
+
+        // Invalid span (reversed bytes)
+        let invalid_span = Span::new_unchecked(10, 5, 1, 2);
+        assert!(invalid_span.validate().is_err());
+        assert!(!invalid_span.is_valid());
+
+        // Invalid span (zero lines)
+        let zero_line_span = Span::new_unchecked(0, 10, 0, 1);
+        assert!(zero_line_span.validate().is_err());
+        assert!(!zero_line_span.is_valid());
+    }
+
+    #[test]
+    fn test_span_utility_methods() {
+        let span = Span::new(10, 25, 5, 8).unwrap();
+
+        // Test byte_len
+        assert_eq!(span.byte_len(), 15);
+
+        // Test line_count
+        assert_eq!(span.line_count(), 4); // lines 5, 6, 7, 8
+
+        // Test with single-line span
+        let single_line = Span::new(0, 5, 1, 1).unwrap();
+        assert_eq!(single_line.line_count(), 1);
+        assert_eq!(single_line.byte_len(), 5);
+
+        // Test with empty span
+        let empty = Span::new(10, 10, 3, 3).unwrap();
+        assert_eq!(empty.byte_len(), 0);
+        assert_eq!(empty.line_count(), 1);
+    }
+
+    #[test]
+    fn test_span_legacy_struct_literal_still_works() {
+        // Ensure backward compatibility for existing code using struct literals
         let span = Span {
             byte_start: 0,
             byte_end: 10,
@@ -445,6 +665,7 @@ mod tests {
         assert_eq!(span.byte_end, 10);
         assert_eq!(span.line_start, 1);
         assert_eq!(span.line_end, 2);
+        assert!(span.is_valid());
     }
 
     #[test]

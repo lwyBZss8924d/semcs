@@ -133,31 +133,41 @@ impl Default for IndexManifest {
     }
 }
 
+/// Common filtering logic for directory traversal entries
+fn should_include_file(entry: &ignore::DirEntry, index_dir: &Path) -> bool {
+    let path = entry.path();
+    entry.file_type().is_some_and(|ft| ft.is_file())
+        && is_text_file(path)
+        && !path.starts_with(index_dir)
+}
+
+/// Apply common filtering to a WalkBuilder iterator
+fn filter_and_collect_files(walker: ignore::Walk, index_dir: &Path) -> Vec<PathBuf> {
+    walker
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| should_include_file(entry, index_dir))
+        .map(|entry| entry.path().to_path_buf())
+        .collect()
+}
+
 pub fn collect_files(
     path: &Path,
     respect_gitignore: bool,
     exclude_patterns: &[String],
 ) -> Result<Vec<PathBuf>> {
     let index_dir = path.join(".ck");
-    let overrides = build_overrides(path, exclude_patterns)?;
 
     if respect_gitignore {
-        Ok(WalkBuilder::new(path)
+        let overrides = build_overrides(path, exclude_patterns)?;
+        let walker = WalkBuilder::new(path)
             .git_ignore(true)
             .git_global(true)
             .git_exclude(true)
             .hidden(true)
             .overrides(overrides)
-            .build()
-            .filter_map(|entry| entry.ok())
-            .filter(|entry| {
-                let path = entry.path();
-                entry.file_type().is_some_and(|ft| ft.is_file())
-                    && is_text_file(path)
-                    && !path.starts_with(&index_dir)
-            })
-            .map(|entry| entry.path().to_path_buf())
-            .collect())
+            .build();
+
+        Ok(filter_and_collect_files(walker, &index_dir))
     } else {
         // Use WalkBuilder without gitignore support, but still apply overrides
         use ck_core::get_default_exclude_patterns;
@@ -168,20 +178,13 @@ pub fn collect_files(
         all_patterns.extend(exclude_patterns.iter().cloned());
         let combined_overrides = build_overrides(path, &all_patterns)?;
 
-        Ok(WalkBuilder::new(path)
+        let walker = WalkBuilder::new(path)
             .git_ignore(false)
             .hidden(true)
             .overrides(combined_overrides)
-            .build()
-            .filter_map(|entry| entry.ok())
-            .filter(|entry| {
-                let path = entry.path();
-                entry.file_type().is_some_and(|ft| ft.is_file())
-                    && is_text_file(path)
-                    && !path.starts_with(&index_dir)
-            })
-            .map(|entry| entry.path().to_path_buf())
-            .collect())
+            .build();
+
+        Ok(filter_and_collect_files(walker, &index_dir))
     }
 }
 
