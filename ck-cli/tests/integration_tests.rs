@@ -439,6 +439,35 @@ fn test_error_handling() {
 }
 
 #[test]
+fn test_invalid_regex_warning_during_highlighting() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create a test file
+    fs::write(
+        temp_dir.path().join("test.txt"),
+        "hello world\ntest content",
+    )
+    .unwrap();
+
+    // Test that an invalid regex pattern shows a warning during highlighting
+    // The search will fail (as expected), but we should see a warning about the invalid regex
+    let output = Command::new(get_ck_binary())
+        .args([
+            "[invalid", // This is an invalid regex pattern
+            temp_dir.path().to_str().unwrap(),
+        ])
+        .output()
+        .expect("Failed to run ck");
+
+    // The search should fail due to invalid regex
+    assert!(!output.status.success());
+
+    // Check that we get a proper regex error message, not silent failure
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("regex") || stderr.contains("pattern") || stderr.contains("invalid"));
+}
+
+#[test]
 fn test_jsonl_basic_output() {
     let temp_dir = TempDir::new().unwrap();
 

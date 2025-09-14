@@ -21,23 +21,80 @@ pub type SearchProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 pub type IndexingProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 pub type DetailedIndexingProgressCallback = Box<dyn Fn(ck_index::EmbeddingProgress) + Send + Sync>;
 
-/// Extract content from a file using a span
-async fn extract_content_from_span(file_path: &Path, span: &ck_core::Span) -> Result<String> {
-    let content = tokio::fs::read_to_string(file_path).await?;
-    let lines: Vec<&str> = content.lines().collect();
+/// Resolve the actual file path to read content from
+/// For PDFs: returns cache path and validates it exists
+/// For regular files: returns original path
+fn resolve_content_path(file_path: &Path, repo_root: &Path) -> Result<PathBuf> {
+    if ck_core::pdf::is_pdf_file(file_path) {
+        // PDFs: Read from cached extracted text
+        let cache_path = ck_core::pdf::get_content_cache_path(repo_root, file_path);
+        if !cache_path.exists() {
+            return Err(anyhow::anyhow!(
+                "PDF not preprocessed. Run 'ck --index' first."
+            ));
+        }
+        Ok(cache_path)
+    } else {
+        // Regular files: Read from original source
+        Ok(file_path.to_path_buf())
+    }
+}
 
-    if span.line_start == 0 || span.line_start > lines.len() {
+/// Read content from file for search result extraction
+/// Regular files: read directly from source
+/// PDFs: read from preprocessed cache
+fn read_file_content(file_path: &Path, repo_root: &Path) -> Result<String> {
+    let content_path = resolve_content_path(file_path, repo_root)?;
+    Ok(fs::read_to_string(content_path)?)
+}
+
+/// Extract content from a file using a span (streaming version)
+async fn extract_content_from_span(file_path: &Path, span: &ck_core::Span) -> Result<String> {
+    // Find repo root to locate cache
+    let repo_root = find_nearest_index_root(file_path)
+        .unwrap_or_else(|| file_path.parent().unwrap_or(file_path).to_path_buf());
+
+    // Use centralized path resolution
+    let content_path = resolve_content_path(file_path, &repo_root)?;
+
+    // Stream only the needed lines
+    extract_lines_from_file(&content_path, span.line_start, span.line_end)
+}
+
+/// Stream-read specific lines from a file without loading the entire content
+fn extract_lines_from_file(file_path: &Path, line_start: usize, line_end: usize) -> Result<String> {
+    use std::io::{BufRead, BufReader};
+
+    if line_start == 0 {
         return Ok(String::new());
     }
 
-    let start_idx = span.line_start - 1; // Convert to 0-based
-    let end_idx = (span.line_end - 1).min(lines.len().saturating_sub(1));
+    let file = fs::File::open(file_path)?;
+    let reader = BufReader::new(file);
+    let mut result = Vec::new();
 
-    if start_idx <= end_idx {
-        Ok(lines[start_idx..=end_idx].join("\n"))
-    } else {
-        Ok(lines[start_idx].to_string())
+    // Convert to 0-based indexing
+    let start_idx = line_start.saturating_sub(1);
+    let end_idx = line_end.saturating_sub(1);
+
+    for (current_line, line_result) in reader.lines().enumerate() {
+        if current_line > end_idx {
+            break; // Stop reading once we've passed the needed lines
+        }
+
+        let line = line_result?;
+
+        if current_line >= start_idx {
+            result.push(line);
+        }
     }
+
+    // Handle case where requested lines exceed file length
+    if result.is_empty() && line_start > 0 {
+        return Ok(String::new());
+    }
+
+    Ok(result.join("\n"))
 }
 
 fn find_nearest_index_root(path: &Path) -> Option<StdPathBuf> {
@@ -108,6 +165,8 @@ pub async fn search_enhanced_with_indexing_progress(
             need_embeddings,
             indexing_progress_callback,
             detailed_indexing_progress_callback,
+            options.respect_gitignore,
+            &options.exclude_patterns,
         )
         .await?;
     }
@@ -210,18 +269,41 @@ fn search_file(
     file_path: &Path,
     options: &SearchOptions,
 ) -> Result<Vec<SearchResult>> {
-    let content = fs::read_to_string(file_path)?;
-    let lines: Vec<&str> = content.lines().collect();
-    let mut results = Vec::new();
+    // Find repo root to locate cache
+    let repo_root = find_nearest_index_root(file_path)
+        .unwrap_or_else(|| file_path.parent().unwrap_or(file_path).to_path_buf());
 
-    // If full_section is enabled, try to parse the file and find code sections
-    let code_sections = if options.full_section {
-        extract_code_sections(file_path, &content)
+    // For full_section mode, we need the entire content for parsing
+    // For context previews, we need all lines for surrounding context
+    // So we'll load content when needed, but optimize for the common case
+    if options.full_section || options.context_lines > 0 {
+        // Load full content when we need section parsing or context
+        let content = read_file_content(file_path, &repo_root)?;
+        let lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+
+        // If full_section is enabled, try to parse the file and find code sections
+        let code_sections = if options.full_section {
+            extract_code_sections(file_path, &content)
+        } else {
+            None
+        };
+
+        search_file_in_memory(regex, file_path, options, &lines, &code_sections)
     } else {
-        None
-    };
+        // Streaming search (simple case)
+        search_file_streaming(regex, file_path, &repo_root, options)
+    }
+}
 
-    // Track byte offset as we iterate through lines
+/// In-memory search for cases requiring context or code sections
+fn search_file_in_memory(
+    regex: &Regex,
+    file_path: &Path,
+    options: &SearchOptions,
+    lines: &[String],
+    code_sections: &Option<Vec<(usize, usize, String)>>,
+) -> Result<Vec<SearchResult>> {
+    let mut results = Vec::new();
     let mut byte_offset = 0;
 
     for (line_idx, line) in lines.iter().enumerate() {
@@ -233,18 +315,18 @@ fn search_file(
             // Empty pattern matches the whole line once (grep compatibility)
             let preview = if options.full_section {
                 // Try to find the containing code section
-                if let Some(ref sections) = code_sections {
+                if let Some(sections) = code_sections {
                     if let Some(section) = find_containing_section(sections, line_idx) {
                         section.clone()
                     } else {
                         // Fall back to context lines if no section found
-                        get_context_preview(&lines, line_idx, options)
+                        get_context_preview(lines, line_idx, options)
                     }
                 } else {
-                    get_context_preview(&lines, line_idx, options)
+                    get_context_preview(lines, line_idx, options)
                 }
             } else {
-                get_context_preview(&lines, line_idx, options)
+                get_context_preview(lines, line_idx, options)
             };
 
             results.push(SearchResult {
@@ -267,18 +349,18 @@ fn search_file(
             for mat in regex.find_iter(line) {
                 let preview = if options.full_section {
                     // Try to find the containing code section
-                    if let Some(ref sections) = code_sections {
+                    if let Some(sections) = code_sections {
                         if let Some(section) = find_containing_section(sections, line_idx) {
                             section.clone()
                         } else {
                             // Fall back to context lines if no section found
-                            get_context_preview(&lines, line_idx, options)
+                            get_context_preview(lines, line_idx, options)
                         }
                     } else {
-                        get_context_preview(&lines, line_idx, options)
+                        get_context_preview(lines, line_idx, options)
                     }
                 } else {
-                    get_context_preview(&lines, line_idx, options)
+                    get_context_preview(lines, line_idx, options)
                 };
 
                 results.push(SearchResult {
@@ -304,6 +386,71 @@ fn search_file(
         if line_idx < lines.len() - 1 {
             byte_offset += 1; // Add 1 for the newline character
         }
+    }
+
+    Ok(results)
+}
+
+/// Streaming search for simple cases without context or code sections
+fn search_file_streaming(
+    regex: &Regex,
+    file_path: &Path,
+    repo_root: &Path,
+    _options: &SearchOptions,
+) -> Result<Vec<SearchResult>> {
+    use std::io::{BufRead, BufReader};
+
+    let content_path = resolve_content_path(file_path, repo_root)?;
+    let file = std::fs::File::open(&content_path)?;
+    let reader = BufReader::new(file);
+
+    let mut results = Vec::new();
+    let mut byte_offset = 0;
+
+    for (line_idx, line_result) in reader.lines().enumerate() {
+        let line = line_result?;
+        let line_number = line_idx + 1;
+
+        // Special handling for empty pattern - match the entire line once
+        if regex.as_str().is_empty() {
+            results.push(SearchResult {
+                file: file_path.to_path_buf(),
+                span: Span {
+                    byte_start: byte_offset,
+                    byte_end: byte_offset + line.len(),
+                    line_start: line_number,
+                    line_end: line_number,
+                },
+                score: 1.0,
+                preview: line.clone(), // Simple preview: just the line itself
+                lang: ck_core::Language::from_path(file_path),
+                symbol: None,
+                chunk_hash: None,
+                index_epoch: None,
+            });
+        } else {
+            // Find all matches in the line with their positions
+            for mat in regex.find_iter(&line) {
+                results.push(SearchResult {
+                    file: file_path.to_path_buf(),
+                    span: Span {
+                        byte_start: byte_offset + mat.start(),
+                        byte_end: byte_offset + mat.end(),
+                        line_start: line_number,
+                        line_end: line_number,
+                    },
+                    score: 1.0,
+                    preview: line.clone(), // Simple preview: just the line itself
+                    lang: ck_core::Language::from_path(file_path),
+                    symbol: None,
+                    chunk_hash: None,
+                    index_epoch: None,
+                });
+            }
+        }
+
+        // Update byte offset for next line (add line length + newline character)
+        byte_offset += line.len() + 1; // +1 for newline
     }
 
     Ok(results)
@@ -1049,6 +1196,8 @@ async fn ensure_index_updated_with_progress(
     need_embeddings: bool,
     progress_callback: Option<ck_index::ProgressCallback>,
     detailed_progress_callback: Option<ck_index::DetailedProgressCallback>,
+    respect_gitignore: bool,
+    exclude_patterns: &[String],
 ) -> Result<()> {
     // Handle both files and directories and reuse nearest existing .ck index up the tree
     let index_root_buf = find_nearest_index_root(path).unwrap_or_else(|| {
@@ -1068,9 +1217,9 @@ async fn ensure_index_updated_with_progress(
             progress_callback,
             detailed_progress_callback,
             need_embeddings,
-            true,
-            &[],  // Empty exclude patterns for internal engine use
-            None, // model - use existing from index
+            respect_gitignore,
+            exclude_patterns, // Use search-specific exclude patterns
+            None,             // model - use existing from index
         )
         .await?;
         if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {
@@ -1090,8 +1239,8 @@ async fn ensure_index_updated_with_progress(
         progress_callback,
         detailed_progress_callback,
         need_embeddings,
-        true,
-        &[],
+        respect_gitignore,
+        exclude_patterns,
         None, // model - use existing from index
     )
     .await?;
@@ -1106,7 +1255,7 @@ async fn ensure_index_updated_with_progress(
     Ok(())
 }
 
-fn get_context_preview(lines: &[&str], line_idx: usize, options: &SearchOptions) -> String {
+fn get_context_preview(lines: &[String], line_idx: usize, options: &SearchOptions) -> String {
     let before = options.before_context_lines.max(options.context_lines);
     let after = options.after_context_lines.max(options.context_lines);
 
@@ -1186,6 +1335,69 @@ mod tests {
             paths.push(path);
         }
         paths
+    }
+
+    #[test]
+    fn test_extract_lines_from_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("test_lines.txt");
+
+        // Create a multi-line test file
+        let content =
+            "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10";
+        fs::write(&test_file, content).unwrap();
+
+        // Test extracting lines 3-5 (1-based indexing)
+        let result = extract_lines_from_file(&test_file, 3, 5).unwrap();
+        assert_eq!(result, "Line 3\nLine 4\nLine 5");
+
+        // Test extracting a single line
+        let result = extract_lines_from_file(&test_file, 7, 7).unwrap();
+        assert_eq!(result, "Line 7");
+
+        // Test extracting from line 8 to end
+        let result = extract_lines_from_file(&test_file, 8, 100).unwrap();
+        assert_eq!(result, "Line 8\nLine 9\nLine 10");
+
+        // Test line_start == 0 (should return empty)
+        let result = extract_lines_from_file(&test_file, 0, 5).unwrap();
+        assert_eq!(result, "");
+
+        // Test line_start > file length (should return empty)
+        let result = extract_lines_from_file(&test_file, 20, 25).unwrap();
+        assert_eq!(result, "");
+    }
+
+    #[tokio::test]
+    async fn test_extract_content_from_span() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("code.rs");
+
+        // Create a multi-line code file
+        let content = "fn first() {\n    println!(\"First\");\n}\n\nfn second() {\n    println!(\"Second\");\n}\n\nfn third() {\n    println!(\"Third\");\n}";
+        fs::write(&test_file, content).unwrap();
+
+        // Test extracting the second function (lines 5-7)
+        let span = ck_core::Span {
+            byte_start: 0, // Not used in line extraction
+            byte_end: 0,   // Not used in line extraction
+            line_start: 5,
+            line_end: 7,
+        };
+
+        let result = extract_content_from_span(&test_file, &span).await.unwrap();
+        assert_eq!(result, "fn second() {\n    println!(\"Second\");\n}");
+
+        // Test extracting a single line
+        let span = ck_core::Span {
+            byte_start: 0,
+            byte_end: 0,
+            line_start: 2,
+            line_end: 2,
+        };
+
+        let result = extract_content_from_span(&test_file, &span).await.unwrap();
+        assert_eq!(result, "    println!(\"First\");");
     }
 
     #[test]

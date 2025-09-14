@@ -28,6 +28,7 @@ walkdir = { workspace = true }
 tracing = { workspace = true }
 ignore = { workspace = true }
 ctrlc = { workspace = true }
+pdf-extract = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

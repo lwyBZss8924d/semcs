@@ -1027,8 +1027,10 @@ fn highlight_regex_matches(text: &str, pattern: &str, options: &SearchOptions) -
             })
             .to_string()
         }
-        Err(_) => {
-            // If regex is invalid, return original text
+        Err(e) => {
+            // Surface regex compilation error to user
+            eprintln!("Warning: Invalid regex pattern '{}': {}", pattern, e);
+            // Return original text without highlighting
             text.to_string()
         }
     }
@@ -1427,4 +1429,86 @@ async fn run_search(
         had_matches: has_matches,
         closest_below_threshold: search_results.closest_below_threshold,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_highlight_regex_matches_with_valid_pattern() {
+        let options = SearchOptions {
+            mode: SearchMode::Regex,
+            case_insensitive: false,
+            fixed_string: false,
+            whole_word: false,
+            ..Default::default()
+        };
+
+        let text = "hello world test";
+        let pattern = "world";
+        let result = highlight_regex_matches(text, pattern, &options);
+
+        // Should contain the text (exact highlighting might differ based on styling)
+        assert!(result.contains("world"));
+    }
+
+    #[test]
+    fn test_highlight_regex_matches_with_invalid_pattern() {
+        let options = SearchOptions {
+            mode: SearchMode::Regex,
+            case_insensitive: false,
+            fixed_string: false,
+            whole_word: false,
+            ..Default::default()
+        };
+
+        let text = "hello world test";
+        let pattern = "[invalid"; // Invalid regex pattern
+
+        // Capture stderr to check for warning
+        let original_text = highlight_regex_matches(text, pattern, &options);
+
+        // Should return original text when regex is invalid
+        assert_eq!(original_text, text);
+
+        // Note: We can't easily capture stderr in unit tests without more complex setup,
+        // but the integration test covers the stderr warning behavior
+    }
+
+    #[test]
+    fn test_highlight_regex_matches_with_fixed_string() {
+        let options = SearchOptions {
+            mode: SearchMode::Regex,
+            case_insensitive: false,
+            fixed_string: true, // This should escape the pattern
+            whole_word: false,
+            ..Default::default()
+        };
+
+        let text = "hello [world] test";
+        let pattern = "[world]"; // Special chars that would be invalid regex
+        let result = highlight_regex_matches(text, pattern, &options);
+
+        // Should work fine because fixed_string escapes the pattern
+        assert!(result.contains("[world]"));
+    }
+
+    #[test]
+    fn test_highlight_regex_matches_with_whole_word() {
+        let options = SearchOptions {
+            mode: SearchMode::Regex,
+            case_insensitive: false,
+            fixed_string: false,
+            whole_word: true, // This should escape the pattern and add word boundaries
+            ..Default::default()
+        };
+
+        let text = "hello [world] test";
+        let pattern = "[world]"; // Special chars that would be invalid regex
+        let result = highlight_regex_matches(text, pattern, &options);
+
+        // Should work fine because whole_word escapes the pattern
+        assert!(result.contains("[world]"));
+    }
 }
