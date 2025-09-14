@@ -42,26 +42,63 @@ fn read_file_content(file_path: &Path, repo_root: &Path) -> Result<String> {
     Ok(fs::read_to_string(content_path)?)
 }
 
-/// Extract content from a file using a span
+/// Extract content from a file using a span (streaming version)
 async fn extract_content_from_span(file_path: &Path, span: &ck_core::Span) -> Result<String> {
     // Find repo root to locate cache
     let repo_root = find_nearest_index_root(file_path)
         .unwrap_or_else(|| file_path.parent().unwrap_or(file_path).to_path_buf());
-    let content = read_file_content(file_path, &repo_root)?;
-    let lines: Vec<&str> = content.lines().collect();
 
-    if span.line_start == 0 || span.line_start > lines.len() {
+    // Determine the actual content path (handle PDFs)
+    let content_path = if ck_core::pdf::is_pdf_file(file_path) {
+        let cache_path = ck_core::pdf::get_content_cache_path(&repo_root, file_path);
+        if !cache_path.exists() {
+            return Err(anyhow::anyhow!(
+                "PDF not preprocessed. Run 'ck --index' first."
+            ));
+        }
+        cache_path
+    } else {
+        file_path.to_path_buf()
+    };
+
+    // Stream only the needed lines
+    extract_lines_from_file(&content_path, span.line_start, span.line_end)
+}
+
+/// Stream-read specific lines from a file without loading the entire content
+fn extract_lines_from_file(file_path: &Path, line_start: usize, line_end: usize) -> Result<String> {
+    use std::io::{BufRead, BufReader};
+
+    if line_start == 0 {
         return Ok(String::new());
     }
 
-    let start_idx = span.line_start - 1; // Convert to 0-based
-    let end_idx = (span.line_end - 1).min(lines.len().saturating_sub(1));
+    let file = fs::File::open(file_path)?;
+    let reader = BufReader::new(file);
+    let mut result = Vec::new();
 
-    if start_idx <= end_idx {
-        Ok(lines[start_idx..=end_idx].join("\n"))
-    } else {
-        Ok(lines[start_idx].to_string())
+    // Convert to 0-based indexing
+    let start_idx = line_start.saturating_sub(1);
+    let end_idx = line_end.saturating_sub(1);
+
+    for (current_line, line_result) in reader.lines().enumerate() {
+        if current_line > end_idx {
+            break; // Stop reading once we've passed the needed lines
+        }
+
+        let line = line_result?;
+
+        if current_line >= start_idx {
+            result.push(line);
+        }
     }
+
+    // Handle case where requested lines exceed file length
+    if result.is_empty() && line_start > 0 {
+        return Ok(String::new());
+    }
+
+    Ok(result.join("\n"))
 }
 
 fn find_nearest_index_root(path: &Path) -> Option<StdPathBuf> {
@@ -1217,6 +1254,69 @@ mod tests {
             paths.push(path);
         }
         paths
+    }
+
+    #[test]
+    fn test_extract_lines_from_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("test_lines.txt");
+
+        // Create a multi-line test file
+        let content =
+            "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10";
+        fs::write(&test_file, content).unwrap();
+
+        // Test extracting lines 3-5 (1-based indexing)
+        let result = extract_lines_from_file(&test_file, 3, 5).unwrap();
+        assert_eq!(result, "Line 3\nLine 4\nLine 5");
+
+        // Test extracting a single line
+        let result = extract_lines_from_file(&test_file, 7, 7).unwrap();
+        assert_eq!(result, "Line 7");
+
+        // Test extracting from line 8 to end
+        let result = extract_lines_from_file(&test_file, 8, 100).unwrap();
+        assert_eq!(result, "Line 8\nLine 9\nLine 10");
+
+        // Test line_start == 0 (should return empty)
+        let result = extract_lines_from_file(&test_file, 0, 5).unwrap();
+        assert_eq!(result, "");
+
+        // Test line_start > file length (should return empty)
+        let result = extract_lines_from_file(&test_file, 20, 25).unwrap();
+        assert_eq!(result, "");
+    }
+
+    #[tokio::test]
+    async fn test_extract_content_from_span() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("code.rs");
+
+        // Create a multi-line code file
+        let content = "fn first() {\n    println!(\"First\");\n}\n\nfn second() {\n    println!(\"Second\");\n}\n\nfn third() {\n    println!(\"Third\");\n}";
+        fs::write(&test_file, content).unwrap();
+
+        // Test extracting the second function (lines 5-7)
+        let span = ck_core::Span {
+            byte_start: 0, // Not used in line extraction
+            byte_end: 0,   // Not used in line extraction
+            line_start: 5,
+            line_end: 7,
+        };
+
+        let result = extract_content_from_span(&test_file, &span).await.unwrap();
+        assert_eq!(result, "fn second() {\n    println!(\"Second\");\n}");
+
+        // Test extracting a single line
+        let span = ck_core::Span {
+            byte_start: 0,
+            byte_end: 0,
+            line_start: 2,
+            line_end: 2,
+        };
+
+        let result = extract_content_from_span(&test_file, &span).await.unwrap();
+        assert_eq!(result, "    println!(\"First\");");
     }
 
     #[test]
