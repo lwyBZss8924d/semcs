@@ -1,5 +1,5 @@
 use anyhow::Result;
-use ck_core::{FileMetadata, Span, compute_file_hash, get_sidecar_path};
+use ck_core::{FileMetadata, Span, compute_file_hash, get_sidecar_path, Language};
 use ignore::{WalkBuilder, overrides::OverrideBuilder};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -520,51 +520,16 @@ pub fn cleanup_index(
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
 
-    // Find all current files in the repository
-    let current_files = collect_files_as_hashset(path, respect_gitignore, exclude_patterns)?;
+    // Use the new unified cleanup validation
+    let stats = cleanup_validation::validate_and_cleanup_index(
+        path,
+        &index_dir,
+        &mut manifest,
+        respect_gitignore,
+        exclude_patterns,
+    )?;
 
-    let mut stats = CleanupStats::default();
-
-    // Remove orphaned manifest entries (files that no longer exist)
-    let orphaned_files: Vec<PathBuf> = manifest
-        .files
-        .keys()
-        .filter(|&file_path| !current_files.contains(file_path))
-        .cloned()
-        .collect();
-
-    for file_path in &orphaned_files {
-        manifest.files.remove(file_path);
-
-        // Also remove the sidecar file
-        let sidecar_path = get_sidecar_path(path, file_path);
-        if sidecar_path.exists() {
-            fs::remove_file(&sidecar_path)?;
-            stats.orphaned_sidecars_removed += 1;
-        }
-
-        stats.orphaned_entries_removed += 1;
-    }
-
-    // Find and remove orphaned sidecar files
-    if index_dir.exists() {
-        for entry in WalkDir::new(&index_dir) {
-            let entry = entry?;
-            if entry.file_type().is_file() {
-                let path = entry.path();
-                if path.extension().and_then(|s| s.to_str()) == Some("ck") {
-                    // Try to reconstruct the original file path
-                    if let Some(original_path) = sidecar_to_original_path(path, &index_dir, path)
-                        && !current_files.contains(&original_path)
-                        && !manifest.files.contains_key(&original_path)
-                    {
-                        fs::remove_file(path)?;
-                        stats.orphaned_sidecars_removed += 1;
-                    }
-                }
-            }
-        }
-    }
+    // Content cache cleanup is now handled by the unified cleanup validation
 
     // Remove empty directories in .ck
     remove_empty_dirs(&index_dir)?;
@@ -714,10 +679,10 @@ pub async fn smart_update_index_with_detailed_progress(
         return Ok(stats);
     }
 
-    // Skip cleanup during regular updates to avoid removing valid sidecar files
-    // Cleanup should only be done explicitly via --clean-orphans
-    // let cleanup_stats = cleanup_index(path)?;
-    // stats.orphaned_files_removed = cleanup_stats.orphaned_entries_removed;
+    // Cleanup should always be done from repository root with no exclusions to ensure index reflects reality
+    let repo_root = find_repo_root(path)?;
+    let cleanup_stats = cleanup_index(&repo_root, true, &[])?;
+    stats.orphaned_files_removed = cleanup_stats.orphaned_entries_removed;
 
     // Then perform incremental update
     fs::create_dir_all(&index_dir)?;
@@ -782,6 +747,8 @@ pub async fn smart_update_index_with_detailed_progress(
         (None, None)
     };
 
+    // For incremental updates, only process files in the search scope
+    // The cleanup phase already handled removing orphaned files from the entire repo
     let current_files = collect_files(path, respect_gitignore, exclude_patterns)?;
 
     // First pass: determine which files need updating and collect stats
@@ -834,13 +801,16 @@ pub async fn smart_update_index_with_detailed_progress(
                 files_to_update.push(file_path);
             } else {
                 stats.files_up_to_date += 1;
+                // Convert to standardized path for manifest storage
+                let standard_path = path_utils::to_standard_path(&file_path, &repo_root);
+                let manifest_path = path_utils::to_manifest_path(&standard_path);
                 let new_metadata = FileMetadata {
-                    path: file_path.clone(),
+                    path: manifest_path.clone(),
                     hash,
                     last_modified: fs_last_modified,
                     size: fs_size,
                 };
-                manifest.files.insert(file_path, new_metadata);
+                manifest.files.insert(manifest_path, new_metadata);
                 manifest_changed = true;
             }
         } else {
@@ -1023,15 +993,15 @@ pub async fn smart_update_index_with_detailed_progress(
 
 fn index_single_file(
     file_path: &Path,
-    _repo_root: &Path,
+    repo_root: &Path,
     embedder: Option<&mut Box<dyn ck_embed::Embedder>>,
 ) -> Result<IndexEntry> {
-    index_single_file_with_progress(file_path, _repo_root, embedder, None, 0, 1)
+    index_single_file_with_progress(file_path, repo_root, embedder, None, 0, 1)
 }
 
 fn index_single_file_with_progress(
     file_path: &Path,
-    _repo_root: &Path,
+    repo_root: &Path,
     embedder: Option<&mut Box<dyn ck_embed::Embedder>>,
     detailed_progress: Option<&DetailedProgressCallback>,
     file_index: usize,
@@ -1042,7 +1012,11 @@ fn index_single_file_with_progress(
         return Err(anyhow::anyhow!("Binary file, skipping"));
     }
 
-    let content = fs::read_to_string(file_path)?;
+    // Preprocess file (extracts PDFs to cache, returns path to readable content)
+    let content_path = preprocess_file(file_path, repo_root)?;
+    let content = fs::read_to_string(&content_path)?;
+
+    // Always use the ORIGINAL file for hash and metadata
     let hash = compute_file_hash(file_path)?;
     let metadata = fs::metadata(file_path)?;
 
@@ -1057,7 +1031,11 @@ fn index_single_file_with_progress(
     };
 
     // Detect language for tree-sitter parsing
-    let lang = ck_core::Language::from_path(file_path);
+    let lang = if is_pdf_file(file_path) {
+        Some(Language::Pdf)
+    } else {
+        ck_core::Language::from_path(file_path)
+    };
 
     let chunks = ck_chunk::chunk_text(&content, lang)?;
 
@@ -1216,7 +1194,80 @@ fn find_repo_root(path: &Path) -> Result<PathBuf> {
     }
 }
 
+/// Check if a file is a PDF by extension
+fn is_pdf_file(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_lowercase() == "pdf")
+        .unwrap_or(false)
+}
+
+/// Get path for cached content (PDFs only)
+fn get_content_cache_path(repo_root: &Path, file_path: &Path) -> PathBuf {
+    let relative = file_path.strip_prefix(repo_root).unwrap_or(file_path);
+    let mut cache_path = repo_root.join(".ck").join("content");
+    cache_path.push(relative);
+
+    // Add .txt extension to the cached file
+    let ext = relative.extension()
+        .map(|e| format!("{}.txt", e.to_string_lossy()))
+        .unwrap_or_else(|| "txt".to_string());
+    cache_path.set_extension(ext);
+
+    cache_path
+}
+
+/// Check if content needs re-extraction
+fn should_reextract(source_path: &Path, cache_path: &Path) -> Result<bool> {
+    if !cache_path.exists() {
+        return Ok(true);
+    }
+
+    let source_modified = fs::metadata(source_path)?.modified()?;
+    let cache_modified = fs::metadata(cache_path)?.modified()?;
+
+    Ok(source_modified > cache_modified)
+}
+
+/// Extract text content from a PDF file
+fn extract_pdf_text(path: &Path) -> Result<String> {
+    pdf_extract::extract_text(path)
+        .map_err(|e| anyhow::anyhow!("Failed to extract text from PDF {}: {}", path.display(), e))
+}
+
+/// Preprocess a file if needed, returning path to readable content
+/// For regular files: returns the original path (no preprocessing)
+/// For PDFs: extracts text to cache, returns cache path
+fn preprocess_file(file_path: &Path, repo_root: &Path) -> Result<PathBuf> {
+    if is_pdf_file(file_path) {
+        let cache_path = get_content_cache_path(repo_root, file_path);
+
+        // Check if re-extraction needed
+        if should_reextract(file_path, &cache_path)? {
+            tracing::debug!("Extracting PDF content from {:?} to {:?}", file_path, cache_path);
+            let extracted_text = extract_pdf_text(file_path)?;
+
+            // Ensure cache directory exists
+            if let Some(parent) = cache_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+
+            // Write extracted text
+            fs::write(&cache_path, extracted_text)?;
+        }
+
+        Ok(cache_path)  // Return path to extracted text
+    } else {
+        Ok(file_path.to_path_buf())  // Return original path for regular files
+    }
+}
+
 fn is_text_file(path: &Path) -> bool {
+    // PDFs are considered indexable even though they're binary
+    if is_pdf_file(path) {
+        return true;
+    }
+
     // Use NUL byte heuristic like ripgrep - read first 8KB and check for NUL bytes
     const BUFFER_SIZE: usize = 8192;
 
@@ -1240,26 +1291,7 @@ fn is_text_file(path: &Path) -> bool {
     }
 }
 
-fn sidecar_to_original_path(
-    sidecar_path: &Path,
-    index_dir: &Path,
-    _repo_root: &Path,
-) -> Option<PathBuf> {
-    let relative_path = sidecar_path.strip_prefix(index_dir).ok()?;
-    let original_path = relative_path.with_extension("");
-
-    // Handle the .ck extension removal
-    if let Some(name) = original_path.file_name() {
-        let name_str = name.to_string_lossy();
-        if let Some(original_name) = name_str.strip_suffix(".ck") {
-            let mut result = original_path.clone();
-            result.set_file_name(original_name);
-            return Some(result);
-        }
-    }
-
-    Some(original_path)
-}
+// This function is now replaced by path_utils::sidecar_to_standard_path
 
 fn remove_empty_dirs(dir: &Path) -> Result<()> {
     if !dir.is_dir() {
@@ -1498,5 +1530,178 @@ mod tests {
         assert!(!nested_dir.exists());
         assert!(!test_path.join("level1").join("level2").exists());
         assert!(!test_path.join("level1").exists());
+    }
+}
+
+// ============================================================================
+// Cleanup Validation Module
+// ============================================================================
+
+/// Comprehensive cleanup and validation for the index
+mod cleanup_validation {
+    use super::*;
+    // IndexManifest is defined in this module
+    
+    /// Validates and cleans up the index to ensure consistency
+    pub fn validate_and_cleanup_index(
+        repo_root: &Path,
+        index_dir: &Path,
+        manifest: &mut IndexManifest,
+        respect_gitignore: bool,
+        exclude_patterns: &[String],
+    ) -> Result<CleanupStats> {
+        let mut stats = CleanupStats::default();
+        
+        // Step 1: Get all files that actually exist in the repository
+        let existing_files = collect_files_as_hashset(repo_root, respect_gitignore, exclude_patterns)?;
+        let standard_existing_files: HashSet<PathBuf> = existing_files
+            .into_iter()
+            .map(|path| path_utils::to_standard_path(&path, repo_root))
+            .collect();
+        
+        // Step 2: Validate manifest entries
+        let manifest_entries: Vec<PathBuf> = manifest.files.keys().map(|k| k.to_path_buf()).collect();
+        for manifest_path in manifest_entries {
+            let standard_path = path_utils::from_manifest_path(&manifest_path);
+            
+            // Check if file exists in reality
+            if !standard_existing_files.contains(&standard_path) {
+                remove_manifest_entry(manifest, &manifest_path, index_dir, &mut stats)?;
+                continue;
+            }
+            
+            // Check if sidecar file exists
+            let sidecar_path = path_utils::get_sidecar_path_for_standard_path(index_dir, &standard_path);
+            if !sidecar_path.exists() {
+                remove_manifest_entry(manifest, &manifest_path, index_dir, &mut stats)?;
+                continue;
+            }
+        }
+        
+        // Step 3: Clean up orphaned sidecar files
+        cleanup_orphaned_sidecars(index_dir, &standard_existing_files, manifest, &mut stats)?;
+        
+        Ok(stats)
+    }
+    
+    /// Remove a manifest entry and its associated files
+    fn remove_manifest_entry(
+        manifest: &mut IndexManifest,
+        manifest_path: &Path,
+        index_dir: &Path,
+        stats: &mut CleanupStats,
+    ) -> Result<()> {
+        manifest.files.remove(manifest_path);
+        
+        // Remove sidecar file
+        let standard_path = path_utils::from_manifest_path(manifest_path);
+        let sidecar_path = path_utils::get_sidecar_path_for_standard_path(index_dir, &standard_path);
+        if sidecar_path.exists() {
+            fs::remove_file(&sidecar_path)?;
+            stats.orphaned_sidecars_removed += 1;
+        }
+        
+        // Remove content cache for PDFs
+        if is_pdf_file(manifest_path) {
+            let cache_path = get_content_cache_path(index_dir, manifest_path);
+            if cache_path.exists() {
+                fs::remove_file(&cache_path)?;
+                tracing::debug!("Removed orphaned content cache: {:?}", cache_path);
+            }
+        }
+        
+        stats.orphaned_entries_removed += 1;
+        tracing::warn!("Removed manifest entry: {:?}", manifest_path);
+        Ok(())
+    }
+    
+    /// Clean up sidecar files that don't have corresponding manifest entries
+    fn cleanup_orphaned_sidecars(
+        index_dir: &Path,
+        standard_existing_files: &HashSet<PathBuf>,
+        manifest: &IndexManifest,
+        stats: &mut CleanupStats,
+    ) -> Result<()> {
+        if !index_dir.exists() {
+            return Ok(());
+        }
+        
+        for entry in WalkDir::new(index_dir) {
+            let entry = entry?;
+            if entry.file_type().is_file() {
+                let sidecar_path = entry.path();
+                if sidecar_path.extension().and_then(|s| s.to_str()) == Some("ck") {
+                    if let Some(standard_path) = path_utils::sidecar_to_standard_path(sidecar_path, index_dir) {
+                        let manifest_path = path_utils::to_manifest_path(&standard_path);
+                        
+                        // Remove if file doesn't exist in reality or isn't in manifest
+                        if !standard_existing_files.contains(&standard_path) || !manifest.files.contains_key(&manifest_path) {
+                            fs::remove_file(sidecar_path)?;
+                            stats.orphaned_sidecars_removed += 1;
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
+}
+
+// ============================================================================
+// Path Utilities Module
+// ============================================================================
+
+/// Standardized path format for the indexing system.
+/// All paths are stored as relative paths from the repository root without "./" prefix.
+/// Example: "examples/code/api_client.js" instead of "./examples/code/api_client.js"
+mod path_utils {
+    use super::*;
+    
+    /// Convert an absolute path to a standardized relative path from repo root
+    pub fn to_standard_path(absolute_path: &Path, repo_root: &Path) -> PathBuf {
+        if let Ok(relative) = absolute_path.strip_prefix(repo_root) {
+            relative.to_path_buf()
+        } else {
+            absolute_path.to_path_buf()
+        }
+    }
+    
+    /// Convert a standardized path to a manifest path (with "./" prefix for compatibility)
+    pub fn to_manifest_path(standard_path: &Path) -> PathBuf {
+        PathBuf::from(".").join(standard_path)
+    }
+    
+    /// Convert a manifest path (with "./" prefix) to a standardized path
+    pub fn from_manifest_path(manifest_path: &Path) -> PathBuf {
+        if let Ok(relative) = manifest_path.strip_prefix(".") {
+            relative.to_path_buf()
+        } else {
+            manifest_path.to_path_buf()
+        }
+    }
+    
+    /// Get the sidecar path for a standardized file path
+    pub fn get_sidecar_path_for_standard_path(index_dir: &Path, standard_path: &Path) -> PathBuf {
+        let sidecar_name = format!("{}.ck", standard_path.display());
+        index_dir.join(sidecar_name)
+    }
+    
+    /// Convert a sidecar path back to a standardized original path
+    pub fn sidecar_to_standard_path(sidecar_path: &Path, index_dir: &Path) -> Option<PathBuf> {
+        let relative_path = sidecar_path.strip_prefix(index_dir).ok()?;
+        let original_path = relative_path.with_extension("");
+        
+        // Handle the .ck extension removal
+        if let Some(name) = original_path.file_name() {
+            let name_str = name.to_string_lossy();
+            if let Some(original_name) = name_str.strip_suffix(".ck") {
+                let mut result = original_path.clone();
+                result.set_file_name(original_name);
+                return Some(result);
+            }
+        }
+        
+        Some(original_path)
     }
 }

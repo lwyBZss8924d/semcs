@@ -26,7 +26,7 @@ pub async fn semantic_search_v3_with_progress(
     let index_dir = index_root.join(".ck");
     if !index_dir.exists() {
         return Err(CkError::Index(
-            "No index found. Run 'ck --index' first with embeddings.".to_string(),
+            "Index creation failed. Please try running 'ck --index' explicitly.".to_string(),
         )
         .into());
     }

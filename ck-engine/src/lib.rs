@@ -21,9 +21,53 @@ pub type SearchProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 pub type IndexingProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 pub type DetailedIndexingProgressCallback = Box<dyn Fn(ck_index::EmbeddingProgress) + Send + Sync>;
 
+/// Check if a file is a PDF by extension
+fn is_pdf_file(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_lowercase() == "pdf")
+        .unwrap_or(false)
+}
+
+/// Get path for cached content (PDFs only)
+fn get_content_cache_path(repo_root: &Path, file_path: &Path) -> PathBuf {
+    let relative = file_path.strip_prefix(repo_root).unwrap_or(file_path);
+    let mut cache_path = repo_root.join(".ck").join("content");
+    cache_path.push(relative);
+
+    // Add .txt extension to the cached file
+    let ext = relative.extension()
+        .map(|e| format!("{}.txt", e.to_string_lossy()))
+        .unwrap_or_else(|| "txt".to_string());
+    cache_path.set_extension(ext);
+
+    cache_path
+}
+
+/// Read content from file for search result extraction
+/// Regular files: read directly from source
+/// PDFs: read from preprocessed cache
+fn read_file_content(file_path: &Path, repo_root: &Path) -> Result<String> {
+    let content_path = if is_pdf_file(file_path) {
+        // PDFs: Read from cached extracted text
+        let cache_path = get_content_cache_path(repo_root, file_path);
+        if !cache_path.exists() {
+            return Err(anyhow::anyhow!("PDF not preprocessed. Run 'ck --index' first."));
+        }
+        cache_path
+    } else {
+        // Regular files: Read from original source
+        file_path.to_path_buf()
+    };
+
+    Ok(fs::read_to_string(content_path)?)
+}
+
 /// Extract content from a file using a span
 async fn extract_content_from_span(file_path: &Path, span: &ck_core::Span) -> Result<String> {
-    let content = tokio::fs::read_to_string(file_path).await?;
+    // Find repo root to locate cache
+    let repo_root = find_nearest_index_root(file_path).unwrap_or_else(|| file_path.parent().unwrap_or(file_path).to_path_buf());
+    let content = read_file_content(file_path, &repo_root)?;
     let lines: Vec<&str> = content.lines().collect();
 
     if span.line_start == 0 || span.line_start > lines.len() {
@@ -108,6 +152,8 @@ pub async fn search_enhanced_with_indexing_progress(
             need_embeddings,
             indexing_progress_callback,
             detailed_indexing_progress_callback,
+            options.respect_gitignore,
+            &options.exclude_patterns,
         )
         .await?;
     }
@@ -210,7 +256,9 @@ fn search_file(
     file_path: &Path,
     options: &SearchOptions,
 ) -> Result<Vec<SearchResult>> {
-    let content = fs::read_to_string(file_path)?;
+    // Find repo root to locate cache
+    let repo_root = find_nearest_index_root(file_path).unwrap_or_else(|| file_path.parent().unwrap_or(file_path).to_path_buf());
+    let content = read_file_content(file_path, &repo_root)?;
     let lines: Vec<&str> = content.lines().collect();
     let mut results = Vec::new();
 
@@ -1049,6 +1097,8 @@ async fn ensure_index_updated_with_progress(
     need_embeddings: bool,
     progress_callback: Option<ck_index::ProgressCallback>,
     detailed_progress_callback: Option<ck_index::DetailedProgressCallback>,
+    respect_gitignore: bool,
+    exclude_patterns: &[String],
 ) -> Result<()> {
     // Handle both files and directories and reuse nearest existing .ck index up the tree
     let index_root_buf = find_nearest_index_root(path).unwrap_or_else(|| {
@@ -1068,8 +1118,8 @@ async fn ensure_index_updated_with_progress(
             progress_callback,
             detailed_progress_callback,
             need_embeddings,
-            true,
-            &[],  // Empty exclude patterns for internal engine use
+            respect_gitignore,
+            exclude_patterns,  // Use search-specific exclude patterns
             None, // model - use existing from index
         )
         .await?;
@@ -1090,8 +1140,8 @@ async fn ensure_index_updated_with_progress(
         progress_callback,
         detailed_progress_callback,
         need_embeddings,
-        true,
-        &[],
+        respect_gitignore,
+        exclude_patterns,
         None, // model - use existing from index
     )
     .await?;
