@@ -21,11 +21,11 @@ pub type SearchProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 pub type IndexingProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
 pub type DetailedIndexingProgressCallback = Box<dyn Fn(ck_index::EmbeddingProgress) + Send + Sync>;
 
-/// Read content from file for search result extraction
-/// Regular files: read directly from source
-/// PDFs: read from preprocessed cache
-fn read_file_content(file_path: &Path, repo_root: &Path) -> Result<String> {
-    let content_path = if ck_core::pdf::is_pdf_file(file_path) {
+/// Resolve the actual file path to read content from
+/// For PDFs: returns cache path and validates it exists
+/// For regular files: returns original path
+fn resolve_content_path(file_path: &Path, repo_root: &Path) -> Result<PathBuf> {
+    if ck_core::pdf::is_pdf_file(file_path) {
         // PDFs: Read from cached extracted text
         let cache_path = ck_core::pdf::get_content_cache_path(repo_root, file_path);
         if !cache_path.exists() {
@@ -33,12 +33,18 @@ fn read_file_content(file_path: &Path, repo_root: &Path) -> Result<String> {
                 "PDF not preprocessed. Run 'ck --index' first."
             ));
         }
-        cache_path
+        Ok(cache_path)
     } else {
         // Regular files: Read from original source
-        file_path.to_path_buf()
-    };
+        Ok(file_path.to_path_buf())
+    }
+}
 
+/// Read content from file for search result extraction
+/// Regular files: read directly from source
+/// PDFs: read from preprocessed cache
+fn read_file_content(file_path: &Path, repo_root: &Path) -> Result<String> {
+    let content_path = resolve_content_path(file_path, repo_root)?;
     Ok(fs::read_to_string(content_path)?)
 }
 
@@ -48,18 +54,8 @@ async fn extract_content_from_span(file_path: &Path, span: &ck_core::Span) -> Re
     let repo_root = find_nearest_index_root(file_path)
         .unwrap_or_else(|| file_path.parent().unwrap_or(file_path).to_path_buf());
 
-    // Determine the actual content path (handle PDFs)
-    let content_path = if ck_core::pdf::is_pdf_file(file_path) {
-        let cache_path = ck_core::pdf::get_content_cache_path(&repo_root, file_path);
-        if !cache_path.exists() {
-            return Err(anyhow::anyhow!(
-                "PDF not preprocessed. Run 'ck --index' first."
-            ));
-        }
-        cache_path
-    } else {
-        file_path.to_path_buf()
-    };
+    // Use centralized path resolution
+    let content_path = resolve_content_path(file_path, &repo_root)?;
 
     // Stream only the needed lines
     extract_lines_from_file(&content_path, span.line_start, span.line_end)
@@ -276,18 +272,38 @@ fn search_file(
     // Find repo root to locate cache
     let repo_root = find_nearest_index_root(file_path)
         .unwrap_or_else(|| file_path.parent().unwrap_or(file_path).to_path_buf());
-    let content = read_file_content(file_path, &repo_root)?;
-    let lines: Vec<&str> = content.lines().collect();
-    let mut results = Vec::new();
 
-    // If full_section is enabled, try to parse the file and find code sections
-    let code_sections = if options.full_section {
-        extract_code_sections(file_path, &content)
+    // For full_section mode, we need the entire content for parsing
+    // For context previews, we need all lines for surrounding context
+    // So we'll load content when needed, but optimize for the common case
+    if options.full_section || options.context_lines > 0 {
+        // Load full content when we need section parsing or context
+        let content = read_file_content(file_path, &repo_root)?;
+        let lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+
+        // If full_section is enabled, try to parse the file and find code sections
+        let code_sections = if options.full_section {
+            extract_code_sections(file_path, &content)
+        } else {
+            None
+        };
+
+        search_file_in_memory(regex, file_path, options, &lines, &code_sections)
     } else {
-        None
-    };
+        // Streaming search (simple case)
+        search_file_streaming(regex, file_path, &repo_root, options)
+    }
+}
 
-    // Track byte offset as we iterate through lines
+/// In-memory search for cases requiring context or code sections
+fn search_file_in_memory(
+    regex: &Regex,
+    file_path: &Path,
+    options: &SearchOptions,
+    lines: &[String],
+    code_sections: &Option<Vec<(usize, usize, String)>>,
+) -> Result<Vec<SearchResult>> {
+    let mut results = Vec::new();
     let mut byte_offset = 0;
 
     for (line_idx, line) in lines.iter().enumerate() {
@@ -299,18 +315,18 @@ fn search_file(
             // Empty pattern matches the whole line once (grep compatibility)
             let preview = if options.full_section {
                 // Try to find the containing code section
-                if let Some(ref sections) = code_sections {
+                if let Some(sections) = code_sections {
                     if let Some(section) = find_containing_section(sections, line_idx) {
                         section.clone()
                     } else {
                         // Fall back to context lines if no section found
-                        get_context_preview(&lines, line_idx, options)
+                        get_context_preview(lines, line_idx, options)
                     }
                 } else {
-                    get_context_preview(&lines, line_idx, options)
+                    get_context_preview(lines, line_idx, options)
                 }
             } else {
-                get_context_preview(&lines, line_idx, options)
+                get_context_preview(lines, line_idx, options)
             };
 
             results.push(SearchResult {
@@ -333,18 +349,18 @@ fn search_file(
             for mat in regex.find_iter(line) {
                 let preview = if options.full_section {
                     // Try to find the containing code section
-                    if let Some(ref sections) = code_sections {
+                    if let Some(sections) = code_sections {
                         if let Some(section) = find_containing_section(sections, line_idx) {
                             section.clone()
                         } else {
                             // Fall back to context lines if no section found
-                            get_context_preview(&lines, line_idx, options)
+                            get_context_preview(lines, line_idx, options)
                         }
                     } else {
-                        get_context_preview(&lines, line_idx, options)
+                        get_context_preview(lines, line_idx, options)
                     }
                 } else {
-                    get_context_preview(&lines, line_idx, options)
+                    get_context_preview(lines, line_idx, options)
                 };
 
                 results.push(SearchResult {
@@ -370,6 +386,71 @@ fn search_file(
         if line_idx < lines.len() - 1 {
             byte_offset += 1; // Add 1 for the newline character
         }
+    }
+
+    Ok(results)
+}
+
+/// Streaming search for simple cases without context or code sections
+fn search_file_streaming(
+    regex: &Regex,
+    file_path: &Path,
+    repo_root: &Path,
+    _options: &SearchOptions,
+) -> Result<Vec<SearchResult>> {
+    use std::io::{BufRead, BufReader};
+
+    let content_path = resolve_content_path(file_path, repo_root)?;
+    let file = std::fs::File::open(&content_path)?;
+    let reader = BufReader::new(file);
+
+    let mut results = Vec::new();
+    let mut byte_offset = 0;
+
+    for (line_idx, line_result) in reader.lines().enumerate() {
+        let line = line_result?;
+        let line_number = line_idx + 1;
+
+        // Special handling for empty pattern - match the entire line once
+        if regex.as_str().is_empty() {
+            results.push(SearchResult {
+                file: file_path.to_path_buf(),
+                span: Span {
+                    byte_start: byte_offset,
+                    byte_end: byte_offset + line.len(),
+                    line_start: line_number,
+                    line_end: line_number,
+                },
+                score: 1.0,
+                preview: line.clone(), // Simple preview: just the line itself
+                lang: ck_core::Language::from_path(file_path),
+                symbol: None,
+                chunk_hash: None,
+                index_epoch: None,
+            });
+        } else {
+            // Find all matches in the line with their positions
+            for mat in regex.find_iter(&line) {
+                results.push(SearchResult {
+                    file: file_path.to_path_buf(),
+                    span: Span {
+                        byte_start: byte_offset + mat.start(),
+                        byte_end: byte_offset + mat.end(),
+                        line_start: line_number,
+                        line_end: line_number,
+                    },
+                    score: 1.0,
+                    preview: line.clone(), // Simple preview: just the line itself
+                    lang: ck_core::Language::from_path(file_path),
+                    symbol: None,
+                    chunk_hash: None,
+                    index_epoch: None,
+                });
+            }
+        }
+
+        // Update byte offset for next line (add line length + newline character)
+        byte_offset += line.len() + 1; // +1 for newline
     }
 
     Ok(results)
@@ -1174,7 +1255,7 @@ async fn ensure_index_updated_with_progress(
     Ok(())
 }
 
-fn get_context_preview(lines: &[&str], line_idx: usize, options: &SearchOptions) -> String {
+fn get_context_preview(lines: &[String], line_idx: usize, options: &SearchOptions) -> String {
     let before = options.before_context_lines.max(options.context_lines);
     let after = options.after_context_lines.max(options.context_lines);
 
