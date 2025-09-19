@@ -5,11 +5,12 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Once;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::SystemTime;
+use tempfile::NamedTempFile;
 use walkdir::WalkDir;
 
 pub type ProgressCallback = Box<dyn Fn(&str) + Send + Sync>;
@@ -1174,20 +1175,27 @@ fn load_or_create_manifest(path: &Path) -> Result<IndexManifest> {
 
 fn save_manifest(path: &Path, manifest: &IndexManifest) -> Result<()> {
     let data = serde_json::to_vec_pretty(manifest)?;
-    let tmp_path = path.with_extension("tmp");
-    fs::write(&tmp_path, data)?;
-    fs::rename(tmp_path, path)?;
-    Ok(())
+    atomic_write(path, &data)
 }
 
 fn save_index_entry(path: &Path, entry: &IndexEntry) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
     let data = bincode::serialize(entry)?;
-    let tmp_path = path.with_extension("tmp");
-    fs::write(&tmp_path, data)?;
-    fs::rename(tmp_path, path)?;
+    atomic_write(path, &data)
+}
+
+fn atomic_write(path: &Path, data: &[u8]) -> Result<()> {
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent)?;
+
+    let mut tmp = NamedTempFile::new_in(parent)?;
+    tmp.write_all(data)?;
+    tmp.as_file().sync_all()?;
+
+    if path.exists() {
+        fs::remove_file(path)?;
+    }
+
+    tmp.persist(path)?;
     Ok(())
 }
 
