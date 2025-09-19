@@ -771,7 +771,9 @@ async fn semantic_search_with_progress(
 
     // Search using ANN
     let top_k = options.top_k.unwrap_or(10);
-    let similar_docs = ann_index.search(query_embedding, top_k);
+    let similar_docs = ann_index
+        .search(query_embedding, top_k)
+        .map_err(|err| CkError::Embedding(err.to_string()))?;
 
     let mut results = Vec::new();
 
@@ -966,7 +968,9 @@ async fn build_semantic_index_with_progress(
 
     // Search using ANN
     let top_k = options.top_k.unwrap_or(10);
-    let similar_docs = ann_index.search(query_embedding, top_k);
+    let similar_docs = ann_index
+        .search(query_embedding, top_k)
+        .map_err(|err| CkError::Embedding(err.to_string()))?;
 
     let mut results = Vec::new();
 
