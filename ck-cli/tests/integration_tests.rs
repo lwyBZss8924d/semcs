@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::TempDir;
 
@@ -148,7 +148,7 @@ fn test_index_command() {
     assert!(temp_dir.path().join(".ck").exists());
 }
 
-fn read_manifest_updated(dir: &PathBuf) -> u64 {
+fn read_manifest_updated(dir: &Path) -> u64 {
     let manifest_path = dir.join(".ck").join("manifest.json");
     let data = fs::read(manifest_path).expect("manifest should exist");
     let manifest: serde_json::Value = serde_json::from_slice(&data).expect("valid json");
@@ -170,7 +170,7 @@ fn test_switch_model_skips_when_same_model() {
         .expect("ck --index should run");
     assert!(status.success());
 
-    let updated_before = read_manifest_updated(&temp_dir.path().to_path_buf());
+    let updated_before = read_manifest_updated(temp_dir.path());
 
     let output = Command::new(get_ck_binary())
         .args(["--switch-model", "bge-small"])
@@ -182,7 +182,7 @@ fn test_switch_model_skips_when_same_model() {
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(stderr.contains("No rebuild required"));
 
-    let updated_after = read_manifest_updated(&temp_dir.path().to_path_buf());
+    let updated_after = read_manifest_updated(temp_dir.path());
     assert_eq!(
         updated_before, updated_after,
         "manifest should be unchanged when model matches"
@@ -208,7 +208,7 @@ fn test_switch_model_force_rebuild() {
         .expect("ck --index should run");
     assert!(status.success());
 
-    let updated_before = read_manifest_updated(&temp_dir.path().to_path_buf());
+    let updated_before = read_manifest_updated(temp_dir.path());
 
     thread::sleep(Duration::from_millis(50));
 
@@ -223,7 +223,7 @@ fn test_switch_model_force_rebuild() {
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(stderr.contains("Switching Embedding Model"));
 
-    let updated_after = read_manifest_updated(&temp_dir.path().to_path_buf());
+    let updated_after = read_manifest_updated(temp_dir.path());
     assert!(
         updated_after > updated_before,
         "forced rebuild should update manifest timestamp"
