@@ -3,28 +3,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::TempDir;
 
-// Helper function to get the path to the ck binary
-fn get_ck_binary() -> PathBuf {
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.pop(); // Go up from ck-cli to workspace root
-    path.push("target");
-    path.push("debug");
-    path.push("ck");
-
-    // Ensure binary exists by building it
-    let output = Command::new("cargo")
-        .args(["build", "--bin", "ck"])
-        .output()
-        .expect("Failed to build ck binary");
-
-    if !output.status.success() {
-        panic!(
-            "Failed to build ck: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-
-    path
+fn ck_binary() -> PathBuf {
+    PathBuf::from(env!("CARGO_BIN_EXE_ck"))
 }
 
 #[test]
@@ -49,7 +29,7 @@ fn test_basic_grep_functionality() {
     .unwrap();
 
     // Test basic regex search
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["rust", temp_dir.path().to_str().unwrap()])
         .output()
         .expect("Failed to run ck");
@@ -69,7 +49,7 @@ fn test_case_insensitive_search() {
     )
     .unwrap();
 
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["-i", "HELLO", temp_dir.path().to_str().unwrap()])
         .output()
         .expect("Failed to run ck");
@@ -91,7 +71,7 @@ fn test_recursive_search() {
     )
     .unwrap();
 
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["-r", "target", temp_dir.path().to_str().unwrap()])
         .output()
         .expect("Failed to run ck");
@@ -107,7 +87,7 @@ fn test_json_output() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(temp_dir.path().join("test.txt"), "json test line").unwrap();
 
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--json", "json", temp_dir.path().to_str().unwrap()])
         .output()
         .expect("Failed to run ck");
@@ -128,7 +108,7 @@ fn test_index_command() {
     fs::write(temp_dir.path().join("test.txt"), "indexable content").unwrap();
 
     // Test index creation
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--index", "."])
         .current_dir(temp_dir.path())
         .output()
@@ -163,7 +143,7 @@ fn test_switch_model_skips_when_same_model() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(temp_dir.path().join("test.rs"), "fn main() {}").unwrap();
 
-    let status = Command::new(get_ck_binary())
+    let status = Command::new(ck_binary())
         .args(["--index", "."])
         .current_dir(temp_dir.path())
         .status()
@@ -172,7 +152,7 @@ fn test_switch_model_skips_when_same_model() {
 
     let updated_before = read_manifest_updated(temp_dir.path());
 
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--switch-model", "bge-small"])
         .current_dir(temp_dir.path())
         .output()
@@ -191,9 +171,6 @@ fn test_switch_model_skips_when_same_model() {
 
 #[test]
 fn test_switch_model_force_rebuild() {
-    use std::thread;
-    use std::time::Duration;
-
     let temp_dir = TempDir::new().unwrap();
     fs::write(
         temp_dir.path().join("main.rs"),
@@ -201,7 +178,7 @@ fn test_switch_model_force_rebuild() {
     )
     .unwrap();
 
-    let status = Command::new(get_ck_binary())
+    let status = Command::new(ck_binary())
         .args(["--index", "."])
         .current_dir(temp_dir.path())
         .status()
@@ -210,9 +187,9 @@ fn test_switch_model_force_rebuild() {
 
     let updated_before = read_manifest_updated(temp_dir.path());
 
-    thread::sleep(Duration::from_millis(50));
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--switch-model", "bge-small", "--force"])
         .current_dir(temp_dir.path())
         .output()
@@ -252,7 +229,7 @@ fn test_semantic_search() {
     .unwrap();
 
     // First create an index
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--index", "."])
         .current_dir(temp_dir.path())
         .output()
@@ -261,7 +238,7 @@ fn test_semantic_search() {
     assert!(output.status.success());
 
     // Test semantic search - should rank AI content higher for "neural networks"
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--sem", "neural networks", "."])
         .current_dir(temp_dir.path())
         .output()
@@ -298,7 +275,7 @@ fn test_lexical_search() {
     .unwrap();
 
     // Create index
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--index", "."])
         .current_dir(temp_dir.path())
         .output()
@@ -307,7 +284,7 @@ fn test_lexical_search() {
     assert!(output.status.success());
 
     // Test lexical search
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--lex", "machine learning", "."])
         .current_dir(temp_dir.path())
         .output()
@@ -329,7 +306,7 @@ fn test_hybrid_search() {
     .unwrap();
 
     // Create index
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--index", "."])
         .current_dir(temp_dir.path())
         .output()
@@ -338,7 +315,7 @@ fn test_hybrid_search() {
     assert!(output.status.success());
 
     // Test hybrid search
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--hybrid", "Python", "."])
         .current_dir(temp_dir.path())
         .output()
@@ -359,7 +336,7 @@ fn test_context_lines() {
     )
     .unwrap();
 
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["-C", "1", "target", temp_dir.path().to_str().unwrap()])
         .output()
         .expect("Failed to run ck with context");
@@ -386,7 +363,7 @@ fn test_topk_limit() {
         .unwrap();
     }
 
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--topk", "5", "match", temp_dir.path().to_str().unwrap()])
         .output()
         .expect("Failed to run ck with topk");
@@ -406,7 +383,7 @@ fn test_line_numbers() {
     )
     .unwrap();
 
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["-n", "matched", temp_dir.path().to_str().unwrap()])
         .output()
         .expect("Failed to run ck with line numbers");
@@ -424,7 +401,7 @@ fn test_clean_command() {
     fs::write(temp_dir.path().join("test.txt"), "test content").unwrap();
 
     // Create index first
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--index", "."])
         .current_dir(temp_dir.path())
         .output()
@@ -441,7 +418,7 @@ fn test_clean_command() {
     );
 
     // Clean index
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--clean", "."])
         .current_dir(temp_dir.path())
         .output()
@@ -464,7 +441,7 @@ fn test_no_matches_stderr_message() {
     fs::write(temp_dir.path().join("test.txt"), "hello world").unwrap();
 
     // Search for pattern that won't match
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["nonexistent_pattern", temp_dir.path().to_str().unwrap()])
         .output()
         .expect("Failed to run ck");
@@ -484,7 +461,7 @@ fn test_no_matches_stderr_message() {
 
 #[test]
 fn test_nonexistent_directory_error() {
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--sem", "test", "/nonexistent/directory"])
         .output()
         .expect("Failed to run ck");
@@ -499,7 +476,7 @@ fn test_nonexistent_directory_error() {
 #[test]
 fn test_error_handling() {
     // Test with nonexistent directory
-    let _output = Command::new(get_ck_binary())
+    let _output = Command::new(ck_binary())
         .args(["test", "/nonexistent/directory"])
         .output()
         .expect("Failed to run ck");
@@ -511,7 +488,7 @@ fn test_error_handling() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(temp_dir.path().join("test.txt"), "test content").unwrap();
 
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["[invalid", temp_dir.path().to_str().unwrap()])
         .output()
         .expect("Failed to run ck");
@@ -533,7 +510,7 @@ fn test_invalid_regex_warning_during_highlighting() {
 
     // Test that an invalid regex pattern shows a warning during highlighting
     // The search will fail (as expected), but we should see a warning about the invalid regex
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args([
             "[invalid", // This is an invalid regex pattern
             temp_dir.path().to_str().unwrap(),
@@ -565,7 +542,7 @@ fn test_jsonl_basic_output() {
     )
     .unwrap();
 
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["fn main", "--jsonl", temp_dir.path().to_str().unwrap()])
         .output()
         .expect("Failed to run ck");
@@ -608,7 +585,7 @@ fn test_jsonl_no_snippet_flag() {
     )
     .unwrap();
 
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args([
             "fn main",
             "--jsonl",
@@ -649,13 +626,13 @@ fn test_jsonl_vs_regular_output() {
     .unwrap();
 
     // Regular output
-    let regular_output = Command::new(get_ck_binary())
+    let regular_output = Command::new(ck_binary())
         .args(["fn main", temp_dir.path().to_str().unwrap()])
         .output()
         .expect("Failed to run ck");
 
     // JSONL output
-    let jsonl_output = Command::new(get_ck_binary())
+    let jsonl_output = Command::new(ck_binary())
         .args(["fn main", "--jsonl", temp_dir.path().to_str().unwrap()])
         .output()
         .expect("Failed to run ck");
@@ -696,7 +673,7 @@ fn test_jsonl_with_different_languages() {
     )
     .unwrap();
 
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["main", "--jsonl", temp_dir.path().to_str().unwrap()])
         .output()
         .expect("Failed to run ck");
@@ -738,7 +715,7 @@ fn test_add_single_file_to_index() {
     fs::write(&test_file, "This is test content for indexing").unwrap();
 
     // First create an index in the directory
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--index", "."])
         .current_dir(temp_dir.path())
         .output()
@@ -751,7 +728,7 @@ fn test_add_single_file_to_index() {
     fs::write(&new_file, "New file content to be added").unwrap();
 
     // Test adding the new file with absolute path
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--add", new_file.to_str().unwrap()])
         .output()
         .expect("Failed to run ck --add");
@@ -775,7 +752,7 @@ fn test_add_single_file_to_index() {
     );
 
     // Verify the file was actually added by searching for it
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["New file", "."])
         .current_dir(temp_dir.path())
         .output()
@@ -794,7 +771,7 @@ fn test_add_file_with_relative_path() {
     let temp_dir = TempDir::new().unwrap();
 
     // Create index first
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--index", "."])
         .current_dir(temp_dir.path())
         .output()
@@ -810,7 +787,7 @@ fn test_add_file_with_relative_path() {
     .unwrap();
 
     // Test adding with relative path from the temp directory
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["--add", "relative_file.txt"])
         .current_dir(temp_dir.path())
         .output()
@@ -823,7 +800,7 @@ fn test_add_file_with_relative_path() {
     );
 
     // Verify file was added
-    let output = Command::new(get_ck_binary())
+    let output = Command::new(ck_binary())
         .args(["Relative path", "."])
         .current_dir(temp_dir.path())
         .output()
