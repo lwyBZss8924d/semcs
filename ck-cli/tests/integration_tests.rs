@@ -148,6 +148,88 @@ fn test_index_command() {
     assert!(temp_dir.path().join(".ck").exists());
 }
 
+fn read_manifest_updated(dir: &PathBuf) -> u64 {
+    let manifest_path = dir.join(".ck").join("manifest.json");
+    let data = fs::read(manifest_path).expect("manifest should exist");
+    let manifest: serde_json::Value = serde_json::from_slice(&data).expect("valid json");
+    manifest
+        .get("updated")
+        .and_then(|v| v.as_u64())
+        .expect("updated timestamp")
+}
+
+#[test]
+fn test_switch_model_skips_when_same_model() {
+    let temp_dir = TempDir::new().unwrap();
+    fs::write(temp_dir.path().join("test.rs"), "fn main() {}").unwrap();
+
+    let status = Command::new(get_ck_binary())
+        .args(["--index", "."])
+        .current_dir(temp_dir.path())
+        .status()
+        .expect("ck --index should run");
+    assert!(status.success());
+
+    let updated_before = read_manifest_updated(&temp_dir.path().to_path_buf());
+
+    let output = Command::new(get_ck_binary())
+        .args(["--switch-model", "bge-small"])
+        .current_dir(temp_dir.path())
+        .output()
+        .expect("ck --switch-model should run");
+
+    assert!(output.status.success());
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("No rebuild required"));
+
+    let updated_after = read_manifest_updated(&temp_dir.path().to_path_buf());
+    assert_eq!(
+        updated_before, updated_after,
+        "manifest should be unchanged when model matches"
+    );
+}
+
+#[test]
+fn test_switch_model_force_rebuild() {
+    use std::thread;
+    use std::time::Duration;
+
+    let temp_dir = TempDir::new().unwrap();
+    fs::write(
+        temp_dir.path().join("main.rs"),
+        "fn main() { println!(\"hi\"); }",
+    )
+    .unwrap();
+
+    let status = Command::new(get_ck_binary())
+        .args(["--index", "."])
+        .current_dir(temp_dir.path())
+        .status()
+        .expect("ck --index should run");
+    assert!(status.success());
+
+    let updated_before = read_manifest_updated(&temp_dir.path().to_path_buf());
+
+    thread::sleep(Duration::from_millis(50));
+
+    let output = Command::new(get_ck_binary())
+        .args(["--switch-model", "bge-small", "--force"])
+        .current_dir(temp_dir.path())
+        .output()
+        .expect("ck --switch-model --force should run");
+
+    assert!(output.status.success());
+
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("Switching Embedding Model"));
+
+    let updated_after = read_manifest_updated(&temp_dir.path().to_path_buf());
+    assert!(
+        updated_after > updated_before,
+        "forced rebuild should update manifest timestamp"
+    );
+}
+
 #[test]
 fn test_semantic_search() {
     let temp_dir = TempDir::new().unwrap();

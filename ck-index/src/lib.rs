@@ -71,6 +71,12 @@ pub type EnhancedProgressCallback = Box<dyn Fn(IndexingProgress) + Send + Sync>;
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 static HANDLER_INIT: Once = Once::new();
 
+pub const INDEX_INTERRUPTED_MSG: &str = "Indexing interrupted by user";
+
+pub fn request_interrupt() {
+    INTERRUPTED.store(true, Ordering::SeqCst);
+}
+
 /// Build override patterns for excluding files during directory traversal
 fn build_overrides(
     base_path: &Path,
@@ -1063,6 +1069,9 @@ fn index_single_file_with_progress(
 
             let mut chunk_entries = Vec::new();
             for (chunk_index, chunk) in chunks.into_iter().enumerate() {
+                if INTERRUPTED.load(Ordering::SeqCst) {
+                    return Err(anyhow::anyhow!(INDEX_INTERRUPTED_MSG));
+                }
                 // Report progress before processing chunk
                 callback(EmbeddingProgress {
                     file_name: file_name.clone(),
