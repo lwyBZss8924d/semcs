@@ -530,6 +530,7 @@ dependencies = [
  "ck-core",
  "ck-embed",
  "ck-index",
+ "ck-models",
  "globset",
  "rayon",
  "regex",

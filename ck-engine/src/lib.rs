@@ -114,6 +114,128 @@ fn find_nearest_index_root(path: &Path) -> Option<StdPathBuf> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct ResolvedModel {
+    pub canonical_name: String,
+    pub alias: String,
+    pub dimensions: usize,
+}
+
+fn find_model_entry<'a>(
+    registry: &'a ck_models::ModelRegistry,
+    key: &str,
+) -> Option<(String, &'a ck_models::ModelConfig)> {
+    if let Some(config) = registry.get_model(key) {
+        return Some((key.to_string(), config));
+    }
+
+    registry
+        .models
+        .iter()
+        .find(|(_, config)| config.name == key)
+        .map(|(alias, config)| (alias.clone(), config))
+}
+
+pub(crate) fn resolve_model_from_root(
+    index_root: &Path,
+    cli_model: Option<&str>,
+) -> Result<ResolvedModel> {
+    use ck_models::ModelRegistry;
+
+    let registry = ModelRegistry::default();
+    let index_dir = index_root.join(".ck");
+    let manifest_path = index_dir.join("manifest.json");
+
+    if manifest_path.exists() {
+        let data = std::fs::read(&manifest_path)?;
+        let manifest: ck_index::IndexManifest = serde_json::from_slice(&data)?;
+
+        if let Some(existing_model) = manifest.embedding_model {
+            let (alias, config_opt) = find_model_entry(&registry, &existing_model)
+                .map(|(alias, config)| (alias, Some(config)))
+                .unwrap_or_else(|| (existing_model.clone(), None));
+
+            let dims = manifest
+                .embedding_dimensions
+                .or_else(|| config_opt.map(|c| c.dimensions))
+                .unwrap_or(384);
+
+            if let Some(requested) = cli_model {
+                let (_, requested_config) =
+                    find_model_entry(&registry, requested).ok_or_else(|| {
+                        CkError::Embedding(format!(
+                            "Unknown model '{}'. Available models: {}",
+                            requested,
+                            registry
+                                .models
+                                .keys()
+                                .cloned()
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ))
+                    })?;
+
+                if requested_config.name != existing_model {
+                    let suggested_alias = alias.clone();
+                    return Err(CkError::Embedding(format!(
+                        "Index was built with embedding model '{}' (alias '{}'), but '--model {}' was requested. To switch models run `ck --clean .` then `ck --index --model {}`. To keep using this index rerun your command with '--model {}'.",
+                        existing_model,
+                        suggested_alias,
+                        requested,
+                        requested,
+                        suggested_alias
+                    ))
+                    .into());
+                }
+            }
+
+            return Ok(ResolvedModel {
+                canonical_name: existing_model,
+                alias,
+                dimensions: dims,
+            });
+        }
+    }
+
+    let (alias, config) = if let Some(requested) = cli_model {
+        find_model_entry(&registry, requested).ok_or_else(|| {
+            CkError::Embedding(format!(
+                "Unknown model '{}'. Available models: {}",
+                requested,
+                registry
+                    .models
+                    .keys()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ))
+        })?
+    } else {
+        let alias = registry.default_model.clone();
+        let config = registry.get_default_model().ok_or_else(|| {
+            CkError::Embedding("No default embedding model configured".to_string())
+        })?;
+        (alias, config)
+    };
+
+    Ok(ResolvedModel {
+        canonical_name: config.name.clone(),
+        alias,
+        dimensions: config.dimensions,
+    })
+}
+
+pub fn resolve_model_for_path(path: &Path, cli_model: Option<&str>) -> Result<ResolvedModel> {
+    let index_root = find_nearest_index_root(path).unwrap_or_else(|| {
+        if path.is_file() {
+            path.parent().unwrap_or(path).to_path_buf()
+        } else {
+            path.to_path_buf()
+        }
+    });
+    resolve_model_from_root(&index_root, cli_model)
+}
+
 pub async fn search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
     let results = search_enhanced(options).await?;
     Ok(results.matches)
@@ -167,6 +289,7 @@ pub async fn search_enhanced_with_indexing_progress(
             detailed_indexing_progress_callback,
             options.respect_gitignore,
             &options.exclude_patterns,
+            options.embedding_model.as_deref(),
         )
         .await?;
     }
@@ -738,6 +861,9 @@ async fn semantic_search_with_progress(
         return build_semantic_index_with_progress(options, progress_callback).await;
     }
 
+    let resolved_model =
+        resolve_model_from_root(index_root.as_path(), options.embedding_model.as_deref())?;
+
     // Load the ANN index
     let ann_index = ck_ann::SimpleIndex::load(&ann_index_path)?;
 
@@ -757,9 +883,16 @@ async fn semantic_search_with_progress(
             // For now, we'll just use eprintln! until we can restructure this better
             eprintln!("Model: {}", msg);
         }) as ck_embed::ModelDownloadCallback;
-        ck_embed::create_embedder_with_progress(Some("BAAI/bge-small-en-v1.5"), Some(model_cb))?
+        callback(&format!(
+            "Using embedding model {} ({} dims)",
+            resolved_model.alias, resolved_model.dimensions
+        ));
+        ck_embed::create_embedder_with_progress(
+            Some(resolved_model.canonical_name.as_str()),
+            Some(model_cb),
+        )?
     } else {
-        ck_embed::create_embedder(Some("BAAI/bge-small-en-v1.5"))?
+        ck_embed::create_embedder(Some(resolved_model.canonical_name.as_str()))?
     };
     let query_embeddings = embedder.embed(std::slice::from_ref(&options.query))?;
 
@@ -957,7 +1090,8 @@ async fn build_semantic_index_with_progress(
     let file_embeddings: Vec<(PathBuf, String)> = serde_json::from_str(&embeddings_data)?;
 
     // Create embedder and embed the query
-    let mut embedder = ck_embed::create_embedder(Some("BAAI/bge-small-en-v1.5"))?;
+    let resolved_model = resolve_model_from_root(index_root, options.embedding_model.as_deref())?;
+    let mut embedder = ck_embed::create_embedder(Some(resolved_model.canonical_name.as_str()))?;
     let query_embeddings = embedder.embed(std::slice::from_ref(&options.query))?;
 
     if query_embeddings.is_empty() {
@@ -1194,6 +1328,7 @@ fn collect_files(
     Ok(files)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn ensure_index_updated_with_progress(
     path: &Path,
     force_reindex: bool,
@@ -1202,6 +1337,7 @@ async fn ensure_index_updated_with_progress(
     detailed_progress_callback: Option<ck_index::DetailedProgressCallback>,
     respect_gitignore: bool,
     exclude_patterns: &[String],
+    model_override: Option<&str>,
 ) -> Result<()> {
     // Handle both files and directories and reuse nearest existing .ck index up the tree
     let index_root_buf = find_nearest_index_root(path).unwrap_or_else(|| {
@@ -1223,7 +1359,7 @@ async fn ensure_index_updated_with_progress(
             need_embeddings,
             respect_gitignore,
             exclude_patterns, // Use search-specific exclude patterns
-            None,             // model - use existing from index
+            model_override,
         )
         .await?;
         if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {
@@ -1245,7 +1381,7 @@ async fn ensure_index_updated_with_progress(
         need_embeddings,
         respect_gitignore,
         exclude_patterns,
-        None, // model - use existing from index
+        model_override,
     )
     .await?;
     if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {

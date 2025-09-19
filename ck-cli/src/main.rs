@@ -512,18 +512,50 @@ async fn run_main() -> Result<()> {
         status.info(&format!("Scanning files in {}", path.display()));
 
         // Show indexing configuration information
-        let model_name = cli.model.as_deref().unwrap_or("nomic-embed-text-v1.5"); // Default model
-        status.info(&format!("🤖 Model: {}", model_name));
-
-        // Show model-specific limits and chunk config
-        let (max_tokens, chunk_tokens, overlap_tokens) = match model_name {
-            "BAAI/bge-small-en-v1.5" | "sentence-transformers/all-MiniLM-L6-v2" => (512, 400, 80),
-            "nomic-embed-text-v1" | "nomic-embed-text-v1.5" | "jina-embeddings-v2-base-code" => {
-                (8192, 1024, 200)
+        let registry = ck_models::ModelRegistry::default();
+        let (model_alias, model_config) = if let Some(requested) = cli.model.as_deref() {
+            if let Some((alias, config)) = registry
+                .models
+                .iter()
+                .find(|(alias, config)| alias.as_str() == requested || config.name == requested)
+            {
+                (alias.clone(), config.clone())
+            } else {
+                anyhow::bail!(
+                    "Unknown model '{}'. Available models: {}",
+                    requested,
+                    registry
+                        .models
+                        .keys()
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
             }
-            "BAAI/bge-base-en-v1.5" | "BAAI/bge-large-en-v1.5" => (512, 400, 80),
-            _ => (8192, 1024, 200), // Default to nomic config
+        } else {
+            let alias = registry.default_model.clone();
+            let config = registry
+                .get_default_model()
+                .ok_or_else(|| anyhow::anyhow!("No default model configured"))?
+                .clone();
+            (alias, config)
         };
+
+        if model_alias == model_config.name {
+            status.info(&format!(
+                "🤖 Model: {} ({} dims)",
+                model_config.name, model_config.dimensions
+            ));
+        } else {
+            status.info(&format!(
+                "🤖 Model: {} (alias '{}', {} dims)",
+                model_config.name, model_alias, model_config.dimensions
+            ));
+        }
+
+        let max_tokens = ck_chunk::TokenEstimator::get_model_limit(model_config.name.as_str());
+        let (chunk_tokens, overlap_tokens) =
+            ck_chunk::get_model_chunk_config(Some(model_config.name.as_str()));
 
         status.info(&format!("📏 FastEmbed Config: {} token limit", max_tokens));
         status.info(&format!(
@@ -777,6 +809,39 @@ async fn run_main() -> Result<()> {
             status.info(&format!("  Total chunks: {}", stats.total_chunks));
             status.info(&format!("  Embedded chunks: {}", stats.embedded_chunks));
 
+            let manifest_path = status_path.join(".ck").join("manifest.json");
+            if let Ok(data) = std::fs::read(&manifest_path)
+                && let Ok(manifest) = serde_json::from_slice::<ck_index::IndexManifest>(&data)
+                && let Some(model_name) = manifest.embedding_model
+            {
+                let registry = ck_models::ModelRegistry::default();
+                let alias = registry
+                    .models
+                    .iter()
+                    .find(|(_, config)| config.name == model_name)
+                    .map(|(alias, _)| alias.clone())
+                    .unwrap_or_else(|| model_name.clone());
+                let dims = manifest
+                    .embedding_dimensions
+                    .or_else(|| {
+                        registry
+                            .models
+                            .iter()
+                            .find(|(_, config)| config.name == model_name)
+                            .map(|(_, config)| config.dimensions)
+                    })
+                    .unwrap_or(0);
+
+                if alias == model_name {
+                    status.info(&format!("  Model: {} ({} dims)", model_name, dims));
+                } else {
+                    status.info(&format!(
+                        "  Model: {} (alias '{}', {} dims)",
+                        model_name, alias, dims
+                    ));
+                }
+            }
+
             if verbose {
                 let size_mb = stats.total_size_bytes as f64 / (1024.0 * 1024.0);
                 let index_size_mb = stats.index_size_bytes as f64 / (1024.0 * 1024.0);
@@ -985,6 +1050,7 @@ fn build_options(cli: &Cli, reindex: bool) -> SearchOptions {
         // Enhanced embedding options (search-time only)
         rerank: cli.rerank,
         rerank_model: cli.rerank_model.clone(),
+        embedding_model: cli.model.clone(),
     }
 }
 
@@ -1200,7 +1266,10 @@ async fn run_search(
     }
 
     // Show search parameters for semantic mode
-    if matches!(options.mode, ck_core::SearchMode::Semantic) {
+    if matches!(
+        options.mode,
+        ck_core::SearchMode::Semantic | ck_core::SearchMode::Hybrid
+    ) {
         let topk_info = options
             .top_k
             .map_or("unlimited".to_string(), |k| k.to_string());
@@ -1212,19 +1281,25 @@ async fn run_search(
             topk_info, threshold_info
         );
 
-        // Show indexing configuration for semantic search
-        let model_name = "nomic-embed-text-v1.5"; // Default model for semantic search
-        eprintln!("🤖 Model: {}", model_name);
+        let resolved_model =
+            ck_engine::resolve_model_for_path(&options.path, options.embedding_model.as_deref())?;
 
-        // Show model-specific limits and chunk config
-        let (max_tokens, chunk_tokens, overlap_tokens) = match model_name {
-            "BAAI/bge-small-en-v1.5" | "sentence-transformers/all-MiniLM-L6-v2" => (512, 400, 80),
-            "nomic-embed-text-v1" | "nomic-embed-text-v1.5" | "jina-embeddings-v2-base-code" => {
-                (8192, 1024, 200)
-            }
-            "BAAI/bge-base-en-v1.5" | "BAAI/bge-large-en-v1.5" => (512, 400, 80),
-            _ => (8192, 1024, 200), // Default to nomic config
-        };
+        if resolved_model.alias == resolved_model.canonical_name {
+            eprintln!(
+                "🤖 Model: {} ({} dims)",
+                resolved_model.canonical_name, resolved_model.dimensions
+            );
+        } else {
+            eprintln!(
+                "🤖 Model: {} (alias '{}', {} dims)",
+                resolved_model.canonical_name, resolved_model.alias, resolved_model.dimensions
+            );
+        }
+
+        let max_tokens =
+            ck_chunk::TokenEstimator::get_model_limit(resolved_model.canonical_name.as_str());
+        let (chunk_tokens, overlap_tokens) =
+            ck_chunk::get_model_chunk_config(Some(resolved_model.canonical_name.as_str()));
 
         eprintln!("📏 FastEmbed Config: {} token limit", max_tokens);
         eprintln!(
