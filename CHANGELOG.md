@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.7] - 2025-09-19
+
+### Added
+- **Model switching command**: New `--switch-model` flag for seamless embedding model transitions with intelligent rebuild detection
+- **Force rebuild option**: `--force` flag for explicit index rebuilding when switching models
+- **Model resolution system**: Smart model management that respects existing index configurations and provides clear conflict guidance
+- **Enhanced status display**: Index status now shows which embedding model and dimensions are in use
+- **Search model validation**: Prevents mixing embedding models during search operations with actionable error messages
+
+### Fixed
+- **Windows atomic writes**: Fixed critical Windows compatibility issue where index files could become corrupted during writes
+- **Embedding dimension mismatches**: Comprehensive validation preventing crashes from mixed embedding models with clear user guidance
+- **Model consistency**: Enforced consistent embedding model usage across index lifecycle (build, search, update)
+- **Clippy compliance**: Resolved all compiler warnings to meet strict CI requirements
+
+### Technical
+- **Atomic file operations**: Uses `tempfile::NamedTempFile` for cross-platform atomic writes with proper sync guarantees
+- **Model registry integration**: Centralized model management with alias support and dimension tracking
+- **Enhanced error messages**: User-friendly error messages with exact commands to resolve issues (e.g., "run `ck --clean .` then rebuild")
+- **Legacy code cleanup**: Removed 338 lines of unused ANN semantic search implementation
+- **Interrupt handling**: Proper Ctrl+C handling during indexing with graceful cleanup
+
 ## [0.4.5] - 2025-09-13
 
 ### Added
