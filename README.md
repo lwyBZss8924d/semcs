@@ -233,9 +233,12 @@ ck --json --topk 10 "error handling" | process_results.py
 # Check index status
 ck --status .
 
-# Clean up and rebuild
+# Clean up and rebuild / switch models
 ck --clean .
 ck --index .
+ck --switch-model nomic-v1.5 .
+# Force a rebuild even if already using the model
+ck --switch-model nomic-v1.5 --force .
 
 # Add single file to index
 ck --add new_file.rs

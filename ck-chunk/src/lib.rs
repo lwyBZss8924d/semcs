@@ -12,7 +12,7 @@ fn estimate_tokens(text: &str) -> usize {
 
 /// Get model-specific chunk configuration (target_tokens, overlap_tokens)
 /// Balanced for precision vs context - larger models can handle bigger chunks but not too big
-fn get_model_chunk_config(model_name: Option<&str>) -> (usize, usize) {
+pub fn get_model_chunk_config(model_name: Option<&str>) -> (usize, usize) {
     let model = model_name.unwrap_or("nomic-embed-text-v1.5");
 
     match model {

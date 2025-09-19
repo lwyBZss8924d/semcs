@@ -305,6 +305,7 @@ pub struct SearchOptions {
     // Enhanced embedding options (search-time only)
     pub rerank: bool,
     pub rerank_model: Option<String>,
+    pub embedding_model: Option<String>,
 }
 
 impl JsonlSearchResult {
@@ -359,6 +360,7 @@ impl Default for SearchOptions {
             // Enhanced embedding options (search-time only)
             rerank: false,
             rerank_model: None,
+            embedding_model: None,
         }
     }
 }

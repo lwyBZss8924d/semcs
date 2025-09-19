@@ -1,5 +1,4 @@
 use anyhow::Result;
-use ck_ann::AnnIndex;
 use ck_core::{CkError, SearchMode, SearchOptions, SearchResult, Span};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use rayon::prelude::*;
@@ -114,6 +113,128 @@ fn find_nearest_index_root(path: &Path) -> Option<StdPathBuf> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct ResolvedModel {
+    pub canonical_name: String,
+    pub alias: String,
+    pub dimensions: usize,
+}
+
+fn find_model_entry<'a>(
+    registry: &'a ck_models::ModelRegistry,
+    key: &str,
+) -> Option<(String, &'a ck_models::ModelConfig)> {
+    if let Some(config) = registry.get_model(key) {
+        return Some((key.to_string(), config));
+    }
+
+    registry
+        .models
+        .iter()
+        .find(|(_, config)| config.name == key)
+        .map(|(alias, config)| (alias.clone(), config))
+}
+
+pub(crate) fn resolve_model_from_root(
+    index_root: &Path,
+    cli_model: Option<&str>,
+) -> Result<ResolvedModel> {
+    use ck_models::ModelRegistry;
+
+    let registry = ModelRegistry::default();
+    let index_dir = index_root.join(".ck");
+    let manifest_path = index_dir.join("manifest.json");
+
+    if manifest_path.exists() {
+        let data = std::fs::read(&manifest_path)?;
+        let manifest: ck_index::IndexManifest = serde_json::from_slice(&data)?;
+
+        if let Some(existing_model) = manifest.embedding_model {
+            let (alias, config_opt) = find_model_entry(&registry, &existing_model)
+                .map(|(alias, config)| (alias, Some(config)))
+                .unwrap_or_else(|| (existing_model.clone(), None));
+
+            let dims = manifest
+                .embedding_dimensions
+                .or_else(|| config_opt.map(|c| c.dimensions))
+                .unwrap_or(384);
+
+            if let Some(requested) = cli_model {
+                let (_, requested_config) =
+                    find_model_entry(&registry, requested).ok_or_else(|| {
+                        CkError::Embedding(format!(
+                            "Unknown model '{}'. Available models: {}",
+                            requested,
+                            registry
+                                .models
+                                .keys()
+                                .cloned()
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ))
+                    })?;
+
+                if requested_config.name != existing_model {
+                    let suggested_alias = alias.clone();
+                    return Err(CkError::Embedding(format!(
+                        "Index was built with embedding model '{}' (alias '{}'), but '--model {}' was requested. To switch models run `ck --clean .` then `ck --index --model {}`. To keep using this index rerun your command with '--model {}'.",
+                        existing_model,
+                        suggested_alias,
+                        requested,
+                        requested,
+                        suggested_alias
+                    ))
+                    .into());
+                }
+            }
+
+            return Ok(ResolvedModel {
+                canonical_name: existing_model,
+                alias,
+                dimensions: dims,
+            });
+        }
+    }
+
+    let (alias, config) = if let Some(requested) = cli_model {
+        find_model_entry(&registry, requested).ok_or_else(|| {
+            CkError::Embedding(format!(
+                "Unknown model '{}'. Available models: {}",
+                requested,
+                registry
+                    .models
+                    .keys()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ))
+        })?
+    } else {
+        let alias = registry.default_model.clone();
+        let config = registry.get_default_model().ok_or_else(|| {
+            CkError::Embedding("No default embedding model configured".to_string())
+        })?;
+        (alias, config)
+    };
+
+    Ok(ResolvedModel {
+        canonical_name: config.name.clone(),
+        alias,
+        dimensions: config.dimensions,
+    })
+}
+
+pub fn resolve_model_for_path(path: &Path, cli_model: Option<&str>) -> Result<ResolvedModel> {
+    let index_root = find_nearest_index_root(path).unwrap_or_else(|| {
+        if path.is_file() {
+            path.parent().unwrap_or(path).to_path_buf()
+        } else {
+            path.to_path_buf()
+        }
+    });
+    resolve_model_from_root(&index_root, cli_model)
+}
+
 pub async fn search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
     let results = search_enhanced(options).await?;
     Ok(results.matches)
@@ -167,6 +288,7 @@ pub async fn search_enhanced_with_indexing_progress(
             detailed_indexing_progress_callback,
             options.respect_gitignore,
             &options.exclude_patterns,
+            options.embedding_model.as_deref(),
         )
         .await?;
     }
@@ -709,328 +831,6 @@ async fn build_tantivy_index(options: &SearchOptions) -> Result<Vec<SearchResult
 }
 
 #[allow(dead_code)]
-async fn semantic_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
-    semantic_search_with_progress(options, None).await
-}
-
-async fn semantic_search_with_progress(
-    options: &SearchOptions,
-    progress_callback: Option<SearchProgressCallback>,
-) -> Result<Vec<SearchResult>> {
-    // Handle both files and directories and reuse nearest existing .ck index up the tree
-    let index_root = find_nearest_index_root(&options.path).unwrap_or_else(|| {
-        if options.path.is_file() {
-            options.path.parent().unwrap_or(&options.path).to_path_buf()
-        } else {
-            options.path.clone()
-        }
-    });
-
-    let index_dir = index_root.join(".ck");
-    if !index_dir.exists() {
-        return Err(CkError::Index("No index found. Run 'ck index' first.".to_string()).into());
-    }
-
-    let ann_index_path = index_dir.join("ann_index.bin");
-    let embeddings_path = index_dir.join("embeddings.json");
-
-    if !ann_index_path.exists() || !embeddings_path.exists() {
-        return build_semantic_index_with_progress(options, progress_callback).await;
-    }
-
-    // Load the ANN index
-    let ann_index = ck_ann::SimpleIndex::load(&ann_index_path)?;
-
-    // Load file metadata
-    let embeddings_data = fs::read_to_string(&embeddings_path)?;
-    let file_embeddings: Vec<(PathBuf, String)> = serde_json::from_str(&embeddings_data)?;
-
-    // Create embedder and embed the query
-    if let Some(ref callback) = progress_callback {
-        callback("Loading embedding model...");
-    }
-
-    let mut embedder = if let Some(ref callback) = progress_callback {
-        let _cb = callback.as_ref();
-        let model_cb = Box::new(|msg: &str| {
-            // Note: We can't directly use the callback here due to lifetime issues
-            // For now, we'll just use eprintln! until we can restructure this better
-            eprintln!("Model: {}", msg);
-        }) as ck_embed::ModelDownloadCallback;
-        ck_embed::create_embedder_with_progress(Some("BAAI/bge-small-en-v1.5"), Some(model_cb))?
-    } else {
-        ck_embed::create_embedder(Some("BAAI/bge-small-en-v1.5"))?
-    };
-    let query_embeddings = embedder.embed(std::slice::from_ref(&options.query))?;
-
-    if query_embeddings.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let query_embedding = &query_embeddings[0];
-
-    // Search using ANN
-    let top_k = options.top_k.unwrap_or(10);
-    let similar_docs = ann_index.search(query_embedding, top_k);
-
-    let mut results = Vec::new();
-
-    // Check if we're searching a specific file vs. a directory
-    let filter_by_file = options.path.is_file();
-    let target_file = if filter_by_file {
-        Some(
-            options
-                .path
-                .canonicalize()
-                .unwrap_or_else(|_| options.path.clone()),
-        )
-    } else {
-        None
-    };
-
-    for (doc_id, similarity) in similar_docs {
-        // Apply threshold filtering
-        if let Some(threshold) = options.threshold
-            && similarity < threshold
-        {
-            continue;
-        }
-
-        if let Some((file_path, content)) = file_embeddings.get(doc_id as usize) {
-            // Filter by target file if specified
-            if let Some(target) = &target_file {
-                let canonical_result = file_path
-                    .canonicalize()
-                    .unwrap_or_else(|_| file_path.clone());
-                if canonical_result != *target {
-                    continue; // Skip this result if it doesn't match the target file
-                }
-            }
-
-            // If full_section is enabled and this is a code section, return the full content
-            let preview = if options.full_section {
-                content.clone()
-            } else {
-                content.lines().take(3).collect::<Vec<_>>().join("\n")
-            };
-
-            results.push(SearchResult {
-                file: file_path.clone(),
-                span: Span {
-                    byte_start: 0,
-                    byte_end: content.len(),
-                    line_start: 1,
-                    line_end: content.lines().count(),
-                },
-                score: similarity,
-                preview,
-                lang: ck_core::Language::from_path(file_path),
-                symbol: None,
-                chunk_hash: None,
-                index_epoch: None,
-            });
-        }
-    }
-
-    Ok(results)
-}
-
-#[allow(dead_code)]
-async fn build_semantic_index(options: &SearchOptions) -> Result<Vec<SearchResult>> {
-    build_semantic_index_with_progress(options, None).await
-}
-
-async fn build_semantic_index_with_progress(
-    options: &SearchOptions,
-    progress_callback: Option<SearchProgressCallback>,
-) -> Result<Vec<SearchResult>> {
-    // Handle both files and directories by finding the appropriate directory for indexing
-    let index_root = if options.path.is_file() {
-        options.path.parent().unwrap_or(&options.path)
-    } else {
-        &options.path
-    };
-
-    let index_dir = index_root.join(".ck");
-    let ann_index_path = index_dir.join("ann_index.bin");
-    let embeddings_path = index_dir.join("embeddings.json");
-
-    fs::create_dir_all(&index_dir)?;
-
-    if let Some(ref callback) = progress_callback {
-        callback("Building semantic index (no index found)...");
-    }
-
-    // Always print this important message, even in quiet mode for indexing operations
-    eprintln!("Building semantic index (no existing index found)...");
-
-    // Collect files and their content
-    let files = collect_files(index_root, true, &options.exclude_patterns)?;
-
-    if let Some(ref callback) = progress_callback {
-        callback(&format!("Found {} files to index", files.len()));
-    }
-    eprintln!("Found {} files to embed and index", files.len());
-
-    let mut file_embeddings = Vec::new();
-    let mut embeddings = Vec::new();
-
-    // Create embedder with progress callback
-    if let Some(ref callback) = progress_callback {
-        callback("Loading embedding model...");
-    }
-
-    let model_callback = if progress_callback.is_some() {
-        Some(Box::new(|msg: &str| {
-            eprintln!("Model: {}", msg);
-        }) as ck_embed::ModelDownloadCallback)
-    } else {
-        None
-    };
-
-    let mut embedder =
-        ck_embed::create_embedder_with_progress(Some("BAAI/bge-small-en-v1.5"), model_callback)?;
-
-    if let Some(ref callback) = progress_callback {
-        callback("Generating embeddings for code chunks...");
-    }
-
-    for (file_idx, file_path) in files.iter().enumerate() {
-        if let Ok(content) = fs::read_to_string(file_path) {
-            if let Some(ref callback) = progress_callback {
-                let file_name = file_path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_else(|| file_path.to_string_lossy().to_string());
-                callback(&format!(
-                    "Processing {}/{}: {}",
-                    file_idx + 1,
-                    files.len(),
-                    file_name
-                ));
-            }
-
-            // Chunk the content for better embeddings
-            let chunks = ck_chunk::chunk_text(&content, ck_core::Language::from_path(file_path))?;
-
-            for chunk in chunks {
-                let chunk_embeddings = embedder.embed(std::slice::from_ref(&chunk.text))?;
-                if !chunk_embeddings.is_empty() {
-                    embeddings.push(chunk_embeddings[0].clone());
-                    file_embeddings.push((file_path.clone(), chunk.text));
-                }
-            }
-        }
-    }
-
-    if let Some(ref callback) = progress_callback {
-        callback(&format!(
-            "Built {} embeddings, creating search index...",
-            embeddings.len()
-        ));
-    }
-    eprintln!(
-        "Generated {} embeddings, building search index...",
-        embeddings.len()
-    );
-
-    // Build ANN index
-    let index = ck_ann::SimpleIndex::build(&embeddings)?;
-    index.save(&ann_index_path)?;
-
-    // Save file embeddings metadata
-    let embeddings_json = serde_json::to_string(&file_embeddings)?;
-    fs::write(&embeddings_path, embeddings_json)?;
-
-    if let Some(ref callback) = progress_callback {
-        callback("Semantic index built successfully, running search...");
-    }
-    eprintln!("Semantic index built successfully!");
-
-    // After building, search again - inline to avoid recursion
-    let ann_index = ck_ann::SimpleIndex::load(&ann_index_path)?;
-
-    // Load file metadata
-    let embeddings_data = fs::read_to_string(&embeddings_path)?;
-    let file_embeddings: Vec<(PathBuf, String)> = serde_json::from_str(&embeddings_data)?;
-
-    // Create embedder and embed the query
-    let mut embedder = ck_embed::create_embedder(Some("BAAI/bge-small-en-v1.5"))?;
-    let query_embeddings = embedder.embed(std::slice::from_ref(&options.query))?;
-
-    if query_embeddings.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let query_embedding = &query_embeddings[0];
-
-    // Search using ANN
-    let top_k = options.top_k.unwrap_or(10);
-    let similar_docs = ann_index.search(query_embedding, top_k);
-
-    let mut results = Vec::new();
-
-    // Check if we're searching a specific file vs. a directory
-    let filter_by_file = options.path.is_file();
-    let target_file = if filter_by_file {
-        Some(
-            options
-                .path
-                .canonicalize()
-                .unwrap_or_else(|_| options.path.clone()),
-        )
-    } else {
-        None
-    };
-
-    for (doc_id, similarity) in similar_docs {
-        // Apply threshold filtering
-        if let Some(threshold) = options.threshold
-            && similarity < threshold
-        {
-            continue;
-        }
-
-        if let Some((file_path, content)) = file_embeddings.get(doc_id as usize) {
-            // Filter by target file if specified
-            if let Some(target) = &target_file {
-                let canonical_result = file_path
-                    .canonicalize()
-                    .unwrap_or_else(|_| file_path.clone());
-                if canonical_result != *target {
-                    continue; // Skip this result if it doesn't match the target file
-                }
-            }
-
-            // If full_section is enabled and this is a code section, return the full content
-            let preview = if options.full_section {
-                content.clone()
-            } else {
-                content.lines().take(3).collect::<Vec<_>>().join("\n")
-            };
-
-            results.push(SearchResult {
-                file: file_path.clone(),
-                span: Span {
-                    byte_start: 0,
-                    byte_end: content.len(),
-                    line_start: 1,
-                    line_end: content.lines().count(),
-                },
-                score: similarity,
-                preview,
-                lang: ck_core::Language::from_path(file_path),
-                symbol: None,
-                chunk_hash: None,
-                index_epoch: None,
-            });
-        }
-    }
-
-    Ok(results)
-}
-
-#[allow(dead_code)]
 async fn hybrid_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
     hybrid_search_with_progress(options, None).await
 }
@@ -1190,6 +990,7 @@ fn collect_files(
     Ok(files)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn ensure_index_updated_with_progress(
     path: &Path,
     force_reindex: bool,
@@ -1198,6 +999,7 @@ async fn ensure_index_updated_with_progress(
     detailed_progress_callback: Option<ck_index::DetailedProgressCallback>,
     respect_gitignore: bool,
     exclude_patterns: &[String],
+    model_override: Option<&str>,
 ) -> Result<()> {
     // Handle both files and directories and reuse nearest existing .ck index up the tree
     let index_root_buf = find_nearest_index_root(path).unwrap_or_else(|| {
@@ -1219,7 +1021,7 @@ async fn ensure_index_updated_with_progress(
             need_embeddings,
             respect_gitignore,
             exclude_patterns, // Use search-specific exclude patterns
-            None,             // model - use existing from index
+            model_override,
         )
         .await?;
         if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {
@@ -1241,7 +1043,7 @@ async fn ensure_index_updated_with_progress(
         need_embeddings,
         respect_gitignore,
         exclude_patterns,
-        None, // model - use existing from index
+        model_override,
     )
     .await?;
     if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {

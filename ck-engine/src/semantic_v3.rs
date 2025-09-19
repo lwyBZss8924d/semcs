@@ -3,7 +3,10 @@ use ck_core::{CkError, SearchOptions, SearchResult};
 use std::path::Path;
 use walkdir::WalkDir;
 
-use super::{SearchProgressCallback, extract_content_from_span, find_nearest_index_root};
+use super::{
+    SearchProgressCallback, extract_content_from_span, find_nearest_index_root,
+    resolve_model_from_root,
+};
 
 /// New semantic search implementation using span-based storage
 pub async fn semantic_search_v3(options: &SearchOptions) -> Result<ck_core::SearchResults> {
@@ -77,17 +80,15 @@ pub async fn semantic_search_v3_with_progress(
         callback("Loading embedding model...");
     }
 
-    // Read the model configuration from the index manifest
-    let manifest_path = index_dir.join("manifest.json");
-    let resolved_model = if manifest_path.exists() {
-        let manifest_data = std::fs::read(&manifest_path)?;
-        let manifest: ck_index::IndexManifest = serde_json::from_slice(&manifest_data)?;
-        manifest.embedding_model.clone()
-    } else {
-        None // Use default model for old indexes
-    };
+    let resolved_model = resolve_model_from_root(&index_root, options.embedding_model.as_deref())?;
+    if let Some(ref callback) = progress_callback {
+        callback(&format!(
+            "Using embedding model {} ({} dims)",
+            resolved_model.alias, resolved_model.dimensions
+        ));
+    }
 
-    let mut embedder = ck_embed::create_embedder(resolved_model.as_deref())?;
+    let mut embedder = ck_embed::create_embedder(Some(resolved_model.canonical_name.as_str()))?;
     let query_embeddings = embedder.embed(std::slice::from_ref(&options.query))?;
 
     if query_embeddings.is_empty() {

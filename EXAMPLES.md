@@ -326,6 +326,8 @@ ck --hybrid "auth.*TODO" . --json | \
 - Index updates automatically during search (if >1 minute old)
 - Use `ck status` to monitor index size and health
 - Use `ck clean --orphans` after major file reorganization
+- Use `ck --switch-model <model>` to rebuild the index with a different embedding model
+- Add `--force` if you need to rebuild even when the model already matches
 - Index persists in `.ck/` directory (add to `.gitignore`)
 
 ### File Type Support
