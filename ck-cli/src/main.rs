@@ -24,8 +24,7 @@ QUICK START EXAMPLES:
     ck -n "import" lib.py              # Show line numbers
 
   Semantic search (finds conceptually similar code):
-    ck --index .                       # First, create search index
-    ck --sem "error handling" src/     # Find error handling patterns (top 10, threshold ≥0.6)
+    ck --sem "error handling" src/     # Builds/updates the index automatically (top 10, threshold ≥0.6)
     ck --sem "database connection"     # Find DB-related code  
     ck --sem --limit 5 "authentication"    # Limit to top 5 results
     ck --sem --threshold 0.8 "auth"   # Higher precision filtering
@@ -47,6 +46,7 @@ QUICK START EXAMPLES:
     ck --clean .                       # Remove entire index
     ck --switch-model nomic-v1.5       # Clean + rebuild with a different embedding model
     ck --add file.rs                   # Add single file to index
+    ck --index .                       # Optional: pre-build before CI runs
 
   JSON output for tools/scripts:
     ck --json --sem "bug fix" src/    # Traditional JSON (single array)
@@ -70,11 +70,11 @@ QUICK START EXAMPLES:
     ck --sem "auth" --rerank           # Enable reranking for better relevance  
     ck --sem "login" --rerank-model bge # Use specific reranking model
 
-SEARCH MODES:
+  SEARCH MODES:
   --regex   : Classic grep behavior (default, no index needed)
-  --lex     : BM25 lexical search (requires index)  
-  --sem     : Semantic/embedding search (requires index, defaults: top 10, threshold ≥0.6)
-  --hybrid  : Combines regex and semantic (requires index)
+  --lex     : BM25 lexical search (auto-indexed before it runs)  
+  --sem     : Semantic/embedding search (auto-indexed, defaults: top 10, threshold ≥0.6)
+  --hybrid  : Combines regex and semantic (shares the auto-indexing path)
 
 RESULT FILTERING:
   --topk, --limit N : Limit to top N results (default: 10 for semantic search)

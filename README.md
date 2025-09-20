@@ -15,13 +15,13 @@ cargo build --release
 ```
 
 ```bash
-# Index your project for semantic search (one-time setup)
-ck --index src/
-
-# Search by meaning - automatically updates index for changed files
+# Just search — ck builds and updates indexes automatically
 ck --sem "error handling" src/
 ck --sem "authentication logic" src/
 ck --sem "database connection pooling" src/
+
+# Optional: pre-build the index for CI or cold starts
+ck --index src/
 
 # Traditional grep-compatible search still works
 ck -n "TODO" *.rs
@@ -30,6 +30,8 @@ ck -R "TODO|FIXME" .
 # Combine both: semantic relevance + keyword filtering
 ck --hybrid "connection timeout" src/
 ```
+
+Any semantic or hybrid query triggers the necessary indexing work automatically. The optional commands exist for CI/CD, model migrations, or when you want to pre-warm a large repository before the first search.
 
 ## Why ck?
 
@@ -42,6 +44,9 @@ ck --hybrid "connection timeout" src/
 
 
 ## Core Features
+
+### ⚙️ **Automatic Delta Indexing**
+Semantic and hybrid searches transparently create and refresh their indexes before running. The first search builds what it needs; subsequent searches only touch files that changed, so there’s no "indexing step" to remember. Manual commands like `ck --index` remain available for CI/CD, model switches, or pre-warming large repos.
 
 ### 🔍 **Semantic Search**
 Find code by concept, not keywords. Searches understand synonyms, related terms, and conceptual similarity.
@@ -145,15 +150,17 @@ ck --index --exclude "*.test.js" .       # Support glob patterns
 
 ## How It Works
 
-### 1. **Index Once, Search Many**
-```bash
-# Create semantic index (one-time setup)
-ck --index /path/to/project
+### 1. **Automatic Index Lifecycle**
+Semantic and hybrid searches trigger an incremental index refresh before they execute. The first run builds everything; later runs only touch files that changed.
 
-# Now search instantly by meaning
+```bash
+# Just run a search — ck will prep the index automatically
 ck --sem "database queries" .
 ck --sem "error handling" .
 ck --sem "authentication" .
+
+# Optional: pre-build or rebuild in CI/CD pipelines
+ck --index /path/to/project
 ```
 
 ### 2. **Embedding Model Selection**
@@ -181,8 +188,8 @@ ck --index --model jina-code .
 
 ### 3. **Three Search Modes**
 - **`--regex`** (default): Classic grep behavior, no indexing required
-- **`--sem`**: Pure semantic search using embeddings (requires index)
-- **`--hybrid`**: Combines regex + semantic with intelligent ranking
+- **`--sem`**: Pure semantic search using embeddings (index is created/updated automatically)
+- **`--hybrid`**: Combines regex + semantic with intelligent ranking (auto-indexed like `--sem`)
 
 ### 4. **Relevance Scoring**
 ```bash
@@ -494,7 +501,7 @@ A: Yes, completely offline. The embedding model runs locally with no network cal
 A: Typically 1-3x the size of your source code, depending on content. The `.ck/` directory can be safely deleted to reclaim space.
 
 **Q: Is it fast enough for large codebases?**  
-A: Yes. Indexing is a one-time cost, and searches are sub-second even on large projects. Regex searches require no indexing and are as fast as grep.
+A: Yes. The first semantic or hybrid search will build the index automatically; after that only changed files are reprocessed, keeping searches sub-second even on large projects. Regex searches require no indexing and are as fast as grep.
 
 **Q: Can I use it in scripts/automation?**  
 A: Absolutely. The `--json` flag provides structured output perfect for automated processing. Use `--full-section` to get complete functions for AI analysis.
