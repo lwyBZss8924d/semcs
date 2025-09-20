@@ -1,9 +1,9 @@
+#[cfg(test)]
+use serial_test::serial;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::TempDir;
-#[cfg(test)]
-use serial_test::serial;
 
 fn ck_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_ck"))
