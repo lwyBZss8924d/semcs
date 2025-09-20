@@ -2,6 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::TempDir;
+#[cfg(test)]
+use serial_test::serial;
 
 fn ck_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_ck"))
@@ -103,6 +105,7 @@ fn test_json_output() {
 }
 
 #[test]
+#[serial]
 fn test_index_command() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(temp_dir.path().join("test.txt"), "indexable content").unwrap();
@@ -139,6 +142,7 @@ fn read_manifest_updated(dir: &Path) -> u64 {
 }
 
 #[test]
+#[serial]
 fn test_switch_model_skips_when_same_model() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(temp_dir.path().join("test.rs"), "fn main() {}").unwrap();
@@ -170,6 +174,7 @@ fn test_switch_model_skips_when_same_model() {
 }
 
 #[test]
+#[serial]
 fn test_switch_model_force_rebuild() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(
@@ -208,6 +213,7 @@ fn test_switch_model_force_rebuild() {
 }
 
 #[test]
+#[serial]
 fn test_semantic_search() {
     let temp_dir = TempDir::new().unwrap();
 
@@ -261,6 +267,7 @@ fn test_semantic_search() {
 }
 
 #[test]
+#[serial]
 fn test_lexical_search() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(
@@ -297,6 +304,7 @@ fn test_lexical_search() {
 }
 
 #[test]
+#[serial]
 fn test_hybrid_search() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(
@@ -396,6 +404,7 @@ fn test_line_numbers() {
 }
 
 #[test]
+#[serial]
 fn test_clean_command() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(temp_dir.path().join("test.txt"), "test content").unwrap();
@@ -707,6 +716,7 @@ fn test_jsonl_with_different_languages() {
 }
 
 #[test]
+#[serial]
 fn test_add_single_file_to_index() {
     let temp_dir = TempDir::new().unwrap();
 
@@ -767,6 +777,7 @@ fn test_add_single_file_to_index() {
 }
 
 #[test]
+#[serial]
 fn test_add_file_with_relative_path() {
     let temp_dir = TempDir::new().unwrap();
 
