@@ -85,13 +85,11 @@ fn build_overrides(
     let mut builder = OverrideBuilder::new(base_path);
 
     for pattern in exclude_patterns {
-        // Convert to exclude pattern (add ! prefix if not present)
-        let exclude_pattern = if pattern.starts_with('!') {
-            pattern.clone()
+        if pattern.starts_with('!') {
+            builder.add(pattern)?;
         } else {
-            format!("!{}", pattern)
-        };
-        builder.add(&exclude_pattern)?;
+            builder.add(&format!("!{}", pattern))?;
+        }
     }
 
     Ok(builder.build()?)
@@ -221,6 +219,7 @@ pub async fn index_directory(
 
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
+    normalize_manifest_paths(&mut manifest, path);
 
     // Handle model configuration for embeddings
     let resolved_model = if compute_embeddings {
@@ -274,7 +273,8 @@ pub async fn index_directory(
                     save_index_entry(&sidecar_path, &entry)?;
 
                     // Update and save manifest immediately
-                    manifest.files.insert(file_path.clone(), entry.metadata);
+                    let manifest_key = entry.metadata.path.clone();
+                    manifest.files.insert(manifest_key, entry.metadata);
                     manifest.updated = SystemTime::now()
                         .duration_since(SystemTime::UNIX_EPOCH)
                         .unwrap()
@@ -335,7 +335,8 @@ pub async fn index_directory(
             save_index_entry(&sidecar_path, &entry)?;
 
             // Update and save manifest immediately
-            manifest.files.insert(file_path, entry.metadata);
+            let manifest_key = entry.metadata.path.clone();
+            manifest.files.insert(manifest_key, entry.metadata);
             manifest.updated = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
@@ -381,9 +382,8 @@ pub async fn index_file(file_path: &Path, compute_embeddings: bool) -> Result<()
     let sidecar_path = get_sidecar_path(&repo_root, file_path);
 
     save_index_entry(&sidecar_path, &entry)?;
-    manifest
-        .files
-        .insert(file_path.to_path_buf(), entry.metadata);
+    let manifest_key = entry.metadata.path.clone();
+    manifest.files.insert(manifest_key, entry.metadata);
     manifest.updated = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
@@ -424,7 +424,10 @@ pub async fn update_index(
         files
             .iter()
             .filter_map(|file_path| {
-                let needs_update = match manifest.files.get(file_path) {
+                let manifest_key =
+                    path_utils::to_manifest_path(&path_utils::to_standard_path(file_path, path));
+
+                let needs_update = match manifest.files.get(&manifest_key) {
                     Some(metadata) => match compute_file_hash(file_path) {
                         Ok(hash) => hash != metadata.hash,
                         Err(_) => false,
@@ -459,7 +462,10 @@ pub async fn update_index(
         files
             .par_iter()
             .filter_map(|file_path| {
-                let needs_update = match manifest.files.get(file_path) {
+                let manifest_key =
+                    path_utils::to_manifest_path(&path_utils::to_standard_path(file_path, path));
+
+                let needs_update = match manifest.files.get(&manifest_key) {
                     Some(metadata) => match compute_file_hash(file_path) {
                         Ok(hash) => hash != metadata.hash,
                         Err(_) => false,
@@ -495,7 +501,8 @@ pub async fn update_index(
     for (file_path, entry) in updates {
         let sidecar_path = get_sidecar_path(path, &file_path);
         save_index_entry(&sidecar_path, &entry)?;
-        manifest.files.insert(file_path, entry.metadata);
+        let manifest_key = entry.metadata.path.clone();
+        manifest.files.insert(manifest_key, entry.metadata);
     }
 
     if !manifest.files.is_empty() {
@@ -529,6 +536,7 @@ pub fn cleanup_index(
 
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
+    normalize_manifest_paths(&mut manifest, path);
 
     // Use the new unified cleanup validation
     let stats = cleanup_validation::validate_and_cleanup_index(
@@ -563,7 +571,8 @@ pub fn get_index_stats(path: &Path) -> Result<IndexStats> {
     }
 
     let manifest_path = index_dir.join("manifest.json");
-    let manifest = load_or_create_manifest(&manifest_path)?;
+    let mut manifest = load_or_create_manifest(&manifest_path)?;
+    normalize_manifest_paths(&mut manifest, path);
 
     let mut stats = IndexStats {
         total_files: manifest.files.len(),
@@ -574,7 +583,9 @@ pub fn get_index_stats(path: &Path) -> Result<IndexStats> {
 
     // Calculate total chunks and size
     for file_path in manifest.files.keys() {
-        let sidecar_path = get_sidecar_path(path, file_path);
+        let standard_path = path_utils::from_manifest_path(file_path);
+        let sidecar_path =
+            path_utils::get_sidecar_path_for_standard_path(&index_dir, &standard_path);
         if sidecar_path.exists()
             && let Ok(entry) = load_index_entry(&sidecar_path)
         {
@@ -700,6 +711,7 @@ pub async fn smart_update_index_with_detailed_progress(
     fs::create_dir_all(&index_dir)?;
     let manifest_path = index_dir.join("manifest.json");
     let mut manifest = load_or_create_manifest(&manifest_path)?;
+    normalize_manifest_paths(&mut manifest, &repo_root);
 
     // Handle model configuration for embeddings
     let (resolved_model, _model_dimensions) = if compute_embeddings {
@@ -774,7 +786,10 @@ pub async fn smart_update_index_with_detailed_progress(
             return Ok(stats);
         }
 
-        if let Some(metadata) = manifest.files.get(&file_path) {
+        let manifest_key =
+            path_utils::to_manifest_path(&path_utils::to_standard_path(&file_path, &repo_root));
+
+        if let Some(metadata) = manifest.files.get(&manifest_key) {
             let fs_meta = match fs::metadata(&file_path) {
                 Ok(m) => m,
                 Err(_) => {
@@ -874,7 +889,8 @@ pub async fn smart_update_index_with_detailed_progress(
                     save_index_entry(&sidecar_path, &entry)?;
 
                     // Update and save manifest immediately
-                    manifest.files.insert(file_path.clone(), entry.metadata);
+                    let manifest_key = entry.metadata.path.clone();
+                    manifest.files.insert(manifest_key, entry.metadata);
                     manifest.updated = SystemTime::now()
                         .duration_since(SystemTime::UNIX_EPOCH)
                         .unwrap()
@@ -971,7 +987,8 @@ pub async fn smart_update_index_with_detailed_progress(
             save_index_entry(&sidecar_path, &entry)?;
 
             // Update and save manifest immediately
-            manifest.files.insert(file_path, entry.metadata);
+            let manifest_key = entry.metadata.path.clone();
+            manifest.files.insert(manifest_key, entry.metadata);
             manifest.updated = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
@@ -1032,8 +1049,11 @@ fn index_single_file_with_progress(
     let hash = compute_file_hash(file_path)?;
     let metadata = fs::metadata(file_path)?;
 
+    let standard_path = path_utils::to_standard_path(file_path, repo_root);
+    let manifest_path = path_utils::to_manifest_path(&standard_path);
+
     let file_metadata = FileMetadata {
-        path: file_path.to_path_buf(),
+        path: manifest_path,
         hash,
         last_modified: metadata
             .modified()?
@@ -1180,6 +1200,31 @@ fn load_or_create_manifest(path: &Path) -> Result<IndexManifest> {
     } else {
         Ok(IndexManifest::default())
     }
+}
+
+fn normalize_manifest_paths(manifest: &mut IndexManifest, repo_root: &Path) {
+    let original_entries = std::mem::take(&mut manifest.files);
+    let mut normalized = HashMap::with_capacity(original_entries.len());
+
+    for (key, mut metadata) in original_entries {
+        let standard_key = if key.is_absolute() {
+            path_utils::to_standard_path(&key, repo_root)
+        } else {
+            path_utils::from_manifest_path(&key)
+        };
+        let manifest_key = path_utils::to_manifest_path(&standard_key);
+
+        let metadata_standard = if metadata.path.is_absolute() {
+            path_utils::to_standard_path(&metadata.path, repo_root)
+        } else {
+            path_utils::from_manifest_path(&metadata.path)
+        };
+        metadata.path = path_utils::to_manifest_path(&metadata_standard);
+
+        normalized.insert(manifest_key, metadata);
+    }
+
+    manifest.files = normalized;
 }
 
 fn save_manifest(path: &Path, manifest: &IndexManifest) -> Result<()> {
@@ -1755,7 +1800,7 @@ mod cleanup_validation {
 
             // Check if file exists in reality
             if !standard_existing_files.contains(&standard_path) {
-                remove_manifest_entry(manifest, &manifest_path, index_dir, &mut stats)?;
+                remove_manifest_entry(manifest, &manifest_path, repo_root, index_dir, &mut stats)?;
                 continue;
             }
 
@@ -1763,7 +1808,7 @@ mod cleanup_validation {
             let sidecar_path =
                 path_utils::get_sidecar_path_for_standard_path(index_dir, &standard_path);
             if !sidecar_path.exists() {
-                remove_manifest_entry(manifest, &manifest_path, index_dir, &mut stats)?;
+                remove_manifest_entry(manifest, &manifest_path, repo_root, index_dir, &mut stats)?;
                 continue;
             }
         }
@@ -1778,6 +1823,7 @@ mod cleanup_validation {
     fn remove_manifest_entry(
         manifest: &mut IndexManifest,
         manifest_path: &Path,
+        repo_root: &Path,
         index_dir: &Path,
         stats: &mut CleanupStats,
     ) -> Result<()> {
@@ -1793,8 +1839,9 @@ mod cleanup_validation {
         }
 
         // Remove content cache for PDFs
-        if ck_core::pdf::is_pdf_file(manifest_path) {
-            let cache_path = ck_core::pdf::get_content_cache_path(index_dir, manifest_path);
+        if ck_core::pdf::is_pdf_file(&standard_path) {
+            let absolute_path = repo_root.join(&standard_path);
+            let cache_path = ck_core::pdf::get_content_cache_path(repo_root, &absolute_path);
             if cache_path.exists() {
                 fs::remove_file(&cache_path)?;
                 tracing::debug!("Removed orphaned content cache: {:?}", cache_path);
