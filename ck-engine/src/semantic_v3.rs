@@ -155,13 +155,26 @@ pub async fn semantic_search_v3_with_progress(
             continue;
         }
 
-        // Extract content from the file using the span
+        // Extract content from the file using the span, skip if file doesn't exist
         let content = if options.full_section {
-            extract_content_from_span(file_path, &chunk.span).await?
+            match extract_content_from_span(file_path, &chunk.span).await {
+                Ok(content) => content,
+                Err(_) => {
+                    // Skip files that no longer exist (stale index entries)
+                    continue;
+                }
+            }
         } else {
-            let full_content = extract_content_from_span(file_path, &chunk.span).await?;
-            // Take first 3 lines for preview
-            full_content.lines().take(3).collect::<Vec<_>>().join("\n")
+            match extract_content_from_span(file_path, &chunk.span).await {
+                Ok(full_content) => {
+                    // Take first 3 lines for preview
+                    full_content.lines().take(3).collect::<Vec<_>>().join("\n")
+                }
+                Err(_) => {
+                    // Skip files that no longer exist (stale index entries)
+                    continue;
+                }
+            }
         };
 
         let search_result = SearchResult {

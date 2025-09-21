@@ -53,6 +53,12 @@ pub struct PaginationCursor {
     pub search_params_hash: String,
     pub timestamp: u64,
     pub version: u32,
+    #[serde(default = "default_page_size")]
+    pub original_page_size: usize,
+}
+
+fn default_page_size() -> usize {
+    50 // Default page size for backward compatibility
 }
 
 /// Page of search results
@@ -65,6 +71,7 @@ pub struct SearchPage {
     pub truncated: bool,
     pub next_cursor: Option<String>,
     pub current_page: usize,
+    pub original_page_size: usize,
 }
 
 /// Configuration for pagination
@@ -193,6 +200,7 @@ impl SessionManager {
                 truncated: false,
                 next_cursor: None,
                 current_page: (offset / config.page_size) + 1,
+                original_page_size: config.page_size,
             });
         }
 
@@ -215,7 +223,12 @@ impl SessionManager {
 
         // Generate next cursor if there are more results
         let next_cursor = if has_more {
-            Some(self.create_cursor(session_id, end_offset, &session.search_params_hash)?)
+            Some(self.create_cursor(
+                session_id,
+                end_offset,
+                &session.search_params_hash,
+                config.page_size,
+            )?)
         } else {
             None
         };
@@ -228,6 +241,7 @@ impl SessionManager {
             truncated: false, // TODO: Implement truncation logic
             next_cursor,
             current_page: (offset / config.page_size) + 1,
+            original_page_size: config.page_size,
         })
     }
 
@@ -261,8 +275,16 @@ impl SessionManager {
             return Err("Cursor has expired".to_string());
         }
 
-        self.get_page(parsed_cursor.session_id, parsed_cursor.offset, config)
-            .await
+        // Use the original page size from the cursor to maintain consistency
+        let mut adjusted_config = config;
+        adjusted_config.page_size = parsed_cursor.original_page_size;
+
+        self.get_page(
+            parsed_cursor.session_id,
+            parsed_cursor.offset,
+            adjusted_config,
+        )
+        .await
     }
 
     /// Create a base64-encoded cursor
@@ -271,6 +293,7 @@ impl SessionManager {
         session_id: Uuid,
         offset: usize,
         search_params_hash: &str,
+        original_page_size: usize,
     ) -> Result<String, String> {
         let cursor = PaginationCursor {
             session_id,
@@ -281,6 +304,7 @@ impl SessionManager {
                 .map_err(|e| format!("System time error: {}", e))?
                 .as_secs(),
             version: 1,
+            original_page_size,
         };
 
         let cursor_json = serde_json::to_string(&cursor)

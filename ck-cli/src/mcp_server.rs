@@ -23,6 +23,16 @@ use crate::mcp::context::McpContext;
 use crate::mcp::session::{PaginationConfig, SearchPage};
 use ck_core::{SearchMode, SearchOptions, get_default_exclude_patterns};
 
+/// Default top_k for MCP when not specified by client
+/// Higher than CLI default (10) to allow multiple pages
+const DEFAULT_MCP_TOP_K: usize = 100;
+
+/// Filter out search results from missing files to prevent errors during result processing
+fn filter_valid_results(mut results: Vec<ck_core::SearchResult>) -> Vec<ck_core::SearchResult> {
+    results.retain(|result| result.file.exists());
+    results
+}
+
 /// Trait for extracting pagination parameters from request structures
 trait PaginationParams {
     fn get_page_size(&self) -> Option<usize>;
@@ -107,7 +117,7 @@ impl PaginationParams for SemanticSearchRequest {
     }
     fn get_search_params(&self) -> serde_json::Value {
         json!({
-            "top_k": self.top_k.unwrap_or(500),
+            "top_k": self.top_k,
             "threshold": self.threshold.unwrap_or(0.6)
         })
     }
@@ -161,7 +171,7 @@ impl PaginationParams for HybridSearchRequest {
     }
     fn get_search_params(&self) -> serde_json::Value {
         json!({
-            "top_k": self.top_k.unwrap_or(500),
+            "top_k": self.top_k,
             "threshold": self.threshold.unwrap_or(0.02)
         })
     }
@@ -344,7 +354,7 @@ impl CkMcpServer {
             },
             "pagination": {
                 "next_cursor": page.next_cursor,
-                "page_size": page.matches.len(),
+                "page_size": page.original_page_size,
                 "current_page": page.current_page
             },
             "metadata": {
@@ -741,7 +751,7 @@ impl CkMcpServer {
             mode: SearchMode::Semantic,
             query,
             path: path_buf,
-            top_k: top_k.or(Some(500)), // Fetch enough results for pagination
+            top_k: top_k.or(Some(DEFAULT_MCP_TOP_K)), // User-defined or MCP default
             threshold: threshold.or(Some(0.6)),
             case_insensitive: false,
             whole_word: false,
@@ -787,25 +797,31 @@ impl CkMcpServer {
         let page = self
             .context
             .session_manager
-            .get_first_page(options, search_results.matches, config)
+            .get_first_page(
+                options,
+                filter_valid_results(search_results.matches),
+                config,
+            )
             .await
             .map_err(|e| ErrorData::internal_error(e, None))?;
 
         let search_params = json!({
-            "top_k": top_k.unwrap_or(500),
+            "top_k": top_k.unwrap_or(DEFAULT_MCP_TOP_K),
             "threshold": threshold.unwrap_or(0.6)
         });
 
+        let current_page = page.current_page;
         let structured_result =
             Self::search_page_to_json(page, &query_clone, "semantic", search_params);
 
         let summary = format!(
-            "Semantic search for '{}' found {} matches in {} (threshold: {:.2}, top_k: {}) - Page 1",
+            "Semantic search for '{}' found {} matches in {} (threshold: {:.2}, top_k: {}) - Page {}",
             query_clone,
             structured_result["results"]["count"],
             path_clone.display(),
             threshold.unwrap_or(0.6),
-            top_k.unwrap_or(500)
+            top_k.unwrap_or(DEFAULT_MCP_TOP_K),
+            current_page
         );
 
         Ok((summary, structured_result))
@@ -893,7 +909,11 @@ impl CkMcpServer {
         let page = self
             .context
             .session_manager
-            .get_first_page(options, search_results.matches, config)
+            .get_first_page(
+                options,
+                filter_valid_results(search_results.matches),
+                config,
+            )
             .await
             .map_err(|e| ErrorData::internal_error(e, None))?;
 
@@ -955,8 +975,8 @@ impl CkMcpServer {
             mode: SearchMode::Hybrid,
             query,
             path: path_buf,
-            top_k: top_k.or(Some(500)), // Fetch enough results for pagination
-            threshold: threshold.or(Some(0.02)), // Lower threshold for hybrid (RRF scores)
+            top_k: top_k.or(Some(DEFAULT_MCP_TOP_K)), // User-defined or MCP default
+            threshold: threshold.or(Some(0.02)),      // Lower threshold for hybrid (RRF scores)
             case_insensitive: false,
             whole_word: false,
             fixed_string: false,
@@ -997,25 +1017,31 @@ impl CkMcpServer {
         let page = self
             .context
             .session_manager
-            .get_first_page(options, search_results.matches, config)
+            .get_first_page(
+                options,
+                filter_valid_results(search_results.matches),
+                config,
+            )
             .await
             .map_err(|e| ErrorData::internal_error(e, None))?;
 
         let search_params = json!({
-            "top_k": top_k.unwrap_or(500),
+            "top_k": top_k.unwrap_or(DEFAULT_MCP_TOP_K),
             "threshold": threshold.unwrap_or(0.02)
         });
 
+        let current_page = page.current_page;
         let structured_result =
             Self::search_page_to_json(page, &query_clone, "hybrid", search_params);
 
         let summary = format!(
-            "Hybrid search for '{}' found {} matches in {} (threshold: {:.3}, top_k: {}, combines semantic + regex) - Page 1",
+            "Hybrid search for '{}' found {} matches in {} (threshold: {:.3}, top_k: {}, combines semantic + regex) - Page {}",
             query_clone,
             structured_result["results"]["count"],
             path_clone.display(),
             threshold.unwrap_or(0.02),
-            top_k.unwrap_or(500)
+            top_k.unwrap_or(DEFAULT_MCP_TOP_K),
+            current_page
         );
 
         Ok((summary, structured_result))

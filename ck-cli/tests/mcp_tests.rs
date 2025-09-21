@@ -222,3 +222,153 @@ async fn create_test_files() -> TempDir {
 
     temp_dir
 }
+
+#[tokio::test]
+async fn test_mcp_top_k_page_size_interaction() {
+    let temp_dir = create_test_files().await;
+    let server = CkMcpServer::new(temp_dir.path().to_path_buf()).unwrap();
+
+    // Test case 1: top_k=5, page_size=3 should give us one page with 3 results, then one with 2
+    let request = SemanticSearchRequest {
+        query: "test".to_string(), // Should match content in test files
+        path: temp_dir.path().to_string_lossy().to_string(),
+        top_k: Some(5),
+        threshold: Some(0.1),
+        cursor: None,
+        page_size: Some(3),
+        include_snippet: Some(true),
+        snippet_length: Some(100),
+        context_lines: Some(0),
+    };
+
+    let result = server.handle_semantic_search(request, None, None).await;
+    assert!(result.is_ok());
+
+    if let Ok((summary, response)) = result {
+        // Verify we get at most 3 results in first page
+        if let Some(matches) = response["results"]["matches"].as_array() {
+            let match_count = matches.len();
+            assert!(
+                match_count <= 3,
+                "First page should have at most 3 matches, got {}",
+                match_count
+            );
+        }
+
+        // Check that we respect the top_k=5 setting
+        if let Some(total_count) = response["results"]["total_count"].as_u64() {
+            assert!(
+                total_count <= 5,
+                "Total count should respect top_k=5, got {}",
+                total_count
+            );
+        }
+
+        // Check that summary reflects correct top_k
+        assert!(
+            summary.contains("top_k: 5"),
+            "Summary should show top_k: 5, got: {}",
+            summary
+        );
+    }
+
+    // Test case 2: top_k=2, page_size=10 should give us one page with 2 results max
+    let request2 = SemanticSearchRequest {
+        query: "function".to_string(),
+        path: temp_dir.path().to_string_lossy().to_string(),
+        top_k: Some(2),
+        threshold: Some(0.1),
+        cursor: None,
+        page_size: Some(10),
+        include_snippet: Some(true),
+        snippet_length: Some(100),
+        context_lines: Some(0),
+    };
+
+    let result2 = server.handle_semantic_search(request2, None, None).await;
+    if let Ok((summary2, response2)) = result2 {
+        // Check that we respect the top_k=2 setting
+        if let Some(total_count) = response2["results"]["total_count"].as_u64() {
+            assert!(
+                total_count <= 2,
+                "Should respect top_k=2 limit, got {} total",
+                total_count
+            );
+        }
+
+        if let Some(matches) = response2["results"]["matches"].as_array() {
+            let match_count = matches.len();
+            assert!(
+                match_count <= 2,
+                "Should respect top_k=2 limit, got {} matches",
+                match_count
+            );
+        }
+
+        // Check that summary reflects correct top_k
+        assert!(
+            summary2.contains("top_k: 2"),
+            "Summary should show top_k: 2, got: {}",
+            summary2
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_mcp_semantic_search_with_missing_files() {
+    use std::fs;
+
+    let temp_dir = create_test_files().await;
+    let server = CkMcpServer::new(temp_dir.path().to_path_buf()).unwrap();
+
+    // First, do an initial search to ensure the index is created
+    let initial_request = SemanticSearchRequest {
+        query: "function".to_string(),
+        path: temp_dir.path().to_string_lossy().to_string(),
+        top_k: Some(10),
+        threshold: Some(0.1),
+        cursor: None,
+        page_size: Some(10),
+        include_snippet: Some(true),
+        snippet_length: Some(100),
+        context_lines: Some(0),
+    };
+
+    let _ = server
+        .handle_semantic_search(initial_request, None, None)
+        .await;
+
+    // Now remove one of the test files to simulate a stale index
+    let file_to_remove = temp_dir.path().join("test1.rs");
+    if file_to_remove.exists() {
+        fs::remove_file(&file_to_remove).expect("Failed to remove test file");
+    }
+
+    // Search again - this should handle the missing file gracefully
+    let request = SemanticSearchRequest {
+        query: "function".to_string(),
+        path: temp_dir.path().to_string_lossy().to_string(),
+        top_k: Some(20), // Request more results to increase chance of hitting missing file
+        threshold: Some(0.1),
+        cursor: None,
+        page_size: Some(10),
+        include_snippet: Some(true),
+        snippet_length: Some(100),
+        context_lines: Some(0),
+    };
+
+    let result = server.handle_semantic_search(request, None, None).await;
+
+    // The search should succeed (not panic or error) even with missing file
+    assert!(
+        result.is_ok(),
+        "Search should succeed even with missing files"
+    );
+
+    if let Ok((summary, response)) = result {
+        // Should still get results from remaining files
+        assert!(response["results"]["matches"].is_array());
+        // The summary should not say "unlimited" since we set top_k
+        assert!(summary.contains("top_k: 20"));
+    }
+}

@@ -112,11 +112,12 @@ The MCP server provides these tools with built-in pagination for large result se
 
 **Example Usage for AI Agents:**
 ```python
-# First page - get initial results
+# First page - get initial results (defaults: page_size=50, top_k=100)
 response = await client.call_tool("semantic_search", {
     "query": "authentication logic",
     "path": "/path/to/code",
     "page_size": 25,
+    "top_k": 50,           # Limit total results (optional)
     "snippet_length": 200
 })
 
@@ -135,6 +136,8 @@ if response["pagination"]["next_cursor"]:
 - Set `include_snippet: false` for high-level code overviews
 - Use `snippet_length: 200` for condensed results
 - Always check `has_more` and use `next_cursor` for pagination
+- Specify `top_k` to control total results (defaults to 100 for MCP, vs CLI default of 10)
+- `page_size` controls pagination slice, `top_k` controls total search limit
 
 **Claude Desktop Setup:**
 Add to your Claude Desktop MCP config:
