@@ -21,3 +21,7 @@ Thumbs.db
 
 .fastembed_cache
 .cache
+
+# MCP config files (user-specific)
+.mcp.json
+*mcp_config*.json

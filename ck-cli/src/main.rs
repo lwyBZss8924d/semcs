@@ -6,7 +6,10 @@ use owo_colors::{OwoColorize, Rgb};
 use regex::RegexBuilder;
 use std::path::{Path, PathBuf};
 
+mod mcp;
+mod mcp_server;
 mod progress;
+
 use progress::StatusReporter;
 
 #[derive(Parser)]
@@ -67,8 +70,13 @@ QUICK START EXAMPLES:
   Model and embedding options:
     ck --index --model nomic-v1.5      # Index with higher-quality model (8k context)
     ck --index --model jina-code       # Index with code-specialized model
-    ck --sem "auth" --rerank           # Enable reranking for better relevance  
+    ck --sem "auth" --rerank           # Enable reranking for better relevance
     ck --sem "login" --rerank-model bge # Use specific reranking model
+
+  AI agent integration (MCP):
+    ck --serve                         # Start MCP server for Claude/Cursor integration
+    # Provides tools: semantic_search, regex_search, hybrid_search, index_status, reindex, health_check
+    # Connect with Claude Desktop, Cursor, or any MCP-compatible client
 
   SEARCH MODES:
   --regex   : Classic grep behavior (default, no index needed)
@@ -316,6 +324,22 @@ struct Cli {
         help = "Reranking model to use (jina, bge) [default: jina]"
     )]
     rerank_model: Option<String>,
+
+    // MCP Server mode
+    #[arg(
+        long = "serve",
+        help = "Start MCP server mode for AI agent integration",
+        conflicts_with_all = [
+            "pattern", "files", "line_numbers", "no_filenames", "with_filenames",
+            "files_with_matches", "files_without_matches", "ignore_case", "word_regexp",
+            "fixed_strings", "recursive", "context", "after_context", "before_context",
+            "semantic", "lexical", "hybrid", "regex", "top_k", "threshold", "show_scores",
+            "json", "json_v1", "jsonl", "no_snippet", "reindex", "exclude", "no_default_excludes",
+            "no_ignore", "full_section", "index", "clean", "clean_orphans", "switch_model",
+            "force", "add", "status", "status_verbose", "inspect", "model", "rerank", "rerank_model"
+        ]
+    )]
+    serve: bool,
 }
 
 fn expand_glob_patterns(paths: &[PathBuf], exclude_patterns: &[String]) -> Result<Vec<PathBuf>> {
@@ -785,6 +809,34 @@ async fn main() {
 }
 
 async fn run_main() -> Result<()> {
+    let cli = Cli::parse();
+
+    // Handle MCP server mode first
+    if cli.serve {
+        return run_mcp_server().await;
+    }
+
+    // Regular CLI mode
+    run_cli_mode(cli).await
+}
+
+async fn run_mcp_server() -> Result<()> {
+    // Configure service-safe logging for MCP mode (no stdout pollution)
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::from_default_env()
+                .add_directive(tracing::Level::INFO.into()),
+        )
+        .init();
+
+    let cwd = std::env::current_dir()?;
+    let server = mcp_server::CkMcpServer::new(cwd)?;
+    server.run().await
+}
+
+async fn run_cli_mode(cli: Cli) -> Result<()> {
+    // Regular CLI mode logging
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::from_default_env()
@@ -792,7 +844,6 @@ async fn run_main() -> Result<()> {
         )
         .init();
 
-    let cli = Cli::parse();
     let status = StatusReporter::new(cli.quiet);
 
     // Handle command flags first (these take precedence over search)

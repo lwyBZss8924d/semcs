@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.4.7"
+version = "0.5.0"
 edition = "2024"
 authors = ["Mike Renwick"]
 license = "MIT OR Apache-2.0"
@@ -52,3 +52,6 @@ globset = "0.4"
 ignore = "0.4"
 ctrlc = "3.4"
 pdf-extract = "0.9"
+uuid = { version = "1.8", features = ["v4", "serde"] }
+base64 = "0.22"
+sha2 = "0.10"
