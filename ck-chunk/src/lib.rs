@@ -525,7 +525,9 @@ fn stride_large_chunk(chunk: Chunk, config: &ChunkConfig) -> Result<Vec<Chunk>> 
                 byte_end: byte_offset_end,
                 line_start: chunk.span.line_start + line_offset_start,
                 // Fix: subtract 1 since stride_lines is a count but line_end should be inclusive
-                line_end: chunk.span.line_start + line_offset_start + stride_lines.saturating_sub(1),
+                line_end: chunk.span.line_start
+                    + line_offset_start
+                    + stride_lines.saturating_sub(1),
             },
             text: stride_text.to_string(),
             chunk_type: chunk.chunk_type.clone(),
@@ -854,7 +856,7 @@ public class Calculator
         };
 
         let config = ChunkConfig {
-            max_tokens: 100, // Force striding with reasonable limit
+            max_tokens: 100,    // Force striding with reasonable limit
             stride_overlap: 10, // Small overlap for testing
             ..Default::default()
         };
@@ -866,7 +868,10 @@ public class Calculator
         assert!(result.is_ok());
 
         let chunks = result.unwrap();
-        assert!(chunks.len() > 1, "Should create multiple chunks when striding");
+        assert!(
+            chunks.len() > 1,
+            "Should create multiple chunks when striding"
+        );
 
         for chunk in chunks {
             // Verify line_end is not off by one
@@ -879,9 +884,12 @@ public class Calculator
                 let calculated_line_span = chunk.span.line_end - chunk.span.line_start + 1;
 
                 // Allow some tolerance for striding logic
-                assert!(calculated_line_span <= line_count + 1,
+                assert!(
+                    calculated_line_span <= line_count + 1,
                     "Line span {} should not exceed content lines {} by more than 1",
-                    calculated_line_span, line_count);
+                    calculated_line_span,
+                    line_count
+                );
             }
         }
     }

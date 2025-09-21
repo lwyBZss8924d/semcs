@@ -453,7 +453,14 @@ fn search_file(
             None
         };
 
-        search_file_in_memory(regex, file_path, options, &lines, &code_sections, &line_ending_lengths)
+        search_file_in_memory(
+            regex,
+            file_path,
+            options,
+            &lines,
+            &code_sections,
+            &line_ending_lengths,
+        )
     } else {
         // Streaming search (simple case)
         search_file_streaming(regex, file_path, &repo_root, options)
