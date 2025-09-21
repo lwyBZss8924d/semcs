@@ -32,6 +32,17 @@ ck --serve
 ```
 
 **Claude Desktop Setup:**
+
+```bash
+# Install via Claude Code CLI (recommended)
+claude mcp add ck-search -s user -- ck --serve
+
+# Note: You may need to restart Claude Code after installation
+# Verify installation with:
+claude mcp list  # or use /mcp in Claude Code
+```
+
+**Manual Configuration (alternative):**
 ```json
 {
   "mcpServers": {
@@ -43,6 +54,8 @@ ck --serve
   }
 }
 ```
+
+**Tool Permissions:** When prompted by Claude Code, approve permissions for ck-search tools (semantic_search, regex_search, hybrid_search, etc.)
 
 **Available MCP Tools:**
 - `semantic_search` - Find code by meaning using embeddings
@@ -97,6 +110,12 @@ Automatically excludes cache directories, build artifacts, and respects `.gitign
 ck "pattern" .                           # Follows .gitignore rules
 ck --no-ignore "pattern" .               # Search all files including ignored ones
 ck --exclude "dist" --exclude "logs" .   # Add custom exclusions
+
+# Exclusion patterns use .gitignore syntax:
+ck --exclude "node_modules" .            # Exclude directory and all contents
+ck --exclude "*.test.js" .                # Exclude files matching pattern
+ck --exclude "build/" --exclude "*.log" . # Multiple exclusions
+# Note: Patterns are relative to the search root
 ```
 
 ## 🛠 Advanced Usage
@@ -110,7 +129,7 @@ response = await client.call_tool("semantic_search", {
     "query": "authentication logic",
     "path": "/path/to/code",
     "page_size": 25,
-    "top_k": 50,           # Limit total results (default: 100)
+    "top_k": 50,           # Limit total results (default: 100 for MCP)
     "snippet_length": 200
 })
 
@@ -201,6 +220,8 @@ ck --inspect src/main.rs
 ck --inspect --model bge-small src/main.rs  # Test different models
 ```
 
+**Interrupting Operations:** Indexing can be safely interrupted with Ctrl+C. The partial index is saved, and the next operation will resume from where it stopped, only processing new or changed files.
+
 ## 📚 Language Support
 
 | Language | Indexing | Tree-sitter Parsing | Semantic Chunking |
@@ -217,6 +238,8 @@ ck --inspect --model bge-small src/main.rs  # Test different models
 
 **Smart Binary Detection:** Uses ripgrep-style content analysis, automatically indexing any text file while correctly excluding binary files.
 
+**Unsupported File Types:** Text files with unrecognized extensions (like `.org`, `.adoc`, etc.) are automatically indexed as plain text. ck detects text vs binary based on file contents, not extensions.
+
 ## 🏗 Installation
 
 ### From crates.io
@@ -231,11 +254,14 @@ cd ck
 cargo install --path ck-cli
 ```
 
-### Package Managers (Planned)
+### Package Managers
 ```bash
+# Currently available:
+cargo install ck-search    # ✅ Available now via crates.io
+
 # Coming soon:
-brew install ck-search
-apt install ck-search
+brew install ck-search     # 🚧 In development (use cargo for now)
+apt install ck-search      # 🚧 In development
 ```
 
 ## 💡 Examples
@@ -291,6 +317,8 @@ ck --json --sem "public API" src/ | generate_docs.py
 
 ## ⚡ Performance
 
+**Field-tested on real codebases:**
+
 - **Indexing:** ~1M LOC in under 2 minutes
 - **Search:** Sub-500ms queries on typical codebases
 - **Index size:** ~2x source code size with compression
@@ -329,11 +357,11 @@ The `.ck/` directory is a cache — safe to delete and rebuild anytime.
 ## 🧪 Testing
 
 ```bash
-# Full test suite (40+ tests)
-./test_ck.sh
+# Run the full test suite
+cargo test --workspace
 
-# Quick smoke test (14 core tests)
-./test_ck_simple.sh
+# Test with each feature combination
+cargo hack test --each-feature --workspace
 ```
 
 ## 🤝 Contributing
@@ -347,13 +375,32 @@ ck is actively developed and welcomes contributions:
 
 ### Development Setup
 ```bash
-git clone https://github.com/your-org/ck
+git clone https://github.com/BeaconBay/ck
 cd ck
-cargo build
-cargo test
+cargo build --workspace
+cargo test --workspace
 ./target/debug/ck --index test_files/
 ./target/debug/ck --sem "test query" test_files/
 ```
+
+### CI Requirements
+Before submitting a PR, ensure your code passes all CI checks:
+
+```bash
+# Format code (required)
+cargo fmt --all
+
+# Run clippy linter (required - must have no warnings)
+cargo clippy --workspace --all-features --all-targets -- -D warnings
+
+# Run tests (required)
+cargo test --workspace
+
+# Check minimum supported Rust version (MSRV)
+cargo hack check --each-feature --locked --rust-version --workspace
+```
+
+The CI pipeline runs on Ubuntu, Windows, and macOS to ensure cross-platform compatibility.
 
 ## 🗺 Roadmap
 
@@ -374,6 +421,9 @@ cargo test
 - 🚧 Configuration file support
 - 🚧 Package manager distributions (brew, apt)
 - 🚧 Enhanced MCP tools (file writing, refactoring assistance)
+- 🚧 VS Code extension
+- 🚧 JetBrains plugin
+- 🚧 Additional language chunkers (Java, PHP, Swift)
 
 ## ❓ FAQ
 
