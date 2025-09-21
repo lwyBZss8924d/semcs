@@ -69,12 +69,12 @@ async fn test_mcp_regex_search_basic_functionality() {
         assert!(response["pagination"]["page_size"].is_number());
 
         // Check match structure for regex search
-        if let Some(matches) = response["results"]["matches"].as_array() {
-            if !matches.is_empty() {
-                let first_match = &matches[0];
-                assert_eq!(first_match["type"], "regex_match");
-                assert!(first_match["match"]["line_number"].is_number());
-            }
+        if let Some(matches) = response["results"]["matches"].as_array()
+            && !matches.is_empty()
+        {
+            let first_match = &matches[0];
+            assert_eq!(first_match["type"], "regex_match");
+            assert!(first_match["match"]["line_number"].is_number());
         }
     }
 }
@@ -105,14 +105,14 @@ async fn test_mcp_hybrid_search_basic_functionality() {
         assert_eq!(response["search"]["mode"], "hybrid");
 
         // Check match structure for hybrid search
-        if let Some(matches) = response["results"]["matches"].as_array() {
-            if !matches.is_empty() {
-                let first_match = &matches[0];
-                assert_eq!(first_match["type"], "hybrid_match");
-                // Hybrid matches should have both score and rrf_score
-                assert!(first_match["match"]["score"].is_number());
-                assert!(first_match["match"]["rrf_score"].is_number());
-            }
+        if let Some(matches) = response["results"]["matches"].as_array()
+            && !matches.is_empty()
+        {
+            let first_match = &matches[0];
+            assert_eq!(first_match["type"], "hybrid_match");
+            // Hybrid matches should have both score and rrf_score
+            assert!(first_match["match"]["score"].is_number());
+            assert!(first_match["match"]["rrf_score"].is_number());
         }
     }
 }
