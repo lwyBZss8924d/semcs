@@ -37,7 +37,7 @@ Any semantic or hybrid query triggers the necessary indexing work automatically.
 
 **For Developers:** Stop hunting through thousands of regex false positives. Find the code you actually need by describing what it does.
 
-**For AI Agents:** Get structured, semantic search results in JSONL format. Stream-friendly, error-resilient output perfect for LLM workflows, code analysis, documentation generation, and automated refactoring.
+**For AI Agents:** Native MCP (Model Context Protocol) server for seamless integration with Claude Desktop, Cursor, and other AI tools. Also provides structured JSONL output for custom workflows. Perfect for LLM-powered code analysis, documentation generation, and automated refactoring.
 
 
 
@@ -85,7 +85,72 @@ ck --hybrid --threshold 0.02 query  # Filter by minimum relevance
 ck -l --hybrid "database" src/      # List files using hybrid search
 ```
 
-### 🤖 **Agent-Friendly Output**
+### 🤖 **AI Agent Integration**
+
+#### MCP Server (Recommended)
+Connect ck directly to Claude Desktop, Cursor, or any MCP-compatible AI client:
+
+```bash
+# Start MCP server for AI agent integration
+ck --serve
+```
+
+The MCP server provides these tools with built-in pagination for large result sets:
+- `semantic_search` - Find code by meaning using embeddings
+- `regex_search` - Traditional grep-style pattern matching
+- `hybrid_search` - Combined semantic and keyword search
+- `index_status` - Check indexing status and metadata
+- `reindex` - Force rebuild of search index
+- `health_check` - Server status and diagnostics
+
+**Pagination Support:** All search tools support pagination to prevent large token responses:
+- `page_size` (default: 50, max: 200) - Results per page
+- `include_snippet` (default: true) - Include code snippets in results
+- `snippet_length` (default: 500) - Maximum characters per snippet
+- `cursor` - Opaque pagination cursor for subsequent pages
+- Responses include `next_cursor` when more results are available
+
+**Example Usage for AI Agents:**
+```python
+# First page - get initial results
+response = await client.call_tool("semantic_search", {
+    "query": "authentication logic",
+    "path": "/path/to/code",
+    "page_size": 25,
+    "snippet_length": 200
+})
+
+# Check if there are more results
+if response["pagination"]["next_cursor"]:
+    # Get next page using cursor (still need query and path)
+    next_response = await client.call_tool("semantic_search", {
+        "query": "authentication logic",
+        "path": "/path/to/code",
+        "cursor": response["pagination"]["next_cursor"]
+    })
+```
+
+**Agent Best Practices:**
+- Use `page_size: 25-50` for initial exploration
+- Set `include_snippet: false` for high-level code overviews
+- Use `snippet_length: 200` for condensed results
+- Always check `has_more` and use `next_cursor` for pagination
+
+**Claude Desktop Setup:**
+Add to your Claude Desktop MCP config:
+```json
+{
+  "mcpServers": {
+    "ck": {
+      "command": "ck",
+      "args": ["--serve"],
+      "cwd": "/path/to/your/codebase"
+    }
+  }
+}
+```
+
+#### JSONL Output (Custom Workflows)
 Perfect structured output for LLMs, scripts, and automation. JSONL format provides superior parsing reliability for AI agents.
 
 ```bash
