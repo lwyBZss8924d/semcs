@@ -96,6 +96,49 @@ fn extract_lines_from_file(file_path: &Path, line_start: usize, line_end: usize)
     Ok(result.join("\n"))
 }
 
+/// Split content into lines while preserving the exact number of trailing newline bytes per line.
+/// Handles Unix (\n), Windows (\r\n) and old Mac (\r) line endings.
+fn split_lines_with_endings(content: &str) -> (Vec<String>, Vec<usize>) {
+    let mut lines = Vec::new();
+    let mut endings = Vec::new();
+
+    let bytes = content.as_bytes();
+    let mut start = 0usize;
+    let mut i = 0usize;
+
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\n' => {
+                lines.push(content[start..i].to_string());
+                endings.push(1);
+                i += 1;
+                start = i;
+            }
+            b'\r' => {
+                lines.push(content[start..i].to_string());
+                if i + 1 < bytes.len() && bytes[i + 1] == b'\n' {
+                    endings.push(2);
+                    i += 2;
+                } else {
+                    endings.push(1);
+                    i += 1;
+                }
+                start = i;
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+
+    if start < bytes.len() {
+        lines.push(content[start..].to_string());
+        endings.push(0);
+    }
+
+    (lines, endings)
+}
+
 fn find_nearest_index_root(path: &Path) -> Option<StdPathBuf> {
     let mut current = if path.is_file() {
         path.parent().unwrap_or(path)
@@ -401,7 +444,7 @@ fn search_file(
     if options.full_section || options.context_lines > 0 {
         // Load full content when we need section parsing or context
         let content = read_file_content(file_path, &repo_root)?;
-        let lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+        let (lines, line_ending_lengths) = split_lines_with_endings(&content);
 
         // If full_section is enabled, try to parse the file and find code sections
         let code_sections = if options.full_section {
@@ -410,7 +453,7 @@ fn search_file(
             None
         };
 
-        search_file_in_memory(regex, file_path, options, &lines, &code_sections)
+        search_file_in_memory(regex, file_path, options, &lines, &code_sections, &line_ending_lengths)
     } else {
         // Streaming search (simple case)
         search_file_streaming(regex, file_path, &repo_root, options)
@@ -424,6 +467,7 @@ fn search_file_in_memory(
     options: &SearchOptions,
     lines: &[String],
     code_sections: &Option<Vec<(usize, usize, String)>>,
+    line_ending_lengths: &[usize],
 ) -> Result<Vec<SearchResult>> {
     let mut results = Vec::new();
     let mut byte_offset = 0;
@@ -503,11 +547,9 @@ fn search_file_in_memory(
             }
         }
 
-        // Update byte offset for next line (add line length + newline character)
+        // Update byte offset for next line (add line length + actual line ending length)
         byte_offset += line.len();
-        if line_idx < lines.len() - 1 {
-            byte_offset += 1; // Add 1 for the newline character
-        }
+        byte_offset += line_ending_lengths.get(line_idx).copied().unwrap_or(0);
     }
 
     Ok(results)
@@ -524,58 +566,137 @@ fn search_file_streaming(
 
     let content_path = resolve_content_path(file_path, repo_root)?;
     let file = std::fs::File::open(&content_path)?;
-    let reader = BufReader::new(file);
+    let mut reader = BufReader::new(file);
 
     let mut results = Vec::new();
-    let mut byte_offset = 0;
+    let mut line = String::new();
+    let mut byte_offset = 0usize;
+    let mut line_number = 1usize;
 
-    for (line_idx, line_result) in reader.lines().enumerate() {
-        let line = line_result?;
-        let line_number = line_idx + 1;
+    loop {
+        line.clear();
+        let bytes_read = reader.read_line(&mut line)?;
+        if bytes_read == 0 {
+            break;
+        }
 
-        // Special handling for empty pattern - match the entire line once
-        if regex.as_str().is_empty() {
+        // Determine the length of the trailing line ending (if any) and
+        // normalise the line buffer so it no longer contains newline bytes.
+        let mut newline_len = 0usize;
+        if line.ends_with("\r\n") {
+            line.pop(); // remove \n
+            line.pop(); // remove \r
+            newline_len = 2;
+        } else if line.ends_with(['\n', '\r']) {
+            line.pop();
+            newline_len = 1;
+        }
+
+        // Old Mac-style files may use bare carriage returns as separators.
+        // When the trimmed line still contains '\r' characters, treat them as
+        // record separators so the byte offsets remain accurate.
+        let treat_cr_as_newline = line.contains('\r');
+
+        if treat_cr_as_newline {
+            let bytes = line.as_bytes();
+            let mut segment_start = 0usize;
+            while segment_start <= bytes.len() {
+                match bytes[segment_start..].iter().position(|&b| b == b'\r') {
+                    Some(rel_idx) => {
+                        let idx = segment_start + rel_idx;
+                        let segment_bytes = &bytes[segment_start..idx];
+                        let segment_str = std::str::from_utf8(segment_bytes)?;
+                        process_streaming_line(
+                            regex,
+                            file_path,
+                            segment_str,
+                            line_number,
+                            byte_offset,
+                            &mut results,
+                        );
+                        byte_offset += segment_bytes.len() + 1; // account for \r
+                        line_number += 1;
+                        segment_start = idx + 1;
+                    }
+                    None => {
+                        let segment_bytes = &bytes[segment_start..];
+                        let segment_str = std::str::from_utf8(segment_bytes)?;
+                        process_streaming_line(
+                            regex,
+                            file_path,
+                            segment_str,
+                            line_number,
+                            byte_offset,
+                            &mut results,
+                        );
+                        byte_offset += segment_bytes.len();
+                        line_number += 1;
+                        break;
+                    }
+                }
+            }
+            byte_offset += newline_len;
+        } else {
+            let line_str = line.as_str();
+            process_streaming_line(
+                regex,
+                file_path,
+                line_str,
+                line_number,
+                byte_offset,
+                &mut results,
+            );
+            byte_offset += line_str.len() + newline_len;
+            line_number += 1;
+        }
+    }
+
+    Ok(results)
+}
+
+fn process_streaming_line(
+    regex: &Regex,
+    file_path: &Path,
+    line: &str,
+    line_number: usize,
+    byte_offset: usize,
+    results: &mut Vec<SearchResult>,
+) {
+    if regex.as_str().is_empty() {
+        results.push(SearchResult {
+            file: file_path.to_path_buf(),
+            span: Span {
+                byte_start: byte_offset,
+                byte_end: byte_offset + line.len(),
+                line_start: line_number,
+                line_end: line_number,
+            },
+            score: 1.0,
+            preview: line.to_string(),
+            lang: ck_core::Language::from_path(file_path),
+            symbol: None,
+            chunk_hash: None,
+            index_epoch: None,
+        });
+    } else {
+        for mat in regex.find_iter(line) {
             results.push(SearchResult {
                 file: file_path.to_path_buf(),
                 span: Span {
-                    byte_start: byte_offset,
-                    byte_end: byte_offset + line.len(),
+                    byte_start: byte_offset + mat.start(),
+                    byte_end: byte_offset + mat.end(),
                     line_start: line_number,
                     line_end: line_number,
                 },
                 score: 1.0,
-                preview: line.clone(), // Simple preview: just the line itself
+                preview: line.to_string(),
                 lang: ck_core::Language::from_path(file_path),
                 symbol: None,
                 chunk_hash: None,
                 index_epoch: None,
             });
-        } else {
-            // Find all matches in the line with their positions
-            for mat in regex.find_iter(&line) {
-                results.push(SearchResult {
-                    file: file_path.to_path_buf(),
-                    span: Span {
-                        byte_start: byte_offset + mat.start(),
-                        byte_end: byte_offset + mat.end(),
-                        line_start: line_number,
-                        line_end: line_number,
-                    },
-                    score: 1.0,
-                    preview: line.clone(), // Simple preview: just the line itself
-                    lang: ck_core::Language::from_path(file_path),
-                    symbol: None,
-                    chunk_hash: None,
-                    index_epoch: None,
-                });
-            }
         }
-
-        // Update byte offset for next line (add line length + newline character)
-        byte_offset += line.len() + 1; // +1 for newline
     }
-
-    Ok(results)
 }
 
 async fn lexical_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
@@ -1428,5 +1549,99 @@ mod tests {
 
         let results = search(&options).await.unwrap();
         assert!(!results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_regex_search_mixed_line_endings() {
+        // Regression test for byte offset issues with different line endings
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create test file with mixed line endings (Windows \r\n and Unix \n)
+        let test_file = temp_dir.path().join("mixed_endings.txt");
+        let content = "line1\r\nline2\nline3\r\npattern here\nline5\r\n";
+        std::fs::write(&test_file, content).unwrap();
+
+        let options = SearchOptions {
+            mode: SearchMode::Regex,
+            query: "pattern".to_string(),
+            path: test_file.clone(),
+            recursive: false,
+            ..Default::default()
+        };
+
+        let results = search(&options).await.unwrap();
+        assert_eq!(results.len(), 1);
+
+        let result = &results[0];
+        // Verify byte offsets are correct - should point to start of "pattern"
+        let original_content = std::fs::read_to_string(&test_file).unwrap();
+        let pattern_start = original_content.find("pattern").unwrap();
+
+        assert_eq!(result.span.byte_start, pattern_start);
+        assert_eq!(result.span.line_start, 4); // Fourth line
+    }
+
+    #[tokio::test]
+    async fn test_regex_search_windows_line_endings() {
+        // Regression test specifically for Windows \r\n line endings
+        let temp_dir = TempDir::new().unwrap();
+
+        let test_file = temp_dir.path().join("windows_endings.txt");
+        let content = "first line\r\nsecond line\r\nmatch this\r\nfourth line\r\n";
+        std::fs::write(&test_file, content).unwrap();
+
+        let options = SearchOptions {
+            mode: SearchMode::Regex,
+            query: "match".to_string(),
+            path: test_file.clone(),
+            recursive: false,
+            ..Default::default()
+        };
+
+        let results = search(&options).await.unwrap();
+        assert_eq!(results.len(), 1);
+
+        let result = &results[0];
+
+        // Verify the match is on line 3
+        assert_eq!(result.span.line_start, 3);
+
+        // Verify byte offset accounts for \r\n endings
+        // first line\r\n = 12 bytes, second line\r\n = 13 bytes, total = 25 bytes before "match"
+        let expected_byte_start = 25; // Position of "match" in the content
+        assert_eq!(result.span.byte_start, expected_byte_start);
+    }
+
+    #[test]
+    fn test_split_lines_with_endings_helper() {
+        // Unix line endings
+        let unix_content = "line1\nline2\nline3\n";
+        let (unix_lines, unix_endings) = split_lines_with_endings(unix_content);
+        assert_eq!(unix_lines, vec!["line1", "line2", "line3"]);
+        assert_eq!(unix_endings, vec![1, 1, 1]);
+
+        // Windows line endings
+        let windows_content = "line1\r\nline2\r\nline3\r\n";
+        let (windows_lines, windows_endings) = split_lines_with_endings(windows_content);
+        assert_eq!(windows_lines, vec!["line1", "line2", "line3"]);
+        assert_eq!(windows_endings, vec![2, 2, 2]);
+
+        // Old Mac line endings
+        let mac_content = "line1\rline2\rline3\r";
+        let (mac_lines, mac_endings) = split_lines_with_endings(mac_content);
+        assert_eq!(mac_lines, vec!["line1", "line2", "line3"]);
+        assert_eq!(mac_endings, vec![1, 1, 1]);
+
+        // Mixed endings
+        let mixed_content = "line1\nline2\r\nline3\r";
+        let (mixed_lines, mixed_endings) = split_lines_with_endings(mixed_content);
+        assert_eq!(mixed_lines, vec!["line1", "line2", "line3"]);
+        assert_eq!(mixed_endings, vec![1, 2, 1]);
+
+        // No line endings
+        let no_endings = "single line";
+        let (no_lines, no_endings_vec) = split_lines_with_endings(no_endings);
+        assert_eq!(no_lines, vec!["single line"]);
+        assert_eq!(no_endings_vec, vec![0]);
     }
 }
