@@ -1143,7 +1143,7 @@ async fn ensure_index_updated_with_progress(
     if force_reindex {
         let stats = ck_index::smart_update_index_with_detailed_progress(
             index_root,
-            false,
+            true,
             progress_callback,
             detailed_progress_callback,
             need_embeddings,
