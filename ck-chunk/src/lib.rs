@@ -229,12 +229,31 @@ fn chunk_generic_with_token_config(text: &str, model_name: Option<&str>) -> Resu
     let chunk_size = target_lines.max(5); // Minimum 5 lines
     let overlap = overlap_lines.max(1); // Minimum 1 line overlap
 
-    // Pre-compute cumulative byte offsets for O(1) lookup
+    // Pre-compute cumulative byte offsets for O(1) lookup, accounting for different line endings
     let mut line_byte_offsets = Vec::with_capacity(lines.len() + 1);
     line_byte_offsets.push(0);
     let mut cumulative_offset = 0;
-    for line in &lines {
-        cumulative_offset += line.len() + 1; // +1 for newline
+    let mut byte_pos = 0;
+
+    for line in lines.iter() {
+        cumulative_offset += line.len();
+
+        // Find the actual line ending length in the original text
+        let line_end_pos = byte_pos + line.len();
+        let newline_len = if line_end_pos < text.len() && text.as_bytes()[line_end_pos] == b'\r' {
+            if line_end_pos + 1 < text.len() && text.as_bytes()[line_end_pos + 1] == b'\n' {
+                2 // CRLF
+            } else {
+                1 // CR only (old Mac)
+            }
+        } else if line_end_pos < text.len() && text.as_bytes()[line_end_pos] == b'\n' {
+            1 // LF only (Unix)
+        } else {
+            0 // No newline at this position (could be last line without newline)
+        };
+
+        cumulative_offset += newline_len;
+        byte_pos = cumulative_offset;
         line_byte_offsets.push(cumulative_offset);
     }
 
@@ -245,7 +264,7 @@ fn chunk_generic_with_token_config(text: &str, model_name: Option<&str>) -> Resu
         let chunk_text = chunk_lines.join("\n");
 
         let byte_start = line_byte_offsets[i];
-        let byte_end = byte_start + chunk_text.len();
+        let byte_end = line_byte_offsets[end];
 
         chunks.push(Chunk {
             span: Span {
@@ -332,7 +351,7 @@ fn extract_code_chunks(
             "signature"
                 | "data_type"
                 | "newtype"
-                | "type_synomym"
+                | "type_synonym"
                 | "type_family"
                 | "class"
                 | "instance"
@@ -466,21 +485,21 @@ fn apply_striding(chunks: Vec<Chunk>, config: &ChunkConfig) -> Result<Vec<Chunk>
 /// Create strided chunks from a large chunk that exceeds token limits
 fn stride_large_chunk(chunk: Chunk, config: &ChunkConfig) -> Result<Vec<Chunk>> {
     let text = &chunk.text;
-    let text_len = text.len();
 
     // Early return for empty chunks to avoid divide-by-zero
     if text.is_empty() {
         return Ok(vec![chunk]);
     }
 
-    // Calculate stride parameters in characters (approximate)
+    // Calculate stride parameters in characters (not bytes!)
     // Use a conservative estimate to ensure we stay under token limits
+    let char_count = text.chars().count();
     let estimated_tokens = estimate_tokens(text);
     // Guard against zero token estimate to prevent divide-by-zero panic
     let chars_per_token = if estimated_tokens == 0 {
         4.5 // Use default average if estimation fails
     } else {
-        text_len as f32 / estimated_tokens as f32
+        char_count as f32 / estimated_tokens as f32
     };
     let window_chars = ((config.max_tokens as f32 * 0.9) * chars_per_token) as usize; // 10% buffer
     let overlap_chars = (config.stride_overlap as f32 * chars_per_token) as usize;
@@ -490,32 +509,49 @@ fn stride_large_chunk(chunk: Chunk, config: &ChunkConfig) -> Result<Vec<Chunk>> 
         return Err(anyhow::anyhow!("Stride size is too small"));
     }
 
+    // Build char to byte index mapping to handle UTF-8 safely
+    let char_byte_indices: Vec<(usize, char)> = text.char_indices().collect();
+    // Note: char_count is already calculated above, just reference it here
+
     let mut strided_chunks = Vec::new();
     let original_chunk_id = format!("{}:{}", chunk.span.byte_start, chunk.span.byte_end);
-    let mut start_pos = 0;
+    let mut start_char_idx = 0;
     let mut stride_index = 0;
 
     // Calculate total number of strides
-    let total_strides = if text_len <= window_chars {
+    let total_strides = if char_count <= window_chars {
         1
     } else {
-        ((text_len - overlap_chars) as f32 / stride_chars as f32).ceil() as usize
+        ((char_count - overlap_chars) as f32 / stride_chars as f32).ceil() as usize
     };
 
-    while start_pos < text_len {
-        let end_pos = (start_pos + window_chars).min(text_len);
-        let stride_text = &text[start_pos..end_pos];
+    while start_char_idx < char_count {
+        let end_char_idx = (start_char_idx + window_chars).min(char_count);
+
+        // Get byte positions from char indices
+        let start_byte_pos = char_byte_indices[start_char_idx].0;
+        let end_byte_pos = if end_char_idx < char_count {
+            char_byte_indices[end_char_idx].0
+        } else {
+            text.len()
+        };
+
+        let stride_text = &text[start_byte_pos..end_byte_pos];
 
         // Calculate overlap information
         let overlap_start = if stride_index > 0 { overlap_chars } else { 0 };
-        let overlap_end = if end_pos < text_len { overlap_chars } else { 0 };
+        let overlap_end = if end_char_idx < char_count {
+            overlap_chars
+        } else {
+            0
+        };
 
         // Calculate span for this stride
-        let byte_offset_start = chunk.span.byte_start + start_pos;
-        let byte_offset_end = chunk.span.byte_start + end_pos;
+        let byte_offset_start = chunk.span.byte_start + start_byte_pos;
+        let byte_offset_end = chunk.span.byte_start + end_byte_pos;
 
         // Estimate line numbers (approximate)
-        let text_before_start = &text[..start_pos];
+        let text_before_start = &text[..start_byte_pos];
         let line_offset_start = text_before_start.lines().count().saturating_sub(1);
         let stride_lines = stride_text.lines().count();
 
@@ -543,11 +579,11 @@ fn stride_large_chunk(chunk: Chunk, config: &ChunkConfig) -> Result<Vec<Chunk>> 
         strided_chunks.push(stride_chunk);
 
         // Move to next stride
-        if end_pos >= text_len {
+        if end_char_idx >= char_count {
             break;
         }
 
-        start_pos += stride_chars;
+        start_char_idx += stride_chars;
         stride_index += 1;
     }
 

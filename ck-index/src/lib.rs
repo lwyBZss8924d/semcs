@@ -1069,7 +1069,8 @@ fn index_single_file_with_progress(
         ck_core::Language::from_path(file_path)
     };
 
-    let chunks = ck_chunk::chunk_text(&content, lang)?;
+    let model_name = embedder.as_ref().map(|e| e.model_name());
+    let chunks = ck_chunk::chunk_text_with_model(&content, lang, model_name)?;
 
     let chunk_entries: Vec<ChunkEntry> = if let Some(embedder) = embedder {
         let total_chunks = chunks.len();
@@ -1442,6 +1443,10 @@ mod tests {
             384
         }
 
+        fn model_name(&self) -> &str {
+            "test-empty-results"
+        }
+
         fn embed(&mut self, _texts: &[String]) -> Result<Vec<Vec<f32>>> {
             // Always return empty vector to trigger the panic scenario
             Ok(Vec::new())
@@ -1458,6 +1463,10 @@ mod tests {
 
         fn dim(&self) -> usize {
             384
+        }
+
+        fn model_name(&self) -> &str {
+            "test-mismatched-count"
         }
 
         fn embed(&mut self, texts: &[String]) -> Result<Vec<Vec<f32>>> {

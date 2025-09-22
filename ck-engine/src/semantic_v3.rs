@@ -218,14 +218,23 @@ pub async fn semantic_search_v3_with_progress(
 
                 match reranker.rerank(&options.query, &documents) {
                     Ok(rerank_results) => {
+                        // Create a map from document text to indices for handling duplicates
+                        let mut doc_to_indices: std::collections::HashMap<String, Vec<usize>> =
+                            std::collections::HashMap::new();
+                        for (i, result) in results.iter().enumerate() {
+                            doc_to_indices
+                                .entry(result.preview.clone())
+                                .or_default()
+                                .push(i);
+                        }
+
                         // Update results with reranked scores
                         // The reranker returns results in reranked order, so we match by document text
                         for rerank_result in rerank_results.iter() {
-                            if let Some(result) = results
-                                .iter_mut()
-                                .find(|r| r.preview == rerank_result.document)
+                            if let Some(indices) = doc_to_indices.get_mut(&rerank_result.document)
+                                && let Some(idx) = indices.pop()
                             {
-                                result.score = rerank_result.score;
+                                results[idx].score = rerank_result.score;
                             }
                         }
 
