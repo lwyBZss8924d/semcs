@@ -405,6 +405,109 @@ pub fn get_default_exclude_patterns() -> Vec<String> {
     ]
 }
 
+/// Get default .ckignore file content
+pub fn get_default_ckignore_content() -> &'static str {
+    r#"# .ckignore - Default patterns for ck semantic search
+# Created automatically during first index
+# Syntax: same as .gitignore (glob patterns, ! for negation)
+
+# Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.svg
+*.ico
+*.webp
+*.tiff
+
+# Video
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.wmv
+*.flv
+*.webm
+
+# Audio
+*.mp3
+*.wav
+*.flac
+*.aac
+*.ogg
+*.m4a
+
+# Binary/Compiled
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.obj
+*.o
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.bz2
+*.gz
+
+# Data files
+*.db
+*.sqlite
+*.sqlite3
+*.parquet
+*.arrow
+
+# Config formats (issue #27)
+*.json
+*.yaml
+*.yml
+
+# Add your custom patterns below this line
+"#
+}
+
+/// Read and parse .ckignore file, returning patterns
+pub fn read_ckignore_patterns(repo_root: &Path) -> Result<Vec<String>> {
+    let ckignore_path = repo_root.join(".ckignore");
+
+    if !ckignore_path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = std::fs::read_to_string(&ckignore_path).map_err(CkError::Io)?;
+
+    let patterns: Vec<String> = content
+        .lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(|line| line.to_string())
+        .collect();
+
+    Ok(patterns)
+}
+
+/// Create .ckignore file with default content if it doesn't exist
+pub fn create_ckignore_if_missing(repo_root: &Path) -> Result<bool> {
+    let ckignore_path = repo_root.join(".ckignore");
+
+    if ckignore_path.exists() {
+        return Ok(false); // Already exists
+    }
+
+    std::fs::write(&ckignore_path, get_default_ckignore_content()).map_err(CkError::Io)?;
+
+    Ok(true) // Created new file
+}
+
 pub fn get_sidecar_path(repo_root: &Path, file_path: &Path) -> PathBuf {
     let relative = file_path.strip_prefix(repo_root).unwrap_or(file_path);
     let mut sidecar = repo_root.join(".ck");
@@ -1091,5 +1194,117 @@ mod tests {
         assert_eq!(Language::TypeScript.to_string(), "typescript");
         assert_eq!(Language::Go.to_string(), "go");
         assert_eq!(Language::Java.to_string(), "java");
+    }
+
+    #[test]
+    fn test_create_ckignore_if_missing() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_path = temp_dir.path();
+
+        // First creation should succeed
+        let created = create_ckignore_if_missing(test_path).unwrap();
+        assert!(created);
+
+        // Check that file exists
+        let ckignore_path = test_path.join(".ckignore");
+        assert!(ckignore_path.exists());
+
+        // Check content contains expected patterns
+        let content = fs::read_to_string(&ckignore_path).unwrap();
+        assert!(content.contains("*.png"));
+        assert!(content.contains("*.json"));
+        assert!(content.contains("*.yaml"));
+        assert!(content.contains("# Images"));
+        assert!(content.contains("# Config formats"));
+
+        // Second creation should return false (already exists)
+        let created_again = create_ckignore_if_missing(test_path).unwrap();
+        assert!(!created_again);
+    }
+
+    #[test]
+    fn test_read_ckignore_patterns() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_path = temp_dir.path();
+
+        // Test with no .ckignore file
+        let patterns = read_ckignore_patterns(test_path).unwrap();
+        assert_eq!(patterns.len(), 0);
+
+        // Create a .ckignore file
+        let ckignore_path = test_path.join(".ckignore");
+        fs::write(
+            &ckignore_path,
+            r#"# Comment line
+*.png
+*.jpg
+
+# Another comment
+*.json
+*.yaml
+"#,
+        )
+        .unwrap();
+
+        // Read patterns
+        let patterns = read_ckignore_patterns(test_path).unwrap();
+        assert_eq!(patterns.len(), 4);
+        assert!(patterns.contains(&"*.png".to_string()));
+        assert!(patterns.contains(&"*.jpg".to_string()));
+        assert!(patterns.contains(&"*.json".to_string()));
+        assert!(patterns.contains(&"*.yaml".to_string()));
+        // Comments should be filtered out
+        assert!(!patterns.iter().any(|p| p.starts_with('#')));
+    }
+
+    #[test]
+    fn test_read_ckignore_patterns_with_empty_lines() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_path = temp_dir.path();
+
+        let ckignore_path = test_path.join(".ckignore");
+        fs::write(
+            &ckignore_path,
+            r#"
+*.png
+
+*.jpg
+
+
+*.json
+"#,
+        )
+        .unwrap();
+
+        let patterns = read_ckignore_patterns(test_path).unwrap();
+        assert_eq!(patterns.len(), 3);
+        assert!(patterns.contains(&"*.png".to_string()));
+        assert!(patterns.contains(&"*.jpg".to_string()));
+        assert!(patterns.contains(&"*.json".to_string()));
+    }
+
+    #[test]
+    fn test_get_default_ckignore_content() {
+        let content = get_default_ckignore_content();
+
+        // Check that default content includes key patterns
+        assert!(content.contains("*.png"));
+        assert!(content.contains("*.jpg"));
+        assert!(content.contains("*.mp4"));
+        assert!(content.contains("*.mp3"));
+        assert!(content.contains("*.exe"));
+        assert!(content.contains("*.zip"));
+        assert!(content.contains("*.db"));
+        assert!(content.contains("*.json"));
+        assert!(content.contains("*.yaml"));
+
+        // Check that it has comments
+        assert!(content.contains("# Images"));
+        assert!(content.contains("# Video"));
+        assert!(content.contains("# Audio"));
+        assert!(content.contains("# Config formats"));
+
+        // Check for issue reference
+        assert!(content.contains("issue #27"));
     }
 }

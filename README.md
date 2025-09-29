@@ -104,12 +104,21 @@ ck --hybrid --threshold 0.02 query  # Filter by minimum relevance
 Semantic and hybrid searches transparently create and refresh their indexes before running. The first search builds what it needs; subsequent searches only touch files that changed.
 
 ### 📁 **Smart File Filtering**
-Automatically excludes cache directories, build artifacts, and respects `.gitignore` files:
+Automatically excludes cache directories, build artifacts, and respects `.gitignore` and `.ckignore` files:
 
 ```bash
-ck "pattern" .                           # Follows .gitignore rules
-ck --no-ignore "pattern" .               # Search all files including ignored ones
+# ck respects multiple exclusion layers (all are additive):
+ck "pattern" .                           # Uses .gitignore + .ckignore + defaults
+ck --no-ignore "pattern" .               # Skip .gitignore (still uses .ckignore)
+ck --no-ckignore "pattern" .             # Skip .ckignore (still uses .gitignore)
 ck --exclude "dist" --exclude "logs" .   # Add custom exclusions
+
+# .ckignore file (created automatically on first index):
+# - Excludes images, videos, audio, binaries, archives by default
+# - Excludes JSON/YAML config files (issue #27)
+# - Uses same syntax as .gitignore (glob patterns, ! for negation)
+# - Persists across searches (issue #67)
+# - Located at repository root, editable for custom patterns
 
 # Exclusion patterns use .gitignore syntax:
 ck --exclude "node_modules" .            # Exclude directory and all contents
@@ -117,6 +126,8 @@ ck --exclude "*.test.js" .                # Exclude files matching pattern
 ck --exclude "build/" --exclude "*.log" . # Multiple exclusions
 # Note: Patterns are relative to the search root
 ```
+
+**Why .ckignore?** While `.gitignore` handles version control exclusions, many files that *should* be in your repo aren't ideal for semantic search. Config files (`package.json`, `tsconfig.json`), images, videos, and data files add noise to search results and slow down indexing. `.ckignore` lets you focus semantic search on actual code while keeping everything else in git. Think of it as "what should I search" vs "what should I commit".
 
 ## 🛠 Advanced Usage
 

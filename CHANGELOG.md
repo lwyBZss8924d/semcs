@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.3] - 2025-09-29
+
+### Added
+- **`.ckignore` file support**: Automatic creation of `.ckignore` file with sensible defaults for persistent exclusion patterns
+- **Media file exclusions**: Images (png, jpg, gif, svg, etc.), videos (mp4, avi, mov, etc.), and audio files (mp3, wav, flac, etc.) excluded by default
+- **Config file exclusions**: JSON and YAML files excluded from indexing by default to reduce noise in search results
+- **`--no-ckignore` flag**: Option to bypass `.ckignore` patterns when needed
+- **Persistent patterns**: Exclusion patterns persist across searches without needing command-line flags each time
+
+### Fixed
+- **Exclusion pattern persistence** (issue #67): Patterns now persist in `.ckignore` instead of requiring `--exclude` flags on every search
+- **Media file indexing** (issue #66): Images, videos, and other binary files no longer indexed by default
+- **Config file noise** (issue #27): JSON/YAML config files excluded to focus search on actual code
+
+### Technical
+- **Additive pattern merging**: `.gitignore` + `.ckignore` + CLI + defaults all merge together (not mutually exclusive)
+- **Auto-creation on first index**: `.ckignore` created automatically at repository root during first indexing
+- **Glob pattern syntax**: Uses same pattern syntax as `.gitignore` for familiarity
+- **Comprehensive test coverage**: 4 new tests covering creation, parsing, and exclusion logic
+
 ## [0.4.7] - 2025-09-19
 
 ### Added
