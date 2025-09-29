@@ -238,6 +238,9 @@ struct Cli {
     #[arg(long = "no-ignore", help = "Don't respect .gitignore files")]
     no_ignore: bool,
 
+    #[arg(long = "no-ckignore", help = "Don't respect .ckignore file")]
+    no_ckignore: bool,
+
     #[arg(
         long = "full-section",
         help = "Return complete code sections (functions/classes) instead of just matching lines. Uses tree-sitter to identify semantic boundaries. Supported: Python, JavaScript, TypeScript, Haskell, Rust, Ruby"
@@ -404,12 +407,33 @@ fn should_exclude_path(path: &Path, exclude_patterns: &[String]) -> bool {
     false
 }
 
-fn build_exclude_patterns(cli: &Cli) -> Vec<String> {
+fn build_exclude_patterns(cli: &Cli, repo_root: Option<&Path>) -> Vec<String> {
     let mut patterns = Vec::new();
+
+    // Build exclusion patterns that will be merged with .gitignore (if respected)
+    // Note: These patterns are ADDITIVE with .gitignore, not replacements
+    // Final exclusions = .gitignore + .ckignore + command-line + defaults
+    //
+    // Priority order within these additional patterns:
+    // .ckignore > command-line excludes > defaults
+
+    // 1. Load .ckignore patterns (highest priority among additional patterns)
+    if !cli.no_ckignore
+        && let Some(root) = repo_root
+        && let Ok(ckignore_patterns) = ck_core::read_ckignore_patterns(root)
+        && !ckignore_patterns.is_empty()
+    {
+        patterns.extend(ckignore_patterns);
+    }
+
+    // 2. Add command-line exclude patterns
+    patterns.extend(cli.exclude.clone());
+
+    // 3. Add defaults (lowest priority)
     if !cli.no_default_excludes {
         patterns.extend(ck_core::get_default_exclude_patterns());
     }
-    patterns.extend(cli.exclude.clone());
+
     patterns
 }
 
@@ -487,7 +511,15 @@ async fn run_index_workflow(
         chunk_tokens, overlap_tokens
     ));
 
-    let exclude_patterns = build_exclude_patterns(cli);
+    // Create .ckignore file if it doesn't exist
+    if !cli.no_ckignore
+        && let Ok(created) = ck_core::create_ckignore_if_missing(path)
+        && created
+    {
+        status.info("📄 Created .ckignore with default patterns");
+    }
+
+    let exclude_patterns = build_exclude_patterns(cli, Some(path));
 
     if clean_first {
         let index_dir = path.join(".ck");
@@ -942,12 +974,8 @@ async fn run_cli_mode(cli: Cli) -> Result<()> {
             status.section_header("Cleaning Orphaned Files");
             status.info(&format!("Scanning for orphans in {}", clean_path.display()));
 
-            // Build exclusion patterns
-            let mut exclude_patterns = Vec::new();
-            if !cli.no_default_excludes {
-                exclude_patterns.extend(ck_core::get_default_exclude_patterns());
-            }
-            exclude_patterns.extend(cli.exclude.clone());
+            // Build exclusion patterns using unified builder
+            let exclude_patterns = build_exclude_patterns(&cli, Some(&clean_path));
 
             let cleanup_spinner = status.create_spinner("Removing orphaned entries...");
             let cleanup_stats =
@@ -1140,8 +1168,23 @@ async fn run_cli_mode(cli: Cli) -> Result<()> {
     if let Some(ref pattern) = cli.pattern {
         let reindex = cli.reindex;
 
+        // Determine repo root for .ckignore loading
+        let repo_root_path = cli
+            .files
+            .first()
+            .map(|p| {
+                if p.is_dir() {
+                    p.clone()
+                } else {
+                    p.parent().unwrap_or(p).to_path_buf()
+                }
+            })
+            .unwrap_or_else(|| PathBuf::from("."));
+
+        let repo_root = Some(repo_root_path.as_path());
+
         // Build options to get exclusion patterns
-        let temp_options = build_options(&cli, reindex);
+        let temp_options = build_options(&cli, reindex, repo_root);
 
         let files = if cli.files.is_empty() {
             vec![PathBuf::from(".")]
@@ -1161,7 +1204,7 @@ async fn run_cli_mode(cli: Cli) -> Result<()> {
         let mut closest_overall: Option<ck_core::SearchResult> = None;
 
         for file_path in files {
-            let mut options = build_options(&cli, reindex);
+            let mut options = build_options(&cli, reindex, repo_root);
             options.show_filenames = show_filenames;
             let summary = run_search(pattern.clone(), file_path, options, &status).await?;
             if summary.had_matches {
@@ -1187,7 +1230,7 @@ async fn run_cli_mode(cli: Cli) -> Result<()> {
                 let file_text = format!("{}:", closest.file.display());
 
                 // Get the pattern as a string
-                let options = build_options(&cli, false);
+                let options = build_options(&cli, false, repo_root);
                 let highlighted_preview = highlight_matches(&closest.preview, pattern, &options);
 
                 // Print in red with same format as regular results, with header
@@ -1212,7 +1255,7 @@ async fn run_cli_mode(cli: Cli) -> Result<()> {
     Ok(())
 }
 
-fn build_options(cli: &Cli, reindex: bool) -> SearchOptions {
+fn build_options(cli: &Cli, reindex: bool, repo_root: Option<&Path>) -> SearchOptions {
     let mode = if cli.semantic {
         SearchMode::Semantic
     } else if cli.lexical {
@@ -1227,16 +1270,8 @@ fn build_options(cli: &Cli, reindex: bool) -> SearchOptions {
     let before_context = cli.before_context.unwrap_or(context);
     let after_context = cli.after_context.unwrap_or(context);
 
-    // Build exclusion patterns (as provided; glob semantics applied in ck-search)
-    let mut exclude_patterns = Vec::new();
-
-    // Add default exclusions unless disabled
-    if !cli.no_default_excludes {
-        exclude_patterns.extend(ck_core::get_default_exclude_patterns());
-    }
-
-    // Add user-specified exclusions
-    exclude_patterns.extend(cli.exclude.clone());
+    // Use the unified pattern builder
+    let exclude_patterns = build_exclude_patterns(cli, repo_root);
 
     // Set intelligent defaults for semantic search
     let default_topk = match mode {
