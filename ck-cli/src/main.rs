@@ -1728,7 +1728,7 @@ async fn run_search(
             };
 
             let file_text = if options.show_filenames {
-                format!("{}:", style(result.file.display()).cyan().bold())
+                format!("{}:\n", style(result.file.display()).cyan().bold())
             } else {
                 String::new()
             };
