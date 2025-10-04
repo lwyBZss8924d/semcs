@@ -80,6 +80,7 @@ pub enum ParseableLanguage {
     Ruby,
     Go,
     CSharp,
+    Zig,
 }
 
 impl std::fmt::Display for ParseableLanguage {
@@ -93,6 +94,7 @@ impl std::fmt::Display for ParseableLanguage {
             ParseableLanguage::Ruby => "ruby",
             ParseableLanguage::Go => "go",
             ParseableLanguage::CSharp => "csharp",
+            ParseableLanguage::Zig => "zig",
         };
         write!(f, "{}", name)
     }
@@ -111,6 +113,7 @@ impl TryFrom<ck_core::Language> for ParseableLanguage {
             ck_core::Language::Ruby => Ok(ParseableLanguage::Ruby),
             ck_core::Language::Go => Ok(ParseableLanguage::Go),
             ck_core::Language::CSharp => Ok(ParseableLanguage::CSharp),
+            ck_core::Language::Zig => Ok(ParseableLanguage::Zig),
             _ => Err(anyhow::anyhow!(
                 "Language {:?} is not supported for parsing",
                 lang
@@ -300,6 +303,13 @@ fn chunk_language(text: &str, language: ParseableLanguage) -> Result<Vec<Chunk>>
         ParseableLanguage::Ruby => parser.set_language(&tree_sitter_ruby::language())?,
         ParseableLanguage::Go => parser.set_language(&tree_sitter_go::language())?,
         ParseableLanguage::CSharp => parser.set_language(&tree_sitter_c_sharp::language())?,
+        ParseableLanguage::Zig => {
+            unsafe {
+                let language_fn = tree_sitter_zig::LANGUAGE.into_raw();
+                let language = tree_sitter::Language::from_raw(language_fn() as *const _);
+                parser.set_language(&language)?
+            }
+        }
     }
 
     let tree = parser
@@ -379,6 +389,18 @@ fn extract_code_chunks(
                 | "interface_declaration"
                 | "variable_declaration"
         ),
+        ParseableLanguage::Zig => matches!(
+            node_kind,
+            "function_declaration"
+                | "test_declaration"
+                | "variable_declaration"
+                | "struct_declaration"
+                | "enum_declaration"
+                | "union_declaration"
+                | "opaque_declaration"
+                | "error_set_declaration"
+                | "comptime_declaration"
+        ),
     };
 
     if is_chunk {
@@ -412,7 +434,12 @@ fn extract_code_chunks(
             | "defstruct"
             | "defrecord"
             | "deftype"
-            | "type_declaration" => ChunkType::Class,
+            | "type_declaration"
+            | "struct_declaration"
+            | "enum_declaration"
+            | "union_declaration"
+            | "opaque_declaration"
+            | "error_set_declaration" => ChunkType::Class,
             "method_definition" | "method_declaration" | "defmacro" => ChunkType::Method,
             "data_type"
             | "newtype"
@@ -428,7 +455,9 @@ fn extract_code_chunks(
             | "ns"
             | "var_declaration"
             | "const_declaration"
-            | "variable_declaration" => ChunkType::Module,
+            | "variable_declaration"
+            | "test_declaration"
+            | "comptime_declaration" => ChunkType::Module,
             _ => ChunkType::Text,
         };
 
@@ -782,6 +811,124 @@ func main() {
         assert!(chunk_types.contains(&&ChunkType::Class)); // struct and interface
         assert!(chunk_types.contains(&&ChunkType::Function)); // functions
         assert!(chunk_types.contains(&&ChunkType::Method)); // methods
+    }
+
+    #[test]
+    fn test_chunk_zig() {
+        let zig_code = r#"
+const std = @import("std");
+
+const Calculator = struct {
+    memory: f64,
+
+    pub fn init() Calculator {
+        return Calculator{ .memory = 0.0 };
+    }
+
+    pub fn add(self: *Calculator, a: f64, b: f64) f64 {
+        const result = a + b;
+        self.memory = result;
+        return result;
+    }
+};
+
+const Color = enum {
+    Red,
+    Green,
+    Blue,
+};
+
+const Value = union(enum) {
+    int: i32,
+    float: f64,
+};
+
+const Handle = opaque {};
+
+const MathError = error{
+    DivisionByZero,
+    Overflow,
+};
+
+pub fn multiply(a: i32, b: i32) i32 {
+    return a * b;
+}
+
+pub fn divide(a: i32, b: i32) MathError!i32 {
+    if (b == 0) return error.DivisionByZero;
+    return @divTrunc(a, b);
+}
+
+comptime {
+    @compileLog("Compile-time validation");
+}
+
+pub fn main() !void {
+    var calc = Calculator.init();
+    const result = calc.add(2.0, 3.0);
+    std.debug.print("Result: {}\n", .{result});
+}
+
+test "calculator addition" {
+    var calc = Calculator.init();
+    const result = calc.add(2.0, 3.0);
+    try std.testing.expect(result == 5.0);
+}
+
+test "multiply function" {
+    const result = multiply(3, 4);
+    try std.testing.expect(result == 12);
+}
+"#;
+
+        let chunks = chunk_language(zig_code, ParseableLanguage::Zig).unwrap();
+        assert!(!chunks.is_empty());
+
+        let chunk_types: Vec<&ChunkType> = chunks.iter().map(|c| &c.chunk_type).collect();
+
+        let class_count = chunk_types
+            .iter()
+            .filter(|&&t| t == &ChunkType::Class)
+            .count();
+        let function_count = chunk_types
+            .iter()
+            .filter(|&&t| t == &ChunkType::Function)
+            .count();
+        let module_count = chunk_types
+            .iter()
+            .filter(|&&t| t == &ChunkType::Module)
+            .count();
+
+        assert!(
+            class_count >= 5,
+            "Expected at least 5 Class chunks (struct, enum, union, opaque, error set), found {}",
+            class_count
+        );
+
+        assert!(
+            function_count >= 3,
+            "Expected at least 3 functions (multiply, divide, main), found {}",
+            function_count
+        );
+
+        assert!(
+            module_count >= 4,
+            "Expected at least 4 module-type chunks (const std, comptime, 2 tests), found {}",
+            module_count
+        );
+
+        assert!(
+            chunk_types.contains(&&ChunkType::Class),
+            "Expected to find Class chunks"
+        );
+        assert!(
+            chunk_types.contains(&&ChunkType::Function),
+            "Expected to find Function chunks"
+        );
+        assert!(
+            chunk_types.contains(&&ChunkType::Module),
+            "Expected to find Module chunks"
+        );
     }
 
     #[test]
