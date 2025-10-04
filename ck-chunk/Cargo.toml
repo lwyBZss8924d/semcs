@@ -17,7 +17,6 @@ ck-embed = { version = "0.5.3", path = "../ck-embed" }
 anyhow = { workspace = true }
 serde = { workspace = true }
 tree-sitter = { workspace = true }
-tree-sitter-language = { workspace = true }
 tree-sitter-python = { workspace = true }
 tree-sitter-typescript = { workspace = true }
 tree-sitter-haskell = { workspace = true }

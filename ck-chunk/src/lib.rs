@@ -294,22 +294,16 @@ fn chunk_language(text: &str, language: ParseableLanguage) -> Result<Vec<Chunk>>
     let mut parser = tree_sitter::Parser::new();
 
     match language {
-        ParseableLanguage::Python => parser.set_language(&tree_sitter_python::language())?,
+        ParseableLanguage::Python => parser.set_language(&tree_sitter_python::LANGUAGE.into())?,
         ParseableLanguage::TypeScript | ParseableLanguage::JavaScript => {
-            parser.set_language(&tree_sitter_typescript::language_typescript())?
+            parser.set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())?
         }
-        ParseableLanguage::Haskell => parser.set_language(&tree_sitter_haskell::language())?,
-        ParseableLanguage::Rust => parser.set_language(&tree_sitter_rust::language())?,
-        ParseableLanguage::Ruby => parser.set_language(&tree_sitter_ruby::language())?,
-        ParseableLanguage::Go => parser.set_language(&tree_sitter_go::language())?,
-        ParseableLanguage::CSharp => parser.set_language(&tree_sitter_c_sharp::language())?,
-        ParseableLanguage::Zig => {
-            unsafe {
-                let language_fn = tree_sitter_zig::LANGUAGE.into_raw();
-                let language = tree_sitter::Language::from_raw(language_fn() as *const _);
-                parser.set_language(&language)?
-            }
-        }
+        ParseableLanguage::Haskell => parser.set_language(&tree_sitter_haskell::LANGUAGE.into())?,
+        ParseableLanguage::Rust => parser.set_language(&tree_sitter_rust::LANGUAGE.into())?,
+        ParseableLanguage::Ruby => parser.set_language(&tree_sitter_ruby::LANGUAGE.into())?,
+        ParseableLanguage::Go => parser.set_language(&tree_sitter_go::LANGUAGE.into())?,
+        ParseableLanguage::CSharp => parser.set_language(&tree_sitter_c_sharp::LANGUAGE.into())?,
+        ParseableLanguage::Zig => parser.set_language(&tree_sitter_zig::LANGUAGE.into())?,
     }
 
     let tree = parser
