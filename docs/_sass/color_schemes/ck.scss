@@ -190,16 +190,168 @@ $table-border-color: #30363d;
   }
 }
 
-// Code copy button
+// Enhanced code copy button
 .btn-copy {
-  background-color: #21262d;
-  border: 1px solid #30363d;
-  border-radius: 4px;
-  color: #8b949e;
+  background-color: #58a6ff;
+  border: 1px solid #58a6ff;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  transition: all 0.2s ease;
+  position: relative;
 
   &:hover {
-    background-color: #30363d;
+    background-color: #4493f8;
+    border-color: #4493f8;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(88, 166, 255, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(88, 166, 255, 0.3);
+  }
+
+  // Success state after copying
+  &.copied {
+    background-color: #238636;
+    border-color: #238636;
+
+    &:hover {
+      background-color: #2ea043;
+      border-color: #2ea043;
+    }
+  }
+
+  // Error state
+  &.error {
+    background-color: #f85149;
+    border-color: #f85149;
+
+    &:hover {
+      background-color: #ff6b6b;
+      border-color: #ff6b6b;
+    }
+  }
+}
+
+// Code block container enhancements
+.highlight {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+
+  // Make copy button more prominent
+  .btn-copy {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  // Show copy button on hover
+  &:hover .btn-copy {
+    opacity: 1;
+  }
+
+  // Always show copy button on mobile
+  @media (max-width: 768px) {
+    .btn-copy {
+      opacity: 1;
+    }
+  }
+}
+
+// Inline code styling
+code {
+  background-color: #21262d;
+  color: #58a6ff;
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.9em;
+}
+
+// Code block styling
+pre {
+  background-color: #0d1117;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  position: relative;
+
+  code {
+    background: none;
     color: #f0f6fc;
+    padding: 0;
+    border-radius: 0;
+  }
+}
+
+// Additional code block enhancements
+.highlight {
+  // Add subtle animation on hover
+  transition: box-shadow 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  // Focus state for accessibility
+  &:focus-within {
+    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.3);
+  }
+}
+
+// Copy button animations
+.btn-copy {
+  // Add pulse animation for attention
+  &:hover {
+    animation: pulse 2s infinite;
+  }
+
+  // Success animation
+  &.copied {
+    animation: bounce 0.5s ease;
+  }
+}
+
+// Keyframe animations
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(88, 166, 255, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(88, 166, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(88, 166, 255, 0);
+  }
+}
+
+@keyframes bounce {
+  0%,
+  20%,
+  53%,
+  80%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40%,
+  43% {
+    transform: translate3d(0, -8px, 0);
+  }
+  70% {
+    transform: translate3d(0, -4px, 0);
+  }
+  90% {
+    transform: translate3d(0, -2px, 0);
   }
 }
 

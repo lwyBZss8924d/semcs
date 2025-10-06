@@ -7,115 +7,99 @@ nav_order: 1
 
 # CLI Reference
 
-{: .no_toc }
+Complete command-line interface documentation for ck.
 
-## Table of contents
-{: .no_toc .text-delta }
-
-1. TOC
-{:toc}
-
----
-
-Complete command-line interface documentation for ck. All commands, flags, and options.
-
-## Basic Usage
-
-```bash
-ck [OPTIONS] <PATTERN> [PATH]
-ck [OPTIONS] --sem <QUERY> [PATH]
-ck [OPTIONS] --hybrid <QUERY> [PATH]
-ck [OPTIONS] --tui [PATH]
-ck [OPTIONS] --serve
-```
-
----
-
-## Search Commands
+## Search Modes
 
 ### Semantic Search
 
 ```bash
-ck --sem <QUERY> [PATH]
+ck --sem "query" [path]
 ```
 
-**Description:** Search code by meaning using semantic embeddings.
+Finds code by meaning using embeddings. Defaults to top 10 results with threshold ≥0.6.
 
-**Parameters:**
-- `<QUERY>` - Semantic search query (required)
-- `[PATH]` - Directory to search (default: current directory)
-
-**Examples:**
 ```bash
 ck --sem "error handling" src/
 ck --sem "user authentication" .
-ck --sem "database connection" apps/
+ck --sem --topk 5 "authentication"    # Limit to top 5 results
+ck --sem --threshold 0.8 "auth"       # Higher precision
 ```
 
-### Regex Search (Default)
+### Lexical Search
 
 ```bash
-ck <PATTERN> [PATH]
+ck --lex "query" [path]
 ```
 
-**Description:** Traditional grep-style pattern matching.
+BM25 full-text search with ranking. Automatically indexes before running.
 
-**Parameters:**
-- `<PATTERN>` - Regex pattern (required)
-- `[PATH]` - Directory to search (default: current directory)
-
-**Examples:**
 ```bash
-ck "TODO" src/
-ck "fn test_" tests/
-ck "^use std::" src/
+ck --lex "user authentication" src/
+ck --lex "http client request" .
 ```
 
 ### Hybrid Search
 
 ```bash
-ck --hybrid <QUERY> [PATH]
+ck --hybrid "query" [path]
 ```
 
-**Description:** Combines semantic ranking with keyword filtering.
+Combines regex and semantic results using Reciprocal Rank Fusion.
 
-**Parameters:**
-- `<QUERY>` - Search query (required)
-- `[PATH]` - Directory to search (default: current directory)
-
-**Examples:**
 ```bash
-ck --hybrid "timeout" src/
-ck --hybrid "error" --sem "handling" src/
+ck --hybrid "async function" .
+ck --hybrid "error" --topk 10 .
+ck --hybrid "bug" --threshold 0.02 .  # RRF score threshold
 ```
 
----
+## Result Filtering
+
+### Limit Results
+
+```bash
+ck --topk N "query" .        # Limit to top N results
+ck --limit N "query" .       # Alias for --topk
+```
+
+### Score Thresholds
+
+```bash
+ck --threshold 0.8 "query" . # Minimum score (0.0-1.0 for semantic/lexical)
+ck --threshold 0.02 "query" . # RRF score for hybrid (0.01-0.05)
+```
+
+### Show Scores
+
+```bash
+ck --scores "query" .        # Show similarity scores in output
+```
+
+## Output Formats
+
+### JSON Output
+
+```bash
+ck --json "query" .          # Traditional JSON (single array)
+ck --jsonl "query" .         # JSONL format (one JSON per line)
+ck --json-v1 "query" .       # JSON v1 schema
+ck --no-snippet "query" .    # Exclude code snippets from JSONL
+```
 
 ## Interactive Mode
 
 ### TUI (Text User Interface)
 
 ```bash
-ck --tui [PATH]
+ck --tui [path]
 ```
 
-**Description:** Launch interactive search interface.
+Interactive search interface with live results, arrow key navigation, and editor integration.
 
-**Parameters:**
-- `[PATH]` - Directory to search (default: current directory)
-
-**Options:**
-- `--sem <QUERY>` - Start with semantic query
-- `--regex <PATTERN>` - Start with regex pattern
-
-**Examples:**
 ```bash
 ck --tui .
 ck --tui --sem "error handling" src/
-ck --tui --regex "TODO" .
 ```
-
----
 
 ## MCP Server Mode
 
@@ -125,70 +109,97 @@ ck --tui --regex "TODO" .
 ck --serve
 ```
 
-**Description:** Start Model Context Protocol server for AI agent integration.
+Start Model Context Protocol server for AI agent integration. Provides tools: `semantic_search`, `regex_search`, `hybrid_search`, `index_status`, `reindex`, `health_check`.
 
-**Options:**
-- `--port <PORT>` - Server port (default: stdio)
-- `--host <HOST>` - Server host (default: localhost)
-
-**Examples:**
 ```bash
 ck --serve
-ck --serve --port 8080
 ```
 
----
+## Index Management
 
-## Search Options
+### Check Status
 
-### Result Filtering
+```bash
+ck --status .              # Show index status
+ck --status-verbose .      # Detailed statistics
+```
 
-| Option | Description | Default | Example |
-|--------|-------------|---------|---------|
-| `--threshold <FLOAT>` | Minimum relevance score (0.0-1.0) | 0.6 | `--threshold 0.8` |
-| `--topk <INT>` | Maximum number of results | 100 | `--topk 50` |
-| `--context <INT>` | Lines of context around matches | 2 | `--context 5` |
+### Index Operations
 
-### Output Format
+```bash
+ck --index .               # Create/update index
+ck --clean .               # Remove entire index
+ck --clean-orphans .       # Clean orphaned files only
+ck --add file.rs           # Add single file to index
+ck --reindex .             # Force index update
+```
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--jsonl` | Output in JSONL format | `--jsonl` |
-| `--json` | Output in JSON format | `--json` |
-| `--pretty` | Pretty-print JSON output | `--pretty` |
-| `--no-color` | Disable colored output | `--no-color` |
+### Model Management
 
-### File Filtering
+```bash
+ck --switch-model nomic-v1.5 .     # Switch embedding model
+ck --switch-model jina-code --force .  # Force rebuild with new model
+ck --model bge-small .              # Specify model for indexing
+```
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--glob <PATTERN>` | Glob pattern for file matching | `--glob "*.rs"` |
-| `--ignore-case` | Case-insensitive search | `--ignore-case` |
-| `--invert-match` | Invert match results | `--invert-match` |
+### File Inspection
 
----
+```bash
+ck --inspect file.rs       # Show detailed file metadata
+ck --dump-chunks file.rs   # Visualize chunk boundaries
+```
 
 ## Grep-Compatible Options
 
-### Basic Grep Options
+### Basic Options
 
-| Option | Short | Description | Example |
-|--------|-------|-------------|---------|
-| `--recursive` | `-r` | Search directories recursively | `-r` |
-| `--ignore-case` | `-i` | Case-insensitive search | `-i` |
-| `--line-number` | `-n` | Show line numbers | `-n` |
-| `--count` | `-c` | Count matches per file | `-c` |
-| `--files-with-matches` | `-l` | Show only filenames | `-l` |
-| `--invert-match` | `-v` | Invert match results | `-v` |
+```bash
+ck -n "pattern" .           # Show line numbers
+ck -i "pattern" .           # Case-insensitive search
+ck -r "pattern" .           # Recursive search
+ck -l "pattern" .           # List files with matches
+ck -L "pattern" .           # List files without matches
+ck -w "pattern" .           # Match whole words only
+ck -F "pattern" .           # Fixed string (no regex)
+```
 
-### Advanced Grep Options
+### Context Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--max-count <N>` | Stop after N matches | `--max-count 10` |
-| `--after-context <N>` | Show N lines after match | `--after-context 3` |
-| `--before-context <N>` | Show N lines before match | `--before-context 3` |
-| `--context <N>` | Show N lines before/after | `--context 3` |
+```bash
+ck -C 2 "pattern" .         # Show 2 lines of context
+ck -A 3 "pattern" .         # Show 3 lines after match
+ck -B 1 "pattern" .         # Show 1 line before match
+```
+
+### File Filtering
+
+```bash
+ck --exclude "node_modules" .    # Exclude directories
+ck --no-default-excludes .       # Disable default exclusions
+ck --no-ignore .                 # Don't respect .gitignore
+ck --no-ckignore .               # Don't respect .ckignore
+```
+
+## Advanced Features
+
+### Reranking
+
+```bash
+ck --sem --rerank "query" .      # Enable reranking for better relevance
+ck --sem --rerank-model bge "query" .  # Use specific reranking model
+```
+
+### Full Section Extraction
+
+```bash
+ck --full-section "query" .      # Return complete functions/classes
+```
+
+### Quiet Mode
+
+```bash
+ck -q "query" .                  # Suppress status messages
+```
 
 ---
 

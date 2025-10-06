@@ -5,71 +5,52 @@ parent: Tutorials
 nav_order: 1
 ---
 
-# Quick Start Tutorial
+# Quick Start
 
-{: .no_toc }
+Install ck and run your first semantic search in 5 minutes.
 
-## Table of contents
-{: .no_toc .text-delta }
+## What You'll Learn
 
-1. TOC
-{:toc}
-
----
-
-**Goal:** Install ck and run your first semantic search in 5 minutes.
-
-**You'll learn:**
-- How to install ck
-- Run a basic semantic search
-- Understand search results
+- Install ck from crates.io
+- Run semantic search to find code by meaning
+- Understand search results and relevance scores
+- Use traditional grep-style search
 
 ---
 
-## Step 1: Install ck
+## Install ck
 
 ```bash
 cargo install ck-search
 ```
 
-**Verification:**
+Verify installation:
 ```bash
 ck --version
-# Should output: ck 0.5.x
 ```
 
-{: .note }
-**Don't have Rust?** Install it first: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+If you don't have Rust installed, install it first:
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
 
 ---
 
-## Step 2: Navigate to a Codebase
+## Your First Semantic Search
+
+Navigate to any codebase and run your first semantic search:
 
 ```bash
-# Use any codebase - here's an example
 cd ~/projects/your-repo
-
-# Or clone a sample project
-git clone https://github.com/BeaconBay/ck
-cd ck
-```
-
----
-
-## Step 3: Your First Semantic Search
-
-Let's find error handling code:
-
-```bash
 ck --sem "error handling" src/
 ```
 
-**What happens:**
-1. First run creates an index (~1-2 seconds)
-2. Search completes and shows results
-3. Each result has a relevance score (0.0 - 1.0)
+This command:
+1. Automatically builds an index on first run (1-2 seconds)
+2. Finds code related to error handling by meaning, not just text
+3. Returns the top 10 most relevant results with scores
 
-**Example output:**
+Example output:
 ```
 src/lib.rs:45-67 (0.92)
 pub fn handle_error(e: Error) -> Result<()> {
@@ -88,42 +69,37 @@ pub enum AppError {
 }
 ```
 
----
-
-## Step 4: Understanding Results
+## Understanding Results
 
 Each result shows:
 - **File path and line numbers:** `src/lib.rs:45-67`
 - **Relevance score:** `(0.92)` - higher is more relevant
 - **Code snippet:** The actual matching code
 
-**Score guide:**
+Relevance scores:
 - **0.9+**: Extremely relevant
-- **0.8-0.9**: Highly relevant
+- **0.8-0.9**: Highly relevant  
 - **0.7-0.8**: Relevant
 - **< 0.7**: May be tangentially related
 
 ---
 
-## Step 5: Try Different Searches
+## Try Different Searches
 
 ```bash
 # Find authentication code
 ck --sem "user authentication" src/
 
-# Find caching logic
+# Find caching logic  
 ck --sem "cache implementation" .
 
 # Find async task spawning
 ck --sem "spawn async task" src/
 ```
 
-{: .tip }
-**Notice:** ck finds relevant code even without exact keyword matches!
+## Traditional Grep Still Works
 
----
-
-## Step 6: Traditional Grep Still Works
+ck is fully grep-compatible:
 
 ```bash
 # Find todos
@@ -136,61 +112,42 @@ ck -i "fixme" .
 ck -n "fn main" src/
 ```
 
-ck is grep-compatible, so all your muscle memory works!
-
 ---
 
-## What Just Happened?
+## How It Works
 
-1. **Index created:** On first search, ck analyzed your code and created embeddings
-2. **Semantic search:** Found code by meaning, not just text matching
-3. **Ranked results:** Showed most relevant matches first
-4. **Chunking:** Results are complete functions/classes, not just lines
-
----
+1. **Automatic indexing:** ck analyzed your code and created semantic embeddings
+2. **Semantic matching:** Found code by meaning, not just text matching  
+3. **Ranked results:** Returned the most relevant matches first
+4. **Smart chunking:** Results show complete functions/classes, not just lines
 
 ## Next Steps
 
-✅ **You've completed the quick start!**
-
-**→ Learn interactive search:** [First TUI Session](first-tui-session.html)
-
-**→ Set up AI integration:** [AI Integration](../ai-integration/mcp-quickstart.html)
-
-**→ Understand search modes:** [Search Modes Explained](../explanation/search-modes.html)
-
-**→ Need help?** Check [How-To Guides](../how-to/) for specific tasks
-
----
+- **Interactive search:** [TUI Guide](first-tui-session.html)
+- **AI integration:** [MCP Setup](../ai-integration/mcp-quickstart.html)
+- **Search modes:** [Search Modes](../explanation/search-modes.html)
+- **Common tasks:** [How-To Guides](../how-to/)
 
 ## Troubleshooting
 
-**❌ Command not found**
+**Command not found:**
 ```bash
-# Add cargo to PATH
-echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
+export PATH="$HOME/.cargo/bin:$PATH"
 ```
 
-**❌ No results**
+**No results:**
 ```bash
-# Check index was created
+# Check if index exists
 ls .ck/
 
-# Try regex to verify files exist
+# Try regex search to verify files exist
 ck "fn " src/
 
 # Lower threshold for more results
 ck --sem "query" --threshold 0.5 src/
 ```
 
-**❌ Slow indexing**
-- Normal on first run (1-2 seconds for medium repos)
+**Slow first search:**
+- Normal behavior - indexing takes 1-2 seconds for medium repos
 - Subsequent searches are instant
-- Large repos (>10k files) may take 10-30 seconds
-
----
-
-**Time spent:** ~5 minutes
-**Skills gained:** Basic semantic search, understanding results
-**Next:** [Interactive TUI](first-tui-session.html)
+- Large repos may take longer on first run

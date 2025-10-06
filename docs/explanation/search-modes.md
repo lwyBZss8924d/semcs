@@ -7,13 +7,11 @@ nav_order: 1
 
 # Search Modes
 
-ck supports three complementary search modes, each optimized for different use cases.
+ck supports four search modes, each optimized for different use cases.
 
 ## Semantic Search (`--sem`)
 
-Find code by **meaning**, not just text matching. Powered by local embeddings that understand programming concepts.
-
-### How It Works
+Find code by meaning using local embeddings. Defaults to top 10 results with threshold ≥0.6.
 
 ```bash
 ck --sem "error handling" src/
@@ -21,32 +19,30 @@ ck --sem "error handling" src/
 
 **What it finds:**
 - `try/catch` blocks
-- `Result<T, E>` returns
+- `Result<T, E>` returns  
 - `match` expressions on errors
 - Custom error types
 - Panic handling
-- ...even if the words "error" or "handling" don't appear
+- Even when exact words aren't present
 
 **Technology:**
-- Uses local embedding models (no cloud API required)
-- Understands code semantics and programming patterns
-- Ranks results by relevance (0.0 - 1.0 score)
-- Works across different programming paradigms
+- Local embedding models (no cloud API)
+- Semantic understanding of programming concepts
+- Relevance scoring (0.0 - 1.0)
+- Cross-language pattern recognition
 
-### When to Use Semantic Search
+### When to Use
 
-✅ **Great for:**
+**Best for:**
 - Finding conceptual patterns ("authentication", "caching", "rate limiting")
 - Learning how something is implemented in a codebase
 - Finding similar implementations across different files
 - Code discovery and exploration
-- When you know what you want but not the exact syntax
 
-❌ **Not ideal for:**
+**Not ideal for:**
 - Exact string matching
 - Syntax patterns (use regex)
 - Very specific identifiers (use regex)
-- Maximum performance (indexing has overhead)
 
 ### Examples
 
@@ -106,20 +102,41 @@ Semantic search operates on **code chunks** - meaningful units of code identifie
 
 See [Language Support](language-support.html) for chunking details per language.
 
-## Regex Search (default)
+## Lexical Search (`--lex`)
 
-Traditional grep-style pattern matching. Fast, precise, and familiar.
-
-### How It Works
+BM25 full-text search with ranking. Automatically indexes before running.
 
 ```bash
-# Simple string search
+ck --lex "user authentication" src/
+ck --lex "http client request" .
+```
+
+**What it finds:**
+- Full-text matches with relevance ranking
+- Better than regex for phrases
+- Handles synonyms and related terms
+- Fast text-based search
+
+**Technology:**
+- BM25 ranking algorithm
+- Automatic indexing
+- Fast text processing
+- No embedding computation
+
+### When to Use
+
+**Best for:**
+- Phrase-based searches
+- Full-text search with ranking
+- When you want better than regex but faster than semantic
+
+## Regex Search (default)
+
+Traditional grep-style pattern matching. No indexing required.
+
+```bash
 ck "TODO" src/
-
-# Regex pattern
 ck "fn \w+_test" src/
-
-# Case-insensitive
 ck -i "fixme" src/
 ```
 
@@ -135,16 +152,16 @@ ck -i "fixme" src/
 - Grep-compatible flags
 - Maximum performance
 
-### When to Use Regex Search
+### When to Use
 
-✅ **Great for:**
+**Best for:**
 - Finding exact strings ("TODO", "FIXME", specific function names)
 - Syntax patterns (`fn \w+`, `class \w+Test`)
 - Fast searches without indexing overhead
 - Grep-compatible workflows
 - Simple text matching
 
-❌ **Not ideal for:**
+**Not ideal for:**
 - Conceptual searches
 - Finding variations of an implementation
 - Learning how something is done
@@ -194,22 +211,23 @@ ck -l "async fn" src/
 
 ## Hybrid Search (`--hybrid`)
 
-Combines semantic ranking with keyword filtering. Best of both worlds.
-
-### How It Works
+Combines regex and semantic results using Reciprocal Rank Fusion.
 
 ```bash
 ck --hybrid "timeout" src/
+ck --hybrid "error" --topk 10 .
+ck --hybrid "bug" --threshold 0.02 .  # RRF score threshold
 ```
 
 **What it finds:**
-- Files that contain the keyword "timeout"
-- Ranked by semantic relevance to "timeout handling"
-- Filtered to only show chunks with the keyword
+- Combines regex and semantic search results
+- Uses RRF (Reciprocal Rank Fusion) for ranking
+- Balances precision and recall
+- Filters by RRF score (0.01-0.05 range)
 
 **Benefits:**
-- Semantic relevance ranking
-- Keyword precision filtering
+- Best of both worlds
+- Keyword precision + semantic understanding
 - Fewer false positives than pure semantic
 - More context than pure regex
 

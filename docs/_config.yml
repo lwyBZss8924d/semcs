@@ -34,6 +34,10 @@ color_scheme: ck
 # Code copy button
 enable_copy_code_button: true
 
+# Custom JavaScript
+head_scripts:
+  - /assets/js/copy-enhancement.js
+
 # Mermaid diagrams
 mermaid:
   version: "9.1.3"
