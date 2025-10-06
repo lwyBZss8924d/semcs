@@ -1,0 +1,7 @@
+title: ck Documentation
+description: Semantic code search that understands what you're looking for
+theme: jekyll-theme-cayman
+show_downloads: true
+github:
+  repository_url: https://github.com/BeaconBay/ck
+  is_project_page: true
