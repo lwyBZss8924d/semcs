@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Your First TUI Session
-parent: Tutorials
+parent: 🎓 Tutorials
 nav_order: 2
 ---
 
