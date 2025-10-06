@@ -5,6 +5,8 @@ parent: Tutorials
 nav_order: 2
 ---
 
+# Your First TUI Session
+
 {: .no_toc }
 
 ## Table of contents
@@ -14,8 +16,6 @@ nav_order: 2
 {:toc}
 
 ---
-
-# Your First TUI Session
 
 **Goal:** Master ck's interactive search interface in 10 minutes.
 
@@ -90,6 +90,7 @@ ck --tui .
 - **`g`** - Jump to first result
 - **`G`** - Jump to last result
 
+{: .tip }
 **Notice:** Preview updates as you navigate!
 
 ---
@@ -281,16 +282,19 @@ Try this realistic workflow:
 
 ## Tips & Tricks
 
+{: .tip }
 **💡 Quick iteration:**
 - Don't overthink queries - just start typing
 - Use `i` to quickly modify search
 - Try different modes (`s`/`r`/`h`) on same query
 
+{: .tip }
 **💡 Preview modes:**
 - Chunks: Best for understanding structure
 - Heatmap: Best for finding most relevant code
 - Full-file: Best for context
 
+{: .tip }
 **💡 Efficient navigation:**
 - Use `g`/`G` to jump to extremes
 - Use `Ctrl+d`/`Ctrl+u` for fast scrolling
@@ -310,9 +314,9 @@ Try this realistic workflow:
 
 ## Next Steps
 
-**→ Connect AI agents:** [Setup AI Integration](setup-ai-integration.html)
+**→ Connect AI agents:** [AI Integration](../ai-integration/mcp-quickstart.html)
 
-**→ Deep dive TUI features:** [TUI Guide](../reference/tui.html) (full reference)
+**→ Deep dive TUI features:** [TUI Reference](../reference/tui.html) (full reference)
 
 **→ Understand search modes:** [Search Modes Explained](../explanation/search-modes.html)
 
@@ -322,4 +326,4 @@ Try this realistic workflow:
 
 **Time spent:** ~10 minutes
 **Skills gained:** Interactive search, preview modes, editor integration
-**Next:** [AI Integration](setup-ai-integration.html)
+**Next:** [AI Integration](../ai-integration/mcp-quickstart.html)

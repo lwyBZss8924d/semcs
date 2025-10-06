@@ -5,6 +5,8 @@ parent: Tutorials
 nav_order: 1
 ---
 
+# Quick Start Tutorial
+
 {: .no_toc }
 
 ## Table of contents
@@ -14,8 +16,6 @@ nav_order: 1
 {:toc}
 
 ---
-
-# Quick Start Tutorial
 
 **Goal:** Install ck and run your first semantic search in 5 minutes.
 
@@ -38,7 +38,8 @@ ck --version
 # Should output: ck 0.5.x
 ```
 
-> **Don't have Rust?** Install it first: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+{: .note }
+**Don't have Rust?** Install it first: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 
 ---
 
@@ -117,6 +118,7 @@ ck --sem "cache implementation" .
 ck --sem "spawn async task" src/
 ```
 
+{: .tip }
 **Notice:** ck finds relevant code even without exact keyword matches!
 
 ---
@@ -153,7 +155,7 @@ ck is grep-compatible, so all your muscle memory works!
 
 **→ Learn interactive search:** [First TUI Session](first-tui-session.html)
 
-**→ Set up AI integration:** [Setup AI Integration](setup-ai-integration.html)
+**→ Set up AI integration:** [AI Integration](../ai-integration/mcp-quickstart.html)
 
 **→ Understand search modes:** [Search Modes Explained](../explanation/search-modes.html)
 

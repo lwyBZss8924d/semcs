@@ -64,9 +64,9 @@ ck --serve
 <p><strong>Learning-oriented</strong> • Step-by-step lessons</p>
 <p>Perfect for newcomers. Follow these tutorials to get productive with ck quickly.</p>
 <div class="divio-links">
-<a href="tutorials/quick-start">Quick Start (5 min)</a>
-<a href="tutorials/first-tui-session">Interactive TUI</a>
-<a href="tutorials/installation">Installation Guide</a>
+<a href="tutorials/quick-start.html">Quick Start (5 min)</a>
+<a href="tutorials/first-tui-session.html">Interactive TUI</a>
+<a href="tutorials/installation.html">Installation Guide</a>
 </div>
 </div>
 
@@ -76,9 +76,9 @@ ck --serve
 <p><strong>Problem-oriented</strong> • Step-by-step recipes</p>
 <p>Practical guides for specific tasks and common workflows.</p>
 <div class="divio-links">
-<a href="how-to/find-patterns">Find Specific Patterns</a>
-<a href="how-to/editor-integration">Editor Integration</a>
-<a href="how-to/large-codebases">Large Codebases</a>
+<a href="how-to/find-patterns.html">Find Specific Patterns</a>
+<a href="how-to/editor-integration.html">Editor Integration</a>
+<a href="how-to/large-codebases.html">Large Codebases</a>
 </div>
 </div>
 
@@ -88,9 +88,9 @@ ck --serve
 <p><strong>Information-oriented</strong> • Technical specifications</p>
 <p>Complete API documentation and reference materials.</p>
 <div class="divio-links">
-<a href="reference/cli">CLI Reference</a>
-<a href="reference/mcp-api">MCP API</a>
-<a href="reference/configuration">Configuration</a>
+<a href="reference/cli.html">CLI Reference</a>
+<a href="ai-integration/mcp-api.html">MCP API</a>
+<a href="how-to/configuration.html">Configuration</a>
 </div>
 </div>
 
@@ -100,9 +100,9 @@ ck --serve
 <p><strong>Understanding-oriented</strong> • Conceptual deep-dives</p>
 <p>Background, design decisions, and how ck works under the hood.</p>
 <div class="divio-links">
-<a href="explanation/semantic-search">How Semantic Search Works</a>
-<a href="explanation/search-modes">Search Modes Compared</a>
-<a href="explanation/architecture">Architecture</a>
+<a href="explanation/semantic-search.html">How Semantic Search Works</a>
+<a href="explanation/search-modes.html">Search Modes Compared</a>
+<a href="explanation/architecture.html">Architecture</a>
 </div>
 </div>
 
@@ -117,9 +117,9 @@ ck --serve
 <h3>🤖 For Humans Using AI Tools</h3>
 <p>Connect ck to Claude Desktop, Cursor, and other AI coding assistants via MCP.</p>
 <div class="ai-links">
-<a href="ai-integration/mcp-quickstart">MCP Quick Start</a>
-<a href="ai-integration/mcp-api">MCP API Reference</a>
-<a href="ai-integration/examples">Examples</a>
+<a href="ai-integration/mcp-quickstart.html">MCP Quick Start</a>
+<a href="ai-integration/mcp-api.html">MCP API Reference</a>
+<a href="ai-integration/examples.html">Examples</a>
 </div>
 </div>
 </div>
