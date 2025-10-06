@@ -1,6 +1,6 @@
 use anyhow::Result;
 use ck_core::{
-    SearchMode, SearchOptions, SearchResult, get_default_exclude_patterns, pdf,
+    Language, SearchMode, SearchOptions, SearchResult, get_default_exclude_patterns, pdf,
     read_ckignore_patterns,
 };
 use ck_index::{IndexStats, get_index_stats, load_index_entry};
@@ -19,7 +19,8 @@ use ratatui::{
 };
 use serde::{Deserialize, Serialize};
 use shlex::split;
-use std::collections::HashSet;
+use std::cmp::Reverse;
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -29,7 +30,7 @@ use syntect::easy::HighlightLines;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
 use tokio::sync::mpsc::{
-    UnboundedReceiver, UnboundedSender, error::TryRecvError, unbounded_channel,
+    UnboundedReceiver, UnboundedSender, unbounded_channel,
 };
 use tokio::task::JoinHandle;
 
@@ -44,6 +45,12 @@ const COLOR_GRAY: Color = Color::Rgb(150, 150, 150); // Gray - secondary text
 const COLOR_GREEN: Color = Color::Rgb(80, 200, 120); // Green - success, chunk boundaries
 const COLOR_MAGENTA: Color = Color::Rgb(200, 80, 200); // Magenta - special markers
 const COLOR_BLACK: Color = Color::Rgb(0, 0, 0); // Black - backgrounds
+
+// Enhanced chunk colors for better visualization
+const COLOR_CHUNK_HIGHLIGHT: Color = Color::Rgb(255, 165, 0); // Orange - highlighted chunk
+const COLOR_CHUNK_BOUNDARY: Color = Color::Rgb(0, 255, 127); // Spring green - chunk boundaries
+const COLOR_CHUNK_TEXT: Color = Color::Rgb(255, 255, 255); // Bright white - highlighted chunk text
+const COLOR_CHUNK_LINE_NUM: Color = Color::Rgb(255, 215, 0); // Gold - highlighted chunk line numbers
 const SPINNER_FRAMES: [char; 4] = ['|', '/', '-', '\\'];
 
 #[derive(Debug)]
@@ -70,6 +77,344 @@ enum UiEvent {
         generation: u64,
         error: String,
     },
+}
+
+#[derive(Clone)]
+pub struct ChunkColumnChar {
+    pub ch: char,
+    pub is_match: bool,
+}
+
+pub enum ChunkDisplayLine {
+    Label {
+        prefix: usize,
+        text: String,
+    },
+    Content {
+        columns: Vec<ChunkColumnChar>,
+        line_num: usize,
+        text: String,
+        is_match_line: bool,
+        in_matched_chunk: bool,
+        has_any_chunk: bool,
+    },
+    Message(String),
+}
+
+/// Calculate the global depth for each chunk across the entire file
+fn calculate_chunk_depths(
+    all_chunks: &[IndexedChunkMeta],
+) -> std::collections::HashMap<(usize, usize), usize> {
+    use std::collections::HashMap;
+
+    let mut depth_map: HashMap<(usize, usize), usize> = HashMap::new();
+    let mut stack: Vec<(usize, usize, usize)> = Vec::new(); // (start, end, depth)
+
+    // Sort chunks by start line, then by end line (descending) for consistent ordering
+    let mut sorted_chunks: Vec<_> = all_chunks.iter().collect();
+    sorted_chunks.sort_by_key(|meta| (meta.span.line_start, Reverse(meta.span.line_end)));
+
+    for meta in sorted_chunks {
+        let start = meta.span.line_start;
+        let end = meta.span.line_end;
+
+        // Remove chunks from stack that have ended before this chunk starts
+        // Use > instead of >= so chunks ending at the same line don't affect depth
+        stack.retain(|(_, stack_end, _)| *stack_end > start);
+
+        // Current depth is the stack size
+        let depth = stack.len();
+        depth_map.insert((start, end), depth);
+
+        // Add current chunk to stack
+        stack.push((start, end, depth));
+    }
+
+    depth_map
+}
+
+/// Calculate the maximum nesting depth across all chunks
+fn calculate_max_depth(all_chunks: &[IndexedChunkMeta]) -> usize {
+    let depth_map = calculate_chunk_depths(all_chunks);
+    depth_map.values().copied().max().unwrap_or(0) + 1 // +1 because depth is 0-indexed
+}
+
+pub fn collect_chunk_display_lines(
+    lines: &[String],
+    context_start: usize,
+    context_end: usize,
+    match_line: usize,
+    chunk_meta: Option<&IndexedChunkMeta>,
+    all_chunks: &[IndexedChunkMeta],
+    full_file_mode: bool,
+) -> Vec<ChunkDisplayLine> {
+    let mut rows = Vec::new();
+
+    let first_line = context_start + 1;
+    let last_line = context_end;
+
+    // Filter out text chunks for depth calculation - they're not structural elements
+    let structural_chunks: Vec<_> = all_chunks
+        .iter()
+        .filter(|meta| {
+            meta.chunk_type
+                .as_deref()
+                .map(|t| t != "text")
+                .unwrap_or(true)
+        })
+        .cloned()
+        .collect();
+
+    // Collect text chunks separately (imports, comments, etc.)
+    let text_chunks: Vec<_> = all_chunks
+        .iter()
+        .filter(|meta| {
+            meta.chunk_type
+                .as_deref()
+                .map(|t| t == "text")
+                .unwrap_or(false)
+        })
+        .collect();
+
+    // Calculate global depth for structural chunks only
+    let depth_map = calculate_chunk_depths(&structural_chunks);
+    let max_depth = calculate_max_depth(&structural_chunks);
+
+    // Track chunks by their assigned depth
+    let mut depth_slots: Vec<Option<&IndexedChunkMeta>> = vec![None; max_depth];
+    let mut start_map: BTreeMap<usize, Vec<&IndexedChunkMeta>> = BTreeMap::new();
+
+    // Always show all structural chunks in the visible range (like --dump-chunks)
+    // The chunk_meta parameter is only used for highlighting/coloring the matched chunk
+    let source_chunks: Vec<&IndexedChunkMeta> = structural_chunks
+        .iter()
+        .filter(|meta| {
+            // Include chunks that end just before the visible window (for closing brackets)
+            meta.span.line_end >= first_line.saturating_sub(1) && meta.span.line_start <= last_line
+        })
+        .collect();
+
+    // Pre-populate chunks that start before the visible range
+    for meta in &structural_chunks {
+        if meta.span.line_start < first_line && meta.span.line_end >= first_line
+            && let Some(&depth) = depth_map.get(&(meta.span.line_start, meta.span.line_end))
+            && depth < max_depth
+        {
+            depth_slots[depth] = Some(meta);
+        }
+    }
+
+    // Build start map for chunks starting within the visible range
+    for meta in source_chunks {
+        if meta.span.line_start >= first_line {
+            start_map
+                .entry(meta.span.line_start)
+                .or_default()
+                .push(meta);
+        }
+    }
+
+    // Sort chunks at each start line by length (longest first)
+    for starts in start_map.values_mut() {
+        starts.sort_by_key(|meta| Reverse(meta.span.line_end.saturating_sub(meta.span.line_start)));
+    }
+
+    for (idx, line_text) in lines[context_start..context_end].iter().enumerate() {
+        let line_num = context_start + idx + 1;
+        let is_match_line = line_num == match_line;
+
+        // Remove chunks that have ended before this line
+        for slot in depth_slots.iter_mut() {
+            if let Some(meta) = slot
+                && meta.span.line_end < line_num
+            {
+                *slot = None;
+            }
+        }
+
+        // Add chunks starting at this line
+        if let Some(starting) = start_map.remove(&line_num) {
+            for meta in starting {
+                if let Some(&depth) = depth_map.get(&(meta.span.line_start, meta.span.line_end))
+                    && depth < max_depth
+                {
+                    depth_slots[depth] = Some(meta);
+                }
+            }
+        }
+
+        // Add label for matched chunk at its start line
+        if let Some(meta) = chunk_meta
+            && line_num == meta.span.line_start
+        {
+            let chunk_kind = meta.chunk_type.as_deref().unwrap_or("chunk");
+            let breadcrumb_text = meta
+                .breadcrumb
+                .as_deref()
+                .filter(|crumb| !crumb.is_empty())
+                .map(|crumb| format!(" ({})", crumb))
+                .unwrap_or_else(|| {
+                    if !meta.ancestry.is_empty() {
+                        format!(" ({})", meta.ancestry.join("::"))
+                    } else {
+                        String::new()
+                    }
+                });
+            let token_hint = meta
+                .estimated_tokens
+                .map(|tokens| format!(" • {} tokens", tokens))
+                .unwrap_or_default();
+
+            // Create a more bar-like header design with better spacing
+            let bar_text = format!("{} {}{}", chunk_kind, breadcrumb_text, token_hint);
+            rows.push(ChunkDisplayLine::Label {
+                prefix: max_depth,
+                text: bar_text,
+            });
+        }
+
+        // Handle files with no chunks
+        if all_chunks.is_empty() {
+            let is_boundary = line_text.trim_start().starts_with("fn ")
+                || line_text.trim_start().starts_with("func ")
+                || line_text.trim_start().starts_with("def ")
+                || line_text.trim_start().starts_with("class ")
+                || line_text.trim_start().starts_with("impl ")
+                || line_text.trim_start().starts_with("struct ")
+                || line_text.trim_start().starts_with("enum ");
+
+            let columns_chars = if is_boundary {
+                vec![
+                    ChunkColumnChar {
+                        ch: '┣',
+                        is_match: false,
+                    },
+                    ChunkColumnChar {
+                        ch: '━',
+                        is_match: false,
+                    },
+                ]
+            } else {
+                Vec::new()
+            };
+
+            rows.push(ChunkDisplayLine::Content {
+                columns: columns_chars,
+                line_num,
+                text: line_text.clone(),
+                is_match_line,
+                in_matched_chunk: false,
+                has_any_chunk: is_boundary,
+            });
+
+            continue;
+        }
+
+        // Check if this line is covered by a text chunk (import, comment, etc.)
+        let text_chunk_here = text_chunks
+            .iter()
+            .find(|meta| line_num >= meta.span.line_start && line_num <= meta.span.line_end);
+
+        let has_any_structural = depth_slots.iter().any(|slot| slot.is_some());
+        let has_any_chunk = has_any_structural || text_chunk_here.is_some();
+        let in_matched_chunk = chunk_meta
+            .map(|meta| line_num >= meta.span.line_start && line_num <= meta.span.line_end)
+            .unwrap_or(false);
+
+        // Build column characters for all depth levels (fixed width)
+        let mut column_chars: Vec<ChunkColumnChar> = depth_slots
+            .iter()
+            .map(|slot| {
+                if let Some(meta) = slot {
+                    let span = &meta.span;
+                    let ch = if span.line_start == span.line_end {
+                        '─'
+                    } else if line_num == span.line_start {
+                        '┌'
+                    } else if line_num == span.line_end {
+                        '└'
+                    } else {
+                        '│'
+                    };
+                    let is_match = chunk_meta
+                        .map(|m| {
+                            m.span.line_start == span.line_start && m.span.line_end == span.line_end
+                        })
+                        .unwrap_or(false);
+                    ChunkColumnChar { ch, is_match }
+                } else {
+                    ChunkColumnChar {
+                        ch: ' ',
+                        is_match: false,
+                    }
+                }
+            })
+            .collect();
+
+        // If line is ONLY in text chunk (no structural chunks), show with bracket indicator
+        if !has_any_structural
+            && let Some(text_meta) = text_chunk_here
+        {
+            let ch = if text_meta.span.line_start == text_meta.span.line_end {
+                // Single-line text chunk
+                '·'
+            } else if line_num == text_meta.span.line_start {
+                // Start of multi-line text chunk
+                '┌'
+            } else if line_num == text_meta.span.line_end {
+                // End of multi-line text chunk
+                '└'
+            } else {
+                // Middle of multi-line text chunk
+                '│'
+            };
+
+            if column_chars.is_empty() {
+                column_chars.push(ChunkColumnChar {
+                    ch,
+                    is_match: false,
+                });
+            } else {
+                column_chars[0].ch = ch;
+            }
+        }
+
+        rows.push(ChunkDisplayLine::Content {
+            columns: column_chars,
+            line_num,
+            text: line_text.clone(),
+            is_match_line,
+            in_matched_chunk,
+            has_any_chunk,
+        });
+
+        // Remove chunks that end at this line
+        for slot in depth_slots.iter_mut() {
+            if let Some(meta) = slot
+                && meta.span.line_end == line_num
+            {
+                *slot = None;
+            }
+        }
+    }
+
+    // Only show this message in single-chunk mode (not full file mode)
+    if !full_file_mode && chunk_meta.is_none() && !all_chunks.is_empty() {
+        rows.push(ChunkDisplayLine::Message(
+            "Chunk metadata available but no matching chunk found for this line.".to_string(),
+        ));
+    }
+
+    rows
+}
+
+#[allow(dead_code)]
+pub(crate) fn dump_chunk_view(
+    path: &Path,
+    match_line: Option<usize>,
+    full_file_mode: bool,
+) -> Result<Vec<String>, String> {
+    TuiApp::dump_chunk_view_internal(path, match_line, full_file_mode)
 }
 
 pub struct TuiApp {
@@ -205,9 +550,16 @@ struct PreviewCache {
 }
 
 #[derive(Clone)]
-struct IndexedChunkMeta {
-    span: ck_core::Span,
-    chunk_type: Option<String>,
+#[allow(dead_code)]
+pub struct IndexedChunkMeta {
+    pub span: ck_core::Span,
+    pub chunk_type: Option<String>,
+    pub breadcrumb: Option<String>,
+    pub ancestry: Vec<String>,
+    pub estimated_tokens: Option<usize>,
+    pub byte_length: Option<usize>,
+    pub leading_trivia: Option<Vec<String>>,
+    pub trailing_trivia: Option<Vec<String>>,
 }
 
 impl TuiApp {
@@ -305,14 +657,15 @@ impl TuiApp {
             }
 
             // Poll for events with timeout to support debouncing
-            if event::poll(Duration::from_millis(50))? {
-                if let Event::Key(key) = event::read()? {
-                    // Only process key press events, not release
-                    if key.kind != KeyEventKind::Press {
-                        continue;
-                    }
+            if event::poll(Duration::from_millis(50))?
+                && let Event::Key(key) = event::read()?
+            {
+                // Only process key press events, not release
+                if key.kind != KeyEventKind::Press {
+                    continue;
+                }
 
-                    match key.code {
+                match key.code {
                         KeyCode::Esc | KeyCode::Char('q') => {
                             return Ok(());
                         }
@@ -399,7 +752,6 @@ impl TuiApp {
                         _ => {}
                     }
                     self.pump_progress_events();
-                }
             }
         }
     }
@@ -747,17 +1099,14 @@ impl TuiApp {
     }
 
     fn pump_progress_events(&mut self) {
-        loop {
-            match self.progress_rx.try_recv() {
-                Ok(event) => self.handle_progress_event(event),
-                Err(TryRecvError::Empty) | Err(TryRecvError::Disconnected) => break,
-            }
+        while let Ok(event) = self.progress_rx.try_recv() {
+            self.handle_progress_event(event);
         }
 
-        if let Some(handle) = self.active_search.as_ref() {
-            if handle.is_finished() {
-                self.active_search = None;
-            }
+        if let Some(handle) = self.active_search.as_ref()
+            && handle.is_finished()
+        {
+            self.active_search = None;
         }
     }
 
@@ -915,14 +1264,14 @@ impl TuiApp {
         self.state.last_indexing_update = None;
 
         let mut status_message = "Searching...".to_string();
-        if !matches!(self.state.mode, SearchMode::Regex) {
-            if get_index_stats(&self.state.search_path).is_err() {
-                self.state.indexing_active = true;
-                self.state.indexing_message =
-                    Some("Indexing repository for semantic search...".to_string());
-                self.state.indexing_started_at = Some(Instant::now());
-                status_message = "Preparing index...".to_string();
-            }
+        if !matches!(self.state.mode, SearchMode::Regex)
+            && get_index_stats(&self.state.search_path).is_err()
+        {
+            self.state.indexing_active = true;
+            self.state.indexing_message =
+                Some("Indexing repository for semantic search...".to_string());
+            self.state.indexing_started_at = Some(Instant::now());
+            status_message = "Preparing index...".to_string();
         }
         self.state.status_message = status_message;
 
@@ -1077,11 +1426,11 @@ impl TuiApp {
         self.list_state.select(Some(self.state.selected_idx));
 
         // In full file mode, reset scroll to show the matched chunk
-        if self.state.full_file_mode {
-            if let Some(result) = self.state.results.get(self.state.selected_idx) {
-                // Position scroll so matched line is near the top (but with some context above)
-                self.state.scroll_offset = result.span.line_start.saturating_sub(6);
-            }
+        if self.state.full_file_mode
+            && let Some(result) = self.state.results.get(self.state.selected_idx)
+        {
+            // Position scroll so matched line is near the top (but with some context above)
+            self.state.scroll_offset = result.span.line_start.saturating_sub(6);
         }
 
         self.update_preview();
@@ -1099,11 +1448,11 @@ impl TuiApp {
         self.list_state.select(Some(self.state.selected_idx));
 
         // In full file mode, reset scroll to show the matched chunk
-        if self.state.full_file_mode {
-            if let Some(result) = self.state.results.get(self.state.selected_idx) {
-                // Position scroll so matched line is near the top (but with some context above)
-                self.state.scroll_offset = result.span.line_start.saturating_sub(6);
-            }
+        if self.state.full_file_mode
+            && let Some(result) = self.state.results.get(self.state.selected_idx)
+        {
+            // Position scroll so matched line is near the top (but with some context above)
+            self.state.scroll_offset = result.span.line_start.saturating_sub(6);
         }
 
         self.update_preview();
@@ -1205,15 +1554,15 @@ impl TuiApp {
                 .cloned();
 
             // In Chunks mode + snippet mode, show the full chunk instead of ±5 lines
-            if self.state.preview_mode == PreviewMode::Chunks && !self.state.full_file_mode {
-                if let Some(meta) = chunk_meta.as_ref() {
-                    context_start = meta
-                        .span
-                        .line_start
-                        .saturating_sub(1)
-                        .min(lines_ref.len().saturating_sub(1));
-                    context_end = meta.span.line_end.min(lines_ref.len());
-                }
+            if self.state.preview_mode == PreviewMode::Chunks && !self.state.full_file_mode
+                && let Some(meta) = chunk_meta.as_ref()
+            {
+                context_start = meta
+                    .span
+                    .line_start
+                    .saturating_sub(1)
+                    .min(lines_ref.len().saturating_sub(1));
+                context_end = meta.span.line_end.min(lines_ref.len());
             }
 
             if context_end <= context_start {
@@ -1273,12 +1622,13 @@ impl TuiApp {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn render_heatmap_preview(
         &mut self,
         lines: &[String],
         context_start: usize,
         context_end: usize,
-        file_path: &PathBuf,
+        file_path: &Path,
         score: f32,
         match_line: usize,
         query: &str,
@@ -1438,12 +1788,13 @@ impl TuiApp {
         self.state.preview_content.clear();
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn render_chunks_preview(
         &mut self,
         lines: &[String],
         context_start: usize,
         context_end: usize,
-        file_path: &PathBuf,
+        file_path: &Path,
         score: f32,
         match_line: usize,
         chunk_meta: Option<&IndexedChunkMeta>,
@@ -1454,28 +1805,46 @@ impl TuiApp {
 
         let header = if let Some(meta) = chunk_meta {
             let span = &meta.span;
-            let total_lines = span
-                .line_end
-                .saturating_sub(span.line_start)
-                .saturating_add(1);
+            let chunk_kind = meta.chunk_type.as_deref().unwrap_or("chunk");
+            let breadcrumb_display = meta
+                .breadcrumb
+                .as_deref()
+                .filter(|crumb| !crumb.is_empty())
+                .map(|crumb| format!(" • {}", crumb))
+                .unwrap_or_else(|| {
+                    if !meta.ancestry.is_empty() {
+                        format!(" • {}", meta.ancestry.join("::"))
+                    } else {
+                        String::new()
+                    }
+                });
+            let token_display = meta
+                .estimated_tokens
+                .map(|tokens| format!(" • ~{} tokens", tokens))
+                .unwrap_or_default();
+
             format!(
-                "File: {} | Score: {:.3} | {} L{}-{} ({} lines)\n",
+                "File: {} • Score: {:.3}\n{}{}{} • L{}-{}\n",
                 file_path.display(),
                 score,
-                meta.chunk_type.as_deref().unwrap_or("chunk"),
+                chunk_kind,
+                breadcrumb_display,
+                token_display,
                 span.line_start,
-                span.line_end,
-                total_lines
+                span.line_end
             )
         } else if is_pdf {
             format!(
-                "File: {} | Score: {:.3} | Approximate chunk (PDF)\n",
+                "File: {} • Score: {:.3}
+PDF chunk (approximate)
+",
                 file_path.display(),
                 score
             )
         } else {
             format!(
-                "File: {} | Score: {:.3} | Chunk boundaries unavailable\n",
+                "File: {} • Score: {:.3}
+",
                 file_path.display(),
                 score
             )
@@ -1486,180 +1855,337 @@ impl TuiApp {
             Style::default().fg(COLOR_CYAN),
         )]));
 
-        let marker_width = compute_max_chunk_overlap(all_chunks).max(1);
-
-        for (idx, line) in lines[context_start..context_end].iter().enumerate() {
-            let line_num = context_start + idx + 1;
-            let is_match_line = line_num == match_line;
-
-            // Check if this line is in the matched chunk
-            let in_matched_chunk = chunk_meta
-                .map(|meta| {
-                    let span = &meta.span;
-                    line_num >= span.line_start && line_num <= span.line_end
-                })
-                .unwrap_or(false);
-
-            // Find ALL chunks that contain this line (handles overlapping chunks)
-            // In snippet mode, only show the matched chunk to reduce noise
-            let mut chunks_at_line: Vec<&IndexedChunkMeta> = if self.state.full_file_mode {
-                // Full file mode: show all overlapping chunks
-                all_chunks
-                    .iter()
-                    .filter(|meta| {
-                        let span = &meta.span;
-                        line_num >= span.line_start && line_num <= span.line_end
-                    })
-                    .collect()
-            } else {
-                // Snippet mode: only show matched chunk to reduce visual noise
-                chunk_meta
-                    .iter()
-                    .filter(|meta| {
-                        let span = &meta.span;
-                        line_num >= span.line_start && line_num <= span.line_end
-                    })
-                    .cloned()
-                    .collect()
-            };
-
-            // Sort by span size (largest first) for nesting visualization
-            chunks_at_line.sort_by_key(|span| {
-                std::cmp::Reverse(span.span.line_end.saturating_sub(span.span.line_start))
-            });
-
-            // Build nested boundary markers for overlapping chunks
-            let boundary_marker = if chunks_at_line.is_empty() {
-                " ".repeat(marker_width)
-            } else {
-                let mut markers = String::new();
-                for (depth, meta) in chunks_at_line.iter().enumerate() {
-                    if depth >= marker_width {
-                        break;
-                    } // Respect calculated overlap width
-
-                    // Choose marker based on position and depth
-                    let span = &meta.span;
-                    let marker_char = if span.line_start == span.line_end {
-                        if depth == 0 { '━' } else { '─' } // Single line
-                    } else if line_num == span.line_start {
-                        if depth == 0 { '┏' } else { '╔' } // Top
-                    } else if line_num == span.line_end {
-                        if depth == 0 { '┗' } else { '╚' } // Bottom
-                    } else {
-                        if depth == 0 { '┃' } else { '║' } // Middle
-                    };
-
-                    markers.push(marker_char);
-                }
-                // Pad to full marker width so columns stay aligned
-                while markers.len() < marker_width {
-                    markers.push(' ');
-                }
-                markers
-            };
-
-            let marker_color = if in_matched_chunk {
-                COLOR_MAGENTA
-            } else if !chunks_at_line.is_empty() {
-                COLOR_DARK_GRAY
-            } else {
-                COLOR_DARK_GRAY
-            };
-
-            let mut line_spans = vec![
-                Span::styled(
-                    boundary_marker,
-                    if in_matched_chunk {
-                        Style::default()
-                            .fg(marker_color)
-                            .add_modifier(Modifier::BOLD)
-                    } else {
-                        Style::default().fg(marker_color)
-                    },
-                ),
-                Span::styled(
-                    format!("{:4} | ", line_num),
-                    if is_match_line {
-                        Style::default()
-                            .fg(COLOR_YELLOW)
-                            .add_modifier(Modifier::BOLD)
-                    } else if in_matched_chunk {
-                        Style::default().fg(COLOR_CYAN)
-                    } else {
-                        Style::default().fg(COLOR_GRAY)
-                    },
-                ),
-            ];
-
-            if !all_chunks.is_empty() {
-                if let Some(meta) = chunk_meta {
-                    if let Some(label) = meta.chunk_type.as_ref()
-                        && line_num == meta.span.line_start
-                    {
-                        line_spans.push(Span::styled(
-                            format!("[{label}] "),
-                            Style::default().fg(COLOR_MAGENTA),
-                        ));
-                    }
-                }
-
-                // Show all lines, but dim non-matched chunks
-                line_spans.push(Span::styled(
-                    line.to_string(),
-                    if in_matched_chunk {
-                        Style::default().fg(COLOR_WHITE)
-                    } else if !chunks_at_line.is_empty() {
-                        Style::default().fg(COLOR_GRAY) // Other chunks in gray
-                    } else {
-                        Style::default().fg(COLOR_DARK_GRAY) // Non-chunk lines dimmer
-                    },
-                ));
-            } else {
-                // Fallback heuristics for files without chunk metadata
-                let is_boundary = line.trim_start().starts_with("fn ")
-                    || line.trim_start().starts_with("func ")
-                    || line.trim_start().starts_with("def ")
-                    || line.trim_start().starts_with("class ")
-                    || line.trim_start().starts_with("impl ")
-                    || line.trim_start().starts_with("struct ")
-                    || line.trim_start().starts_with("enum ");
-
-                if is_boundary {
-                    line_spans[0] = Span::styled(
-                        "┣━ ",
-                        Style::default()
-                            .fg(COLOR_MAGENTA)
-                            .add_modifier(Modifier::BOLD),
-                    );
-                }
-
-                line_spans.push(Span::styled(
-                    line.to_string(),
-                    if is_boundary {
-                        Style::default()
-                            .fg(COLOR_GREEN)
-                            .add_modifier(Modifier::BOLD)
-                    } else {
-                        Style::default().fg(COLOR_WHITE)
-                    },
-                ));
-            }
-
-            colored_lines.push(Line::from(line_spans));
-        }
-
-        if chunk_meta.is_none() && !all_chunks.is_empty() {
-            colored_lines.push(Line::from(vec![Span::styled(
-                "Chunk metadata available but no matching chunk found for this line.",
-                Style::default().fg(COLOR_MAGENTA),
-            )]));
-        }
+        colored_lines.extend(Self::build_chunk_lines(
+            lines,
+            context_start,
+            context_end,
+            match_line,
+            chunk_meta, // Always pass chunk_meta to support highlighting in both modes
+            all_chunks,
+            self.state.full_file_mode,
+            // In chunk mode, don't highlight a specific match line since we're showing structure
+            self.state.preview_mode == PreviewMode::Chunks,
+        ));
 
         self.state.preview_lines = colored_lines;
         self.state.preview_content.clear();
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn build_chunk_lines(
+        lines: &[String],
+        context_start: usize,
+        context_end: usize,
+        match_line: usize,
+        chunk_meta: Option<&IndexedChunkMeta>,
+        all_chunks: &[IndexedChunkMeta],
+        full_file_mode: bool,
+        disable_match_highlighting: bool,
+    ) -> Vec<Line<'static>> {
+        // Calculate the width needed for line numbers
+        let max_line_num = lines.len();
+        let line_num_width = max_line_num.to_string().len() + 1; // +1 for spacing
+
+        collect_chunk_display_lines(
+            lines,
+            context_start,
+            context_end,
+            if disable_match_highlighting {
+                0
+            } else {
+                match_line
+            },
+            chunk_meta,
+            all_chunks,
+            full_file_mode,
+        )
+        .into_iter()
+        .map(|row| match row {
+            ChunkDisplayLine::Label { prefix, text } => {
+                let mut spans = Vec::new();
+
+                // Add indentation
+                spans.push(Span::styled(
+                    " ".repeat(prefix),
+                    Style::default().fg(COLOR_DARK_GRAY),
+                ));
+
+                // Create a bar-like header with borders
+                let bar_start = "┌─ ";
+                let bar_end = " ─┐";
+                let _bar_fill = "─".repeat(text.len().max(1));
+
+                // Left border
+                spans.push(Span::styled(
+                    bar_start,
+                    Style::default()
+                        .fg(COLOR_CHUNK_BOUNDARY)
+                        .add_modifier(Modifier::BOLD),
+                ));
+
+                // Content with background-like effect
+                spans.push(Span::styled(
+                    text,
+                    Style::default()
+                        .fg(COLOR_CHUNK_TEXT)
+                        .bg(COLOR_CHUNK_BOUNDARY)
+                        .add_modifier(Modifier::BOLD),
+                ));
+
+                // Right border
+                spans.push(Span::styled(
+                    bar_end,
+                    Style::default()
+                        .fg(COLOR_CHUNK_BOUNDARY)
+                        .add_modifier(Modifier::BOLD),
+                ));
+
+                Line::from(spans)
+            }
+            ChunkDisplayLine::Content {
+                columns,
+                line_num,
+                text,
+                is_match_line,
+                in_matched_chunk,
+                has_any_chunk,
+            } => {
+                let mut spans = Vec::new();
+
+                // Always render chunk columns with fixed width
+                if columns.is_empty() {
+                    spans.push(Span::styled(" ", Style::default().fg(COLOR_DARK_GRAY)));
+                } else {
+                    for column in columns {
+                        let mut style = Style::default().fg(if column.is_match {
+                            COLOR_CHUNK_HIGHLIGHT // Orange for highlighted chunk boundaries
+                        } else {
+                            COLOR_CHUNK_BOUNDARY // Spring green for regular chunk boundaries
+                        });
+                        if column.is_match {
+                            style = style.add_modifier(Modifier::BOLD);
+                        }
+                        spans.push(Span::styled(column.ch.to_string(), style));
+                    }
+                }
+
+                spans.push(Span::styled(" ", Style::default().fg(COLOR_DARK_GRAY)));
+
+                // Use fixed-width line number formatting
+                spans.push(Span::styled(
+                    format!("{:width$} | ", line_num, width = line_num_width),
+                    if is_match_line {
+                        Style::default()
+                            .fg(COLOR_YELLOW)
+                            .add_modifier(Modifier::BOLD)
+                    } else if in_matched_chunk {
+                        Style::default()
+                            .fg(COLOR_CHUNK_LINE_NUM) // Gold for highlighted chunk line numbers
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(COLOR_GRAY)
+                    },
+                ));
+
+                spans.push(Span::styled(
+                    text,
+                    if in_matched_chunk {
+                        Style::default()
+                            .fg(COLOR_CHUNK_TEXT) // Bright white for highlighted chunk text
+                            .add_modifier(Modifier::BOLD)
+                    } else if has_any_chunk {
+                        Style::default().fg(COLOR_WHITE) // Regular white for chunk text
+                    } else {
+                        Style::default().fg(COLOR_DARK_GRAY) // Dim for non-chunk text
+                    },
+                ));
+
+                Line::from(spans)
+            }
+            ChunkDisplayLine::Message(message) => Line::from(vec![Span::styled(
+                message,
+                Style::default()
+                    .fg(COLOR_CHUNK_BOUNDARY)
+                    .add_modifier(Modifier::ITALIC),
+            )]),
+        })
+        .collect()
+    }
+
+    #[allow(dead_code)]
+    fn build_chunk_strings(
+        lines: &[String],
+        context_start: usize,
+        context_end: usize,
+        match_line: usize,
+        chunk_meta: Option<&IndexedChunkMeta>,
+        all_chunks: &[IndexedChunkMeta],
+        full_file_mode: bool,
+    ) -> Vec<String> {
+        // Calculate the width needed for line numbers
+        let max_line_num = lines.len();
+        let line_num_width = max_line_num.to_string().len() + 1; // +1 for spacing
+
+        collect_chunk_display_lines(
+            lines,
+            context_start,
+            context_end,
+            match_line,
+            chunk_meta,
+            all_chunks,
+            full_file_mode,
+        )
+        .into_iter()
+        .map(|row| match row {
+            ChunkDisplayLine::Label { prefix, text } => {
+                format!("{}{}", " ".repeat(prefix), text)
+            }
+            ChunkDisplayLine::Content {
+                columns,
+                line_num,
+                text,
+                is_match_line,
+                ..
+            } => {
+                let mut line_buf = String::new();
+                if columns.is_empty() {
+                    line_buf.push(' ');
+                } else {
+                    for column in columns {
+                        line_buf.push(column.ch);
+                    }
+                }
+                line_buf.push(' ');
+                line_buf.push_str(&format!(
+                    "{:width$} | {}",
+                    line_num,
+                    text,
+                    width = line_num_width
+                ));
+                if is_match_line {
+                    line_buf.push_str("  <= match");
+                }
+                line_buf
+            }
+            ChunkDisplayLine::Message(message) => message,
+        })
+        .collect()
+    }
+
+    #[allow(dead_code)]
+    fn dump_chunk_view_internal(
+        path: &Path,
+        match_line: Option<usize>,
+        full_file_mode: bool,
+    ) -> Result<Vec<String>, String> {
+        let (lines, is_pdf, chunk_spans) = load_preview_lines(path)?;
+
+        if lines.is_empty() {
+            return Ok(vec![format!("File: {} (empty)", path.display())]);
+        }
+
+        let total_lines = lines.len();
+        let mut line_to_focus = match_line
+            .or_else(|| chunk_spans.first().map(|meta| meta.span.line_start))
+            .unwrap_or(1)
+            .clamp(1, total_lines);
+
+        let chunk_meta = chunk_spans
+            .iter()
+            .filter(|meta| {
+                let span = &meta.span;
+                line_to_focus >= span.line_start && line_to_focus <= span.line_end
+            })
+            .min_by_key(|meta| meta.span.line_end.saturating_sub(meta.span.line_start));
+
+        if chunk_meta.is_none() && chunk_spans.is_empty() {
+            line_to_focus = line_to_focus.clamp(1, total_lines);
+        }
+
+        let mut context_start = if full_file_mode {
+            0
+        } else {
+            line_to_focus
+                .saturating_sub(6)
+                .min(total_lines.saturating_sub(1))
+        };
+        let mut context_end = if full_file_mode {
+            total_lines
+        } else {
+            (line_to_focus + 5).min(total_lines)
+        };
+
+        if !full_file_mode
+            && let Some(meta) = chunk_meta
+        {
+            context_start = meta
+                .span
+                .line_start
+                .saturating_sub(1)
+                .min(total_lines.saturating_sub(1));
+            context_end = meta.span.line_end.min(total_lines);
+        }
+
+        if context_end <= context_start {
+            context_end = (context_start + 1).min(total_lines);
+        }
+
+        let mut output = Vec::new();
+
+        let header_lines: Vec<String> = if let Some(meta) = chunk_meta {
+            let span = &meta.span;
+            let chunk_kind = meta.chunk_type.as_deref().unwrap_or("chunk");
+            let breadcrumb_display = meta
+                .breadcrumb
+                .as_deref()
+                .filter(|crumb| !crumb.is_empty())
+                .map(|crumb| format!(" • {}", crumb))
+                .unwrap_or_else(|| {
+                    if !meta.ancestry.is_empty() {
+                        format!(" • {}", meta.ancestry.join("::"))
+                    } else {
+                        String::new()
+                    }
+                });
+            let token_display = meta
+                .estimated_tokens
+                .map(|tokens| format!(" • ~{} tokens", tokens))
+                .unwrap_or_default();
+
+            vec![
+                format!("File: {}", path.display()),
+                format!(
+                    "{}{}{} • L{}-{}",
+                    chunk_kind, breadcrumb_display, token_display, span.line_start, span.line_end
+                ),
+                String::new(),
+            ]
+        } else if is_pdf {
+            vec![
+                format!("File: {}", path.display()),
+                "PDF chunk (approximate)".to_string(),
+                String::new(),
+            ]
+        } else {
+            vec![format!("File: {}", path.display()), String::new()]
+        };
+
+        output.extend(header_lines);
+
+        let body = Self::build_chunk_strings(
+            &lines,
+            context_start,
+            context_end,
+            line_to_focus,
+            chunk_meta,
+            &chunk_spans,
+            full_file_mode,
+        );
+
+        output.extend(body);
+
+        Ok(output)
+    }
     fn open_selected(&self) -> Result<()> {
         // Collect files to open (selected files or current result)
         let files_to_open: Vec<(PathBuf, usize)> = if self.state.selected_files.is_empty() {
@@ -1925,11 +2451,7 @@ impl TuiApp {
 
         // Detect overlaps
         for (i, chunk) in sorted_chunks.iter().enumerate() {
-            let chunk_type = chunk
-                .chunk_type
-                .as_ref()
-                .map(|s| s.as_str())
-                .unwrap_or("unknown");
+            let chunk_type = chunk.chunk_type.as_deref().unwrap_or("unknown");
 
             chunks_text.push(format!(
                 "Chunk #{}: {} [lines {}-{}]",
@@ -2125,12 +2647,61 @@ impl TuiApp {
     }
 }
 
+/// Convert ck_chunk::Chunk to IndexedChunkMeta format
+fn convert_chunks_to_meta(chunks: Vec<ck_chunk::Chunk>) -> Vec<IndexedChunkMeta> {
+    chunks
+        .iter()
+        .map(|chunk| IndexedChunkMeta {
+            span: chunk.span.clone(),
+            chunk_type: Some(match chunk.chunk_type {
+                ck_chunk::ChunkType::Function => "function".to_string(),
+                ck_chunk::ChunkType::Class => "class".to_string(),
+                ck_chunk::ChunkType::Method => "method".to_string(),
+                ck_chunk::ChunkType::Module => "module".to_string(),
+                ck_chunk::ChunkType::Text => "text".to_string(),
+            }),
+            breadcrumb: chunk.metadata.breadcrumb.clone(),
+            ancestry: chunk.metadata.ancestry.clone(),
+            byte_length: Some(chunk.metadata.byte_length),
+            estimated_tokens: Some(chunk.metadata.estimated_tokens),
+            leading_trivia: Some(chunk.metadata.leading_trivia.clone()),
+            trailing_trivia: Some(chunk.metadata.trailing_trivia.clone()),
+        })
+        .collect()
+}
+
+/// Shared function to perform live chunking on a file (used by both --dump-chunks and TUI)
+pub fn chunk_file_live(
+    file_path: &std::path::Path,
+) -> Result<(Vec<String>, Vec<IndexedChunkMeta>), String> {
+    use std::fs;
+
+    if !file_path.exists() {
+        return Err(format!("File does not exist: {}", file_path.display()));
+    }
+
+    let detected_lang = Language::from_path(file_path);
+    let content = fs::read_to_string(file_path)
+        .map_err(|err| format!("Could not read {}: {}", file_path.display(), err))?;
+    let lines: Vec<String> = content.lines().map(String::from).collect();
+
+    // Use model-aware chunking (same approach as --dump-chunks)
+    let default_model = "nomic-embed-text-v1.5";
+    let chunks = ck_chunk::chunk_text_with_model(&content, detected_lang, Some(default_model))
+        .map_err(|err| format!("Failed to chunk file: {}", err))?;
+
+    // Convert chunks to IndexedChunkMeta format
+    let chunk_metas = convert_chunks_to_meta(chunks);
+
+    Ok((lines, chunk_metas))
+}
+
 fn load_preview_lines(path: &Path) -> Result<(Vec<String>, bool, Vec<IndexedChunkMeta>), String> {
     let resolved_path = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
     let repo_root = find_repo_root(&resolved_path);
     let is_pdf = pdf::is_pdf_file(&resolved_path);
 
-    let lines = if is_pdf {
+    let (_content, lines) = if is_pdf {
         let root = repo_root.clone().ok_or_else(|| {
             "PDF preview unavailable (missing .ck index). Run `ck --index .` first.".to_string()
         })?;
@@ -2142,18 +2713,36 @@ fn load_preview_lines(path: &Path) -> Result<(Vec<String>, bool, Vec<IndexedChun
                 err
             )
         })?;
-
-        content.lines().map(|line| line.to_string()).collect()
+        let lines: Vec<String> = content.lines().map(|line| line.to_string()).collect();
+        (content, lines)
     } else {
         let content = fs::read_to_string(&resolved_path)
             .map_err(|err| format!("Could not read {}: {}", resolved_path.display(), err))?;
-        content.lines().map(|line| line.to_string()).collect()
+        let lines: Vec<String> = content.lines().map(|line| line.to_string()).collect();
+        (content, lines)
     };
 
-    let chunk_spans = if let Some(root) = repo_root {
-        load_chunk_spans(&root, &resolved_path).unwrap_or_default()
+    // Use live chunking instead of cached index data (same approach as --dump-chunks)
+    let chunk_spans = if is_pdf {
+        // For PDFs, we still need to fall back to cached data since we can't chunk PDF content directly
+        if let Some(root) = repo_root {
+            load_chunk_spans(&root, &resolved_path).unwrap_or_default()
+        } else {
+            Vec::new()
+        }
     } else {
-        Vec::new()
+        // For regular files, use live chunking with fallback to cached data
+        match chunk_file_live(&resolved_path) {
+            Ok((_, chunks)) => chunks,
+            Err(_) => {
+                // If live chunking fails, fall back to cached data if available
+                if let Some(root) = repo_root {
+                    load_chunk_spans(&root, &resolved_path).unwrap_or_default()
+                } else {
+                    Vec::new()
+                }
+            }
+        }
     };
 
     Ok((lines, is_pdf, chunk_spans))
@@ -2191,49 +2780,39 @@ fn load_chunk_spans(repo_root: &Path, file_path: &Path) -> Result<Vec<IndexedChu
 
     let entry = load_index_entry(&sidecar_path)
         .map_err(|err| format!("Failed to load chunk metadata: {}", err))?;
-    Ok(entry
+    let mut metas: Vec<IndexedChunkMeta> = entry
         .chunks
         .iter()
         .map(|chunk| IndexedChunkMeta {
             span: chunk.span.clone(),
             chunk_type: chunk.chunk_type.clone(),
+            breadcrumb: chunk.breadcrumb.clone(),
+            ancestry: chunk.ancestry.clone().unwrap_or_default(),
+            estimated_tokens: chunk.estimated_tokens,
+            byte_length: chunk.byte_length,
+            leading_trivia: chunk.leading_trivia.clone(),
+            trailing_trivia: chunk.trailing_trivia.clone(),
         })
-        .collect())
-}
+        .collect();
 
-fn compute_max_chunk_overlap(chunks: &[IndexedChunkMeta]) -> usize {
-    if chunks.is_empty() {
-        return 0;
+    let has_non_module = metas
+        .iter()
+        .any(|meta| meta.chunk_type.as_deref() != Some("module"));
+    if has_non_module {
+        metas.retain(|meta| meta.chunk_type.as_deref() != Some("module"));
     }
 
-    let mut events: Vec<(usize, i32)> = Vec::with_capacity(chunks.len() * 2);
-    for chunk in chunks {
-        events.push((chunk.span.line_start, 1));
-        events.push((chunk.span.line_end.saturating_add(1), -1));
-    }
-
-    events.sort_by_key(|(line, _)| *line);
-
-    let mut current = 0;
-    let mut max_overlap = 0;
-    for (_, delta) in events {
-        current += delta;
-        if current > max_overlap {
-            max_overlap = current;
-        }
-    }
-
-    max_overlap.max(0) as usize
+    Ok(metas)
 }
 
 fn syntax_set() -> &'static SyntaxSet {
     static SYNTAX_SET: OnceLock<SyntaxSet> = OnceLock::new();
-    SYNTAX_SET.get_or_init(|| SyntaxSet::load_defaults_newlines())
+    SYNTAX_SET.get_or_init(SyntaxSet::load_defaults_newlines)
 }
 
 fn theme_set() -> &'static ThemeSet {
     static THEME_SET: OnceLock<ThemeSet> = OnceLock::new();
-    THEME_SET.get_or_init(|| ThemeSet::load_defaults())
+    THEME_SET.get_or_init(ThemeSet::load_defaults)
 }
 
 fn score_to_color(score: f32) -> Color {
@@ -2367,6 +2946,40 @@ fn apply_heatmap_color_to_token(token: &str, score: f32) -> Color {
         s if s >= 0.125 => Color::Rgb(140, 140, 140),
         s if s > 0.0 => Color::Rgb(180, 180, 180),
         _ => Color::Reset,
+    }
+}
+
+/// Convert ChunkDisplayLine to plain text string
+pub fn chunk_display_line_to_string(line: &ChunkDisplayLine) -> String {
+    match line {
+        ChunkDisplayLine::Label { prefix, text } => {
+            format!("{}{}", " ".repeat(*prefix), text)
+        }
+        ChunkDisplayLine::Content {
+            columns,
+            line_num,
+            text,
+            ..
+        } => {
+            let mut output = String::new();
+
+            // Render bracket columns
+            for col in columns {
+                output.push(col.ch);
+            }
+
+            // Add spacing
+            output.push(' ');
+
+            // Add line number with fixed width (at least 4 chars)
+            output.push_str(&format!("{:4} | ", line_num));
+
+            // Add line text
+            output.push_str(text);
+
+            output
+        }
+        ChunkDisplayLine::Message(msg) => msg.clone(),
     }
 }
 

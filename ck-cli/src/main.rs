@@ -307,6 +307,12 @@ struct Cli {
     )]
     inspect: bool,
 
+    #[arg(
+        long = "dump-chunks",
+        help = "Visualize chunk boundaries for a file using the same rendering as TUI chunk mode"
+    )]
+    dump_chunks: bool,
+
     // Model selection (index-time only)
     #[arg(
         long = "model",
@@ -340,7 +346,7 @@ struct Cli {
             "semantic", "lexical", "hybrid", "regex", "top_k", "threshold", "show_scores",
             "json", "json_v1", "jsonl", "no_snippet", "reindex", "exclude", "no_default_excludes",
             "no_ignore", "full_section", "index", "clean", "clean_orphans", "switch_model",
-            "force", "add", "status", "status_verbose", "inspect", "model", "rerank", "rerank_model", "tui"
+            "force", "add", "status", "status_verbose", "inspect", "dump_chunks", "model", "rerank", "rerank_model", "tui"
         ]
     )]
     serve: bool,
@@ -356,7 +362,7 @@ struct Cli {
             "semantic", "lexical", "hybrid", "regex", "top_k", "threshold", "show_scores",
             "json", "json_v1", "jsonl", "no_snippet", "reindex", "exclude", "no_default_excludes",
             "no_ignore", "full_section", "index", "clean", "clean_orphans", "switch_model",
-            "force", "add", "status", "status_verbose", "inspect", "model", "rerank", "rerank_model", "serve"
+            "force", "add", "status", "status_verbose", "inspect", "dump_chunks", "model", "rerank", "rerank_model", "serve"
         ]
     )]
     tui: bool,
@@ -719,6 +725,55 @@ async fn run_index_workflow(
             "  🔁 Active embedding model: {} (alias '{}', {} dims)",
             model_config.name, model_alias, model_config.dimensions
         ));
+    }
+
+    Ok(())
+}
+
+async fn dump_file_chunks(file_path: &PathBuf) -> Result<()> {
+    use std::path::Path;
+
+    let path = Path::new(file_path);
+
+    // Use the shared live chunking function
+    let (lines, chunk_metas) = tui::chunk_file_live(path).map_err(|err| {
+        eprintln!("Error: {}", err);
+        std::process::exit(1);
+    })?;
+
+    // Display chunks for entire file
+    let display_lines = tui::collect_chunk_display_lines(
+        &lines,
+        0,            // context_start
+        lines.len(),  // context_end
+        1,            // match_line (not relevant for dump)
+        None,         // chunk_meta (None = show all chunks)
+        &chunk_metas, // all_chunks
+        true,         // full_file_mode
+    );
+
+    // Print header
+    println!("File: {}", file_path.display());
+    if let Some(lang) = ck_core::Language::from_path(path) {
+        println!("Language: {}", lang);
+    }
+    println!("Chunks: {}", chunk_metas.len());
+
+    // Debug: Show chunk type breakdown
+    let text_chunk_count = chunk_metas
+        .iter()
+        .filter(|c| c.chunk_type.as_deref() == Some("text"))
+        .count();
+    println!("  - Text chunks: {}", text_chunk_count);
+    println!(
+        "  - Structural chunks: {}",
+        chunk_metas.len() - text_chunk_count
+    );
+    println!();
+
+    // Convert display lines to strings and print
+    for line in display_lines {
+        println!("{}", tui::chunk_display_line_to_string(&line));
     }
 
     Ok(())
@@ -1196,6 +1251,21 @@ async fn run_cli_mode(cli: Cli) -> Result<()> {
 
         // Inspect the file metadata
         inspect_file_metadata(&file_path, &status).await?;
+        return Ok(());
+    }
+
+    if cli.dump_chunks {
+        // Handle --dump-chunks flag
+        let file_path = if let Some(pattern) = &cli.pattern {
+            PathBuf::from(pattern)
+        } else if !cli.files.is_empty() {
+            cli.files[0].clone()
+        } else {
+            eprintln!("Error: --dump-chunks requires a file path");
+            std::process::exit(1);
+        };
+
+        dump_file_chunks(&file_path).await?;
         return Ok(());
     }
 

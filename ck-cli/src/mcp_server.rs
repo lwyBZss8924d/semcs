@@ -781,16 +781,73 @@ impl CkMcpServer {
         // Caching would require exposing search APIs that accept pre-created embedders
 
         // Perform the search with progress reporting
+        let mut indexing_progress_callback = indexing_progress_callback;
+        let mut effective_mode: Option<String> = None;
         let search_results = match ck_engine::search_enhanced_with_indexing_progress(
             &options,
-            None, // No search progress callback for MCP
-            indexing_progress_callback,
-            None, // No detailed indexing progress callback for MCP
+            None,
+            indexing_progress_callback.take(),
+            None,
         )
         .await
         {
             Ok(results) => results,
-            Err(e) => return Err(ErrorData::internal_error(e.to_string(), None)),
+            Err(e) => {
+                let message = e.to_string();
+                if message.contains("No embeddings found") {
+                    tracing::warn!(
+                        "semantic search missing embeddings, attempting reindex: {}",
+                        message
+                    );
+                    let mut reindex_options = options.clone();
+                    reindex_options.reindex = true;
+                    match ck_engine::search_enhanced_with_indexing_progress(
+                        &reindex_options,
+                        None,
+                        None,
+                        None,
+                    )
+                    .await
+                    {
+                        Ok(results) => results,
+                        Err(retry_err) => {
+                            tracing::warn!("semantic search failed after reindex: {}", retry_err);
+                            // Fallback to lexical search when embeddings are unavailable
+                            let mut fallback_options = options.clone();
+                            fallback_options.mode = SearchMode::Lexical;
+                            fallback_options.reindex = true;
+                            match ck_engine::search_enhanced_with_indexing_progress(
+                                &fallback_options,
+                                None,
+                                None,
+                                None,
+                            )
+                            .await
+                            {
+                                Ok(mut lexical_results) => {
+                                    if let Some(limit) = top_k {
+                                        lexical_results
+                                            .matches
+                                            .truncate(limit.min(lexical_results.matches.len()));
+                                    }
+                                    effective_mode =
+                                        Some("semantic (lexical fallback)".to_string());
+                                    lexical_results
+                                }
+                                Err(final_err) => {
+                                    return Err(ErrorData::internal_error(
+                                        final_err.to_string(),
+                                        None,
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    tracing::warn!("semantic search failed: {}", message);
+                    return Err(ErrorData::internal_error(message, None));
+                }
+            }
         };
 
         // Create session and get first page
@@ -811,17 +868,29 @@ impl CkMcpServer {
         });
 
         let current_page = page.current_page;
-        let structured_result =
+        let mut structured_result =
             Self::search_page_to_json(page, &query_clone, "semantic", search_params);
 
+        if let Some(ref note) = effective_mode
+            && let Some(metadata) = structured_result.get_mut("metadata")
+        {
+            metadata["fallback"] = json!(note);
+        }
+
+        let summary_suffix = effective_mode
+            .as_ref()
+            .map(|s| format!(" [{}]", s))
+            .unwrap_or_default();
+
         let summary = format!(
-            "Semantic search for '{}' found {} matches in {} (threshold: {:.2}, top_k: {}) - Page {}",
+            "Semantic search for '{}' found {} matches in {} (threshold: {:.2}, top_k: {}) - Page {}{}",
             query_clone,
             structured_result["results"]["count"],
             path_clone.display(),
             threshold.unwrap_or(0.6),
             top_k.unwrap_or(DEFAULT_MCP_TOP_K),
-            current_page
+            current_page,
+            summary_suffix
         );
 
         Ok((summary, structured_result))
