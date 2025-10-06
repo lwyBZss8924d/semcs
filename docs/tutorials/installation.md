@@ -2,7 +2,7 @@
 layout: default
 title: Installation Guide
 parent: Tutorials
-nav_order: 10
+nav_order: 3
 ---
 
 # Installation

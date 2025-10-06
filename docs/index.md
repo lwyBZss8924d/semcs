@@ -6,128 +6,88 @@ nav_order: 1
 
 # ck
 
-**ck** is a command-line tool that searches your code.
-
-Instead of searching for exact words (like grep), ck understands what you mean. Ask for "error handling" and it finds try/catch blocks, Result types, and panic handlers—even when those exact words aren't in the code.
+**Semantic code search.** Find code by what it does, not just what it says.
 
 ```bash
 cargo install ck-search
 ck --sem "error handling" src/
 ```
 
-It's grep, but it gets the concept.
+Ask for "error handling" and find try/catch blocks, Result types, panic handlers—even when those exact words aren't there.
 
 ---
 
-## What do you need?
+## Who are you?
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin: 3rem 0;">
 
-<div style="border: 2px solid #5c5c5c; border-radius: 8px; padding: 1.5rem;">
-<h3>🎓 I want to learn</h3>
-<p style="color: #888;">Step-by-step lessons to get you started</p>
-<div style="background: #2d2d2d; padding: 1rem; border-radius: 4px; margin: 1rem 0;">
-<pre style="margin: 0; font-size: 0.85em;">
-┌─────────────────┐
-│ $ cargo install │
-│   ck-search     │
-│                 │
-│ $ ck --sem ...  │
-│   ✓ Results!    │
-└─────────────────┘
-</pre>
-</div>
-<p><strong><a href="tutorials/">Start learning →</a></strong></p>
-<ul style="font-size: 0.9em; color: #aaa;">
-<li>Quick Start (5 min)</li>
-<li>Interactive TUI</li>
-<li>AI Integration</li>
+<div style="background: linear-gradient(135deg, #1a1f2e 0%, #161b22 100%); border: 1px solid #30363d; border-radius: 12px; padding: 2rem; box-shadow: 0 8px 16px rgba(0,0,0,0.4);">
+<div style="font-size: 3rem; margin-bottom: 1rem;">👤</div>
+<h3 style="color: #58a6ff; margin-top: 0;">I'm a human developer</h3>
+<p style="color: #8b949e; font-size: 0.95rem;">I want to search my codebase, understand code, and find patterns quickly.</p>
+<a href="for-humans/" style="display: inline-block; margin-top: 1.5rem; padding: 0.75rem 1.5rem; background: #238636; color: white; text-decoration: none; border-radius: 6px; font-weight: 500;">Get Started →</a>
+
+<div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #30363d; font-size: 0.85rem; color: #6e7681;">
+<strong>You'll learn:</strong>
+<ul style="margin: 0.5rem 0 0 0; padding-left: 1.2rem;">
+<li>Install and search (5 min)</li>
+<li>Use the interactive TUI</li>
+<li>Find code patterns</li>
 </ul>
 </div>
-
-<div style="border: 2px solid #5c5c5c; border-radius: 8px; padding: 1.5rem;">
-<h3>🔧 I have a specific problem</h3>
-<p style="color: #888;">Practical recipes for common tasks</p>
-<div style="background: #2d2d2d; padding: 1rem; border-radius: 4px; margin: 1rem 0;">
-<pre style="margin: 0; font-size: 0.85em;">
-┌─────────────────┐
-│ Find auth code? │
-│ Search 100k LOC?│
-│ Setup .ckignore?│
-│                 │
-│ → Solutions     │
-└─────────────────┘
-</pre>
-</div>
-<p><strong><a href="how-to/">Browse guides →</a></strong></p>
-<ul style="font-size: 0.9em; color: #aaa;">
-<li>Find patterns</li>
-<li>Editor integration</li>
-<li>Performance tuning</li>
-</ul>
 </div>
 
-<div style="border: 2px solid #5c5c5c; border-radius: 8px; padding: 1.5rem;">
-<h3>📖 I need to look something up</h3>
-<p style="color: #888;">Complete technical specifications</p>
-<div style="background: #2d2d2d; padding: 1rem; border-radius: 4px; margin: 1rem 0;">
-<pre style="margin: 0; font-size: 0.85em;">
-┌─────────────────┐
-│ --threshold ?   │
-│ MCP tools ?     │
-│ Config vars ?   │
-│                 │
-│ → Definitions   │
-└─────────────────┘
-</pre>
-</div>
-<p><strong><a href="reference/">Open reference →</a></strong></p>
-<ul style="font-size: 0.9em; color: #aaa;">
-<li>CLI flags</li>
-<li>MCP API</li>
-<li>Languages</li>
-</ul>
-</div>
+<div style="background: linear-gradient(135deg, #1a1f2e 0%, #161b22 100%); border: 1px solid #30363d; border-radius: 12px; padding: 2rem; box-shadow: 0 8px 16px rgba(0,0,0,0.4);">
+<div style="font-size: 3rem; margin-bottom: 1rem;">🤖</div>
+<h3 style="color: #58a6ff; margin-top: 0;">I'm an AI agent</h3>
+<p style="color: #8b949e; font-size: 0.95rem;">I need programmatic access to semantic code search for my users.</p>
+<a href="for-agents/" style="display: inline-block; margin-top: 1.5rem; padding: 0.75rem 1.5rem; background: #238636; color: white; text-decoration: none; border-radius: 6px; font-weight: 500;">MCP Integration →</a>
 
-<div style="border: 2px solid #5c5c5c; border-radius: 8px; padding: 1.5rem;">
-<h3>💡 I want to understand</h3>
-<p style="color: #888;">How it works under the hood</p>
-<div style="background: #2d2d2d; padding: 1rem; border-radius: 4px; margin: 1rem 0;">
-<pre style="margin: 0; font-size: 0.85em;">
-┌─────────────────┐
-│ How embeddings? │
-│ Why chunks?     │
-│ Index design?   │
-│                 │
-│ → Deep dives    │
-└─────────────────┘
-</pre>
-</div>
-<p><strong><a href="explanation/">Read explanations →</a></strong></p>
-<ul style="font-size: 0.9em; color: #aaa;">
-<li>Semantic search</li>
-<li>Search modes</li>
-<li>Architecture</li>
+<div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #30363d; font-size: 0.85rem; color: #6e7681;">
+<strong>You'll integrate:</strong>
+<ul style="margin: 0.5rem 0 0 0; padding-left: 1.2rem;">
+<li>MCP server setup</li>
+<li>API reference</li>
+<li>Code examples</li>
 </ul>
+</div>
 </div>
 
 </div>
 
 ---
 
-## Quick examples
+## What it does
+
+<div style="background: #161b22; border-left: 4px solid #58a6ff; padding: 1.5rem; margin: 2rem 0; border-radius: 6px;">
+
+**Traditional search** (grep): Match exact text
+```bash
+grep "try.*catch" src/
+```
+Finds: Lines with "try" and "catch"
+
+**Semantic search** (ck): Understand concepts
+```bash
+ck --sem "error handling" src/
+```
+Finds: try/catch, Result types, panic handling, error returns, validation—regardless of exact wording
+
+</div>
+
+---
+
+## Quick example
 
 ```bash
-# Find code by concept, not keywords
+# Search by meaning
 ck --sem "retry logic" src/
 
-# Interactive search with live preview
+# Interactive mode
 ck --tui .
 
-# Connect to AI agents (Claude, Cursor)
+# For AI agents
 ck --serve
 ```
 
----
-
-**New here?** Start with the [5-minute Quick Start →](tutorials/quick-start.html)
+**One minute to install.** Choose your path above.
