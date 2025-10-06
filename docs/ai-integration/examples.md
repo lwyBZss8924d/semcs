@@ -648,7 +648,7 @@ Security Audit Results:
 
 ## Next Steps
 
-**→** [MCP API Reference](mcp-api.html) - Complete API documentation
+**→** [MCP API Reference](../reference/mcp-api.html) - Complete API documentation
 
 **→** [Setup Guides](setup-guides.html) - Integration with specific tools
 

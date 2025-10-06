@@ -1,35 +1,22 @@
 ---
 layout: default
 title: MCP API Reference
-parent: AI Integration
+parent: Reference
 nav_order: 2
 ---
 
 # MCP API Reference
 
-{: .no_toc }
-
-## Table of contents
-{: .no_toc .text-delta }
-
-1. TOC
-{:toc}
-
----
-
 Complete Model Context Protocol specification for ck. All tools, parameters, and response formats.
 
 ## Overview
 
-ck implements the Model Context Protocol (MCP) to provide AI agents with semantic code search capabilities. The server exposes tools for searching code, managing indexes, and retrieving metadata.
+ck implements the Model Context Protocol (MCP) to provide AI agents with semantic code search capabilities.
 
-### Protocol Version
-
+**Protocol Details:**
 - **MCP Version:** 2024-11-05
-- **ck Version:** 0.5.0+
 - **Transport:** JSON-RPC over stdio
-
----
+- **ck Version:** 0.5.0+
 
 ## Server Setup
 
@@ -38,10 +25,6 @@ ck implements the Model Context Protocol (MCP) to provide AI agents with semanti
 ```bash
 ck --serve
 ```
-
-**Options:**
-- `--port <PORT>` - HTTP port (default: stdio)
-- `--host <HOST>` - HTTP host (default: localhost)
 
 ### Client Configuration
 
@@ -57,32 +40,11 @@ ck --serve
 }
 ```
 
-**Custom client:**
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "initialize",
-  "params": {
-    "protocolVersion": "2024-11-05",
-    "capabilities": {},
-    "clientInfo": {
-      "name": "my-client",
-      "version": "1.0.0"
-    }
-  }
-}
-```
-
----
-
 ## Available Tools
 
 ### semantic_search
 
 Find code by semantic meaning using embeddings.
-
-**Tool Name:** `semantic_search`
 
 **Parameters:**
 ```json
@@ -90,7 +52,7 @@ Find code by semantic meaning using embeddings.
   "query": "string",           // Required: semantic search query
   "path": "string",            // Required: directory to search
   "threshold": 0.6,            // Optional: min relevance (0.0-1.0)
-  "top_k": 100,                // Optional: max results
+  "top_k": 10,                 // Optional: max results (default: 10)
   "context_lines": 2,          // Optional: lines of context
   "snippet_length": 500,       // Optional: chars per snippet
   "include_snippet": true,     // Optional: include code snippets
@@ -128,24 +90,9 @@ Find code by semantic meaning using embeddings.
 }
 ```
 
-**Example Usage:**
-```json
-{
-  "name": "semantic_search",
-  "arguments": {
-    "query": "error handling",
-    "path": "/home/user/project",
-    "threshold": 0.7,
-    "top_k": 10
-  }
-}
-```
-
 ### regex_search
 
 Traditional grep-style pattern matching.
-
-**Tool Name:** `regex_search`
 
 **Parameters:**
 ```json
@@ -161,60 +108,17 @@ Traditional grep-style pattern matching.
 }
 ```
 
-**Response:**
-```json
-{
-  "results": [
-    {
-      "file": "src/lib.rs",
-      "line_start": 12,
-      "line_end": 12,
-      "snippet": "fn test_authentication() {",
-      "chunk_type": "function",
-      "breadcrumb": "test_authentication",
-      "estimated_tokens": 45
-    }
-  ],
-  "metadata": {
-    "total_results": 15,
-    "search_mode": "regex",
-    "pattern": "fn test_\\w+"
-  },
-  "pagination": {
-    "has_next": false,
-    "next_cursor": null,
-    "page_size": 50,
-    "total_results": 15
-  }
-}
-```
-
-**Example Usage:**
-```json
-{
-  "name": "regex_search",
-  "arguments": {
-    "pattern": "fn test_\\w+",
-    "path": "/home/user/project/tests",
-    "ignore_case": true,
-    "context": 3
-  }
-}
-```
-
 ### hybrid_search
 
-Combines semantic ranking with keyword filtering.
-
-**Tool Name:** `hybrid_search`
+Combines regex and semantic results using Reciprocal Rank Fusion.
 
 **Parameters:**
 ```json
 {
   "query": "string",           // Required: search query
   "path": "string",            // Required: directory to search
-  "threshold": 0.6,            // Optional: min relevance (0.0-1.0)
-  "top_k": 100,                // Optional: max results
+  "threshold": 0.02,           // Optional: min RRF score (0.01-0.05)
+  "top_k": 10,                 // Optional: max results
   "page_size": 50,             // Optional: results per page
   "snippet_length": 500,       // Optional: chars per snippet
   "context_lines": 2,          // Optional: lines of context
@@ -223,26 +127,9 @@ Combines semantic ranking with keyword filtering.
 }
 ```
 
-**Response:**
-Same as `semantic_search` but with `search_mode: "hybrid"`
-
-**Example Usage:**
-```json
-{
-  "name": "hybrid_search",
-  "arguments": {
-    "query": "timeout",
-    "path": "/home/user/project/src",
-    "threshold": 0.7
-  }
-}
-```
-
 ### index_status
 
 Check indexing status and metadata.
-
-**Tool Name:** `index_status`
 
 **Parameters:**
 ```json
@@ -266,21 +153,9 @@ Check indexing status and metadata.
 }
 ```
 
-**Example Usage:**
-```json
-{
-  "name": "index_status",
-  "arguments": {
-    "path": "/home/user/project"
-  }
-}
-```
-
 ### reindex
 
 Force rebuild of semantic index.
-
-**Tool Name:** `reindex`
 
 **Parameters:**
 ```json
@@ -301,22 +176,9 @@ Force rebuild of semantic index.
 }
 ```
 
-**Example Usage:**
-```json
-{
-  "name": "reindex",
-  "arguments": {
-    "path": "/home/user/project",
-    "force": true
-  }
-}
-```
-
 ### health_check
 
 Server status and diagnostics.
-
-**Tool Name:** `health_check`
 
 **Parameters:** None
 
@@ -330,16 +192,6 @@ Server status and diagnostics.
   "active_connections": 1
 }
 ```
-
-**Example Usage:**
-```json
-{
-  "name": "health_check",
-  "arguments": {}
-}
-```
-
----
 
 ## Pagination
 
@@ -358,17 +210,7 @@ All search tools support pagination for handling large result sets.
   }
 }
 
-// Response includes pagination info
-{
-  "pagination": {
-    "has_next": true,
-    "next_cursor": "eyJvZmZzZXQiOjI1fQ==",
-    "page_size": 25,
-    "total_results": 234
-  }
-}
-
-// Get next page
+// Get next page using cursor
 {
   "name": "semantic_search",
   "arguments": {
@@ -384,8 +226,6 @@ All search tools support pagination for handling large result sets.
 - **page_size**: Results per page (default: 50, max: 200)
 - **cursor**: Opaque pagination token from previous response
 - **total_results**: Total available results across all pages
-
----
 
 ## Error Handling
 
@@ -416,37 +256,6 @@ All search tools support pagination for handling large result sets.
 | -32000 | Server error | File system error |
 | -32001 | Tool error | Invalid regex pattern |
 
-### Error Examples
-
-**Invalid path:**
-```json
-{
-  "error": {
-    "code": -32000,
-    "message": "Path not found",
-    "data": {
-      "path": "/nonexistent/path"
-    }
-  }
-}
-```
-
-**Invalid regex:**
-```json
-{
-  "error": {
-    "code": -32001,
-    "message": "Invalid regex pattern",
-    "data": {
-      "pattern": "[invalid regex",
-      "reason": "Unclosed character class"
-    }
-  }
-}
-```
-
----
-
 ## Best Practices
 
 ### For AI Agents
@@ -458,15 +267,6 @@ All search tools support pagination for handling large result sets.
 
 // 2. Narrow to specific area
 {"name": "semantic_search", "arguments": {"query": "JWT validation", "path": "./src/auth"}}
-```
-
-**Combine search modes:**
-```json
-// 1. Find config code semantically
-{"name": "semantic_search", "arguments": {"query": "configuration", "path": "./"}}
-
-// 2. Find config access patterns
-{"name": "regex_search", "arguments": {"pattern": "config\\.\\w+", "path": "./"}}
 ```
 
 **Use thresholds wisely:**
@@ -487,13 +287,6 @@ All search tools support pagination for handling large result sets.
 ```
 
 If not indexed, first search will trigger indexing (1-5 seconds).
-
-**Error handling:**
-- Invalid paths return error
-- Regex syntax errors return error
-- Handle gracefully, inform user
-
----
 
 ## Example Workflows
 
@@ -546,54 +339,6 @@ If not indexed, first search will trigger indexing (1-5 seconds).
 }
 ```
 
-### Code Review
-
-**Agent task:** "Find error handling issues"
-
-```json
-// 1. Find error handling
-{
-  "name": "semantic_search",
-  "arguments": {
-    "query": "error handling",
-    "path": "./src"
-  }
-}
-
-// 2. Find potential issues
-{
-  "name": "regex_search",
-  "arguments": {
-    "pattern": "unwrap\\(\\)|expect\\(",
-    "path": "./src"
-  }
-}
-```
-
----
-
-## Performance Considerations
-
-### Indexing Performance
-
-- **First search:** Triggers indexing (1-60 seconds)
-- **Subsequent searches:** Instant (<200ms)
-- **Index updates:** Automatic on file changes
-
-### Search Performance
-
-- **Semantic search:** ~100-200ms
-- **Regex search:** ~50-100ms
-- **Hybrid search:** ~150-250ms
-
-### Memory Usage
-
-- **Small repos:** ~100-500MB
-- **Large repos:** ~1-5GB
-- **Very large repos:** ~10-50GB
-
----
-
 ## Security Considerations
 
 ### Local Execution
@@ -609,14 +354,6 @@ If not indexed, first search will trigger indexing (1-5 seconds).
 - Respects `.gitignore` and `.ckignore`
 - No write access (read-only search)
 
-### Tool Permissions
-
-- Claude Desktop requires explicit approval
-- Review requested tools before approving
-- Can revoke permissions anytime
-
----
-
 ## Troubleshooting
 
 ### Server Issues
@@ -630,30 +367,8 @@ ck --version
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ck --serve
 ```
 
-**Connection issues:**
-- Verify MCP client configuration
-- Check server logs
-- Ensure ck is in PATH
-
-### Search Issues
-
-**No results:**
+**No results from search:**
 - Check if path exists and is readable
 - Verify index status
 - Try lower threshold
 - Check .ckignore rules
-
-**Slow performance:**
-- Use absolute paths
-- Search smaller directories
-- Reduce `top_k` parameter
-- Use regex for exact patterns
-
----
-
-## Related Documentation
-
-- **[MCP Quick Start](mcp-quickstart.html)** - Getting started guide
-- **[Setup Guides](setup-guides.html)** - Integration with specific tools
-- **[Examples](examples.html)** - Real-world usage examples
-- **[CLI Reference](../reference/cli.html)** - Command-line interface

@@ -349,7 +349,7 @@ If CLI works but MCP doesn't:
 
 ## Next Steps
 
-**→** [MCP API Reference](mcp-api.html) - Complete protocol documentation
+**→** [MCP API Reference](../reference/mcp-api.html) - Complete protocol documentation
 
 **→** [Setup guides](setup-guides.html) - Integration with other AI tools
 

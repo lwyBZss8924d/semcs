@@ -89,7 +89,7 @@ ck --serve
 <p>Complete API documentation and reference materials.</p>
 <div class="divio-links">
 <a href="reference/cli.html">CLI Reference</a>
-<a href="ai-integration/mcp-api.html">MCP API</a>
+<a href="reference/mcp-api.html">MCP API</a>
 <a href="how-to/configuration.html">Configuration</a>
 </div>
 </div>
@@ -118,7 +118,7 @@ ck --serve
 <p>Connect ck to Claude Desktop, Cursor, and other AI coding assistants via MCP.</p>
 <div class="ai-links">
 <a href="ai-integration/mcp-quickstart.html">MCP Quick Start</a>
-<a href="ai-integration/mcp-api.html">MCP API Reference</a>
+<a href="reference/mcp-api.html">MCP API Reference</a>
 <a href="ai-integration/examples.html">Examples</a>
 </div>
 </div>

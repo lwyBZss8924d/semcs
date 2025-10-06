@@ -26,10 +26,10 @@ Complete API documentation and reference materials. Everything you need to know 
 
 <div class="reference-card api">
 <div class="reference-icon">🔌</div>
-<h3><a href="mcp-api">MCP API</a></h3>
+<h3><a href="mcp-api.html">MCP API</a></h3>
 <p>Model Context Protocol API specification for AI agent integration.</p>
 <div class="reference-stats">
-<span class="stat">5 tools</span>
+<span class="stat">6 tools</span>
 <span class="stat">JSON-RPC</span>
 <span class="stat">Examples</span>
 </div>
