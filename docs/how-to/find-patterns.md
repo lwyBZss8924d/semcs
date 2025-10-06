@@ -2,7 +2,7 @@
 layout: default
 title: Find Specific Patterns
 parent: How-To Guides
-nav_order: 1
+nav_order: 3
 ---
 
 # Find Specific Patterns

@@ -1838,31 +1838,37 @@ async fn run_search(
                 String::new()
             };
 
-            let file_text = if options.show_filenames {
-                format!("{}:\n", style(result.file.display()).cyan().bold())
-            } else {
-                String::new()
-            };
-
             let highlighted_preview = highlight_matches(&result.preview, &options.query, &options);
 
+            // Format output based on options
             if options.line_numbers && options.show_filenames {
+                // grep format: filename:line_number:content (all on one line)
                 println!(
-                    "{}{}{}:{}",
+                    "{}{}:{}:{}",
                     score_text,
-                    file_text,
+                    style(result.file.display()).cyan().bold(),
                     style(result.span.line_start).yellow(),
                     highlighted_preview
                 );
             } else if options.line_numbers {
+                // Just line number when no filename
                 println!(
                     "{}{}:{}",
                     score_text,
                     style(result.span.line_start).yellow(),
                     highlighted_preview
                 );
+            } else if options.show_filenames {
+                // Filename on separate line when no line numbers (more readable for semantic search)
+                println!(
+                    "{}{}:\n{}",
+                    score_text,
+                    style(result.file.display()).cyan().bold(),
+                    highlighted_preview
+                );
             } else {
-                println!("{}{}{}", score_text, file_text, highlighted_preview);
+                // No filename or line number
+                println!("{}{}", score_text, highlighted_preview);
             }
         }
     }

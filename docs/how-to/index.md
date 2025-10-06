@@ -59,12 +59,23 @@ Practical guides for specific tasks and common workflows. Each guide solves a pa
 
 <div class="how-to-card">
 <div class="how-to-category">🤖 AI Integration</div>
-<h3><a href="ai-integration">Connect AI Tools</a></h3>
-<p>Integrate ck with Claude Desktop, Cursor, and other AI coding assistants.</p>
+<h3><a href="setup-mcp-server">Setup MCP Server</a></h3>
+<p>Connect ck to Claude Desktop, Cursor, and other AI coding assistants using MCP.</p>
 <div class="how-to-tags">
 <span class="tag">mcp</span>
 <span class="tag">claude</span>
 <span class="tag">cursor</span>
+</div>
+</div>
+
+<div class="how-to-card">
+<div class="how-to-category">🤖 Agent Workflows</div>
+<h3><a href="agent-workflows">Agent Workflows</a></h3>
+<p>Real-world examples of AI agents using ck for code review, refactoring, and exploration.</p>
+<div class="how-to-tags">
+<span class="tag">agents</span>
+<span class="tag">workflows</span>
+<span class="tag">examples</span>
 </div>
 </div>
 
@@ -115,8 +126,8 @@ Practical guides for specific tasks and common workflows. Each guide solves a pa
 <p>Editor and tool integration</p>
 <ul>
 <li><a href="editor-integration">Editor Integration</a></li>
-<li><a href="ai-integration">AI Integration</a></li>
-<li><a href="ci-cd">CI/CD Integration</a></li>
+<li><a href="setup-mcp-server">MCP Server Setup</a></li>
+<li><a href="agent-workflows">Agent Workflows</a></li>
 </ul>
 </div>
 
@@ -164,7 +175,7 @@ Practical guides for specific tasks and common workflows. Each guide solves a pa
 
 <div class="problem-option">
 <h5>I want AI tools to use it</h5>
-<p>→ <a href="ai-integration">AI Integration</a></p>
+<p>→ <a href="setup-mcp-server">MCP Server Setup</a> or <a href="agent-workflows">Agent Workflows</a></p>
 </div>
 
 <div class="problem-option">

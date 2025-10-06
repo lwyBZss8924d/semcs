@@ -69,6 +69,8 @@ pub enum AppError {
 }
 ```
 
+---
+
 ## Understanding Results
 
 Each result shows:
@@ -78,7 +80,7 @@ Each result shows:
 
 Relevance scores:
 - **0.9+**: Extremely relevant
-- **0.8-0.9**: Highly relevant  
+- **0.8-0.9**: Highly relevant
 - **0.7-0.8**: Relevant
 - **< 0.7**: May be tangentially related
 
@@ -90,12 +92,16 @@ Relevance scores:
 # Find authentication code
 ck --sem "user authentication" src/
 
-# Find caching logic  
+# Find caching logic
 ck --sem "cache implementation" .
 
 # Find async task spawning
 ck --sem "spawn async task" src/
 ```
+
+Notice: ck finds relevant code even without exact keyword matches!
+
+---
 
 ## Traditional Grep Still Works
 
@@ -112,21 +118,27 @@ ck -i "fixme" .
 ck -n "fn main" src/
 ```
 
+All your grep muscle memory works!
+
 ---
 
 ## How It Works
 
 1. **Automatic indexing:** ck analyzed your code and created semantic embeddings
-2. **Semantic matching:** Found code by meaning, not just text matching  
+2. **Semantic matching:** Found code by meaning, not just text matching
 3. **Ranked results:** Returned the most relevant matches first
 4. **Smart chunking:** Results show complete functions/classes, not just lines
 
+---
+
 ## Next Steps
 
-- **Interactive search:** [TUI Guide](first-tui-session.html)
-- **AI integration:** [MCP Setup](../ai-integration/mcp-quickstart.html)
-- **Search modes:** [Search Modes](../explanation/search-modes.html)
+- **Interactive search:** [First TUI Session](first-tui-session.html)
+- **Installation details:** [Full Installation Guide](installation.html)
+- **Search modes:** [Understanding Search Modes](../explanation/search-modes.html)
 - **Common tasks:** [How-To Guides](../how-to/)
+
+---
 
 ## Troubleshooting
 

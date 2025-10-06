@@ -29,9 +29,7 @@ use std::time::{Duration, Instant};
 use syntect::easy::HighlightLines;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
-use tokio::sync::mpsc::{
-    UnboundedReceiver, UnboundedSender, unbounded_channel,
-};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::task::JoinHandle;
 
 const DEBOUNCE_MS: u64 = 300;
@@ -196,7 +194,8 @@ pub fn collect_chunk_display_lines(
 
     // Pre-populate chunks that start before the visible range
     for meta in &structural_chunks {
-        if meta.span.line_start < first_line && meta.span.line_end >= first_line
+        if meta.span.line_start < first_line
+            && meta.span.line_end >= first_line
             && let Some(&depth) = depth_map.get(&(meta.span.line_start, meta.span.line_end))
             && depth < max_depth
         {
@@ -352,9 +351,7 @@ pub fn collect_chunk_display_lines(
             .collect();
 
         // If line is ONLY in text chunk (no structural chunks), show with bracket indicator
-        if !has_any_structural
-            && let Some(text_meta) = text_chunk_here
-        {
+        if !has_any_structural && let Some(text_meta) = text_chunk_here {
             let ch = if text_meta.span.line_start == text_meta.span.line_end {
                 // Single-line text chunk
                 '·'
@@ -666,92 +663,82 @@ impl TuiApp {
                 }
 
                 match key.code {
-                        KeyCode::Esc | KeyCode::Char('q') => {
-                            return Ok(());
-                        }
-                        KeyCode::Char('c')
-                            if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
-                        {
-                            return Ok(());
-                        }
-                        KeyCode::Char('v')
-                            if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
-                        {
-                            // Ctrl+V: Cycle preview mode
-                            self.cycle_preview_mode();
-                        }
-                        KeyCode::Char('f')
-                            if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
-                        {
-                            // Ctrl+F: Toggle snippet/full file
-                            self.toggle_full_file_mode();
-                        }
-                        KeyCode::Char('d')
-                            if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
-                        {
-                            // Ctrl+D: Show chunk metadata
-                            self.show_chunks();
-                        }
-                        KeyCode::Char(' ')
-                            if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
-                        {
-                            // Ctrl+Space: Toggle multi-select
-                            self.toggle_select();
-                        }
-                        KeyCode::Tab => {
-                            self.cycle_mode();
-                            self.trigger_search();
-                        }
-                        KeyCode::Up if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
-                            // Ctrl+Up: Navigate search history
-                            self.history_previous();
-                        }
-                        KeyCode::Down if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
-                            // Ctrl+Down: Navigate search history
-                            self.history_next();
-                        }
-                        KeyCode::Up => {
-                            self.previous_result();
-                        }
-                        KeyCode::Down => {
-                            self.next_result();
-                        }
-                        KeyCode::PageUp => {
-                            self.scroll_up();
-                        }
-                        KeyCode::PageDown => {
-                            self.scroll_down();
-                        }
-                        KeyCode::Enter => {
-                            // In command mode, execute command; otherwise open selected file
-                            if self.state.command_mode {
-                                self.execute_command()?;
-                            } else {
-                                self.open_selected()?;
-                            }
-                        }
-                        KeyCode::Backspace => {
-                            self.state.query.pop();
-                            // Exit command mode if we backspace the /
-                            if !self.state.query.starts_with('/') {
-                                self.state.command_mode = false;
-                            }
-                            self.trigger_search();
-                        }
-                        KeyCode::Char(c) => {
-                            // All plain characters go to search (including space, s, x, etc.)
-                            self.state.query.push(c);
-
-                            // Enter command mode if / is the first character
-                            if self.state.query == "/" {
-                                self.state.command_mode = true;
-                            }
-
-                            self.trigger_search();
-                        }
-                        _ => {}
+                    KeyCode::Esc | KeyCode::Char('q') => {
+                        return Ok(());
                     }
-                    self.pump_progress_events();
+                    KeyCode::Char('c') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                        return Ok(());
+                    }
+                    KeyCode::Char('v') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                        // Ctrl+V: Cycle preview mode
+                        self.cycle_preview_mode();
+                    }
+                    KeyCode::Char('f') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                        // Ctrl+F: Toggle snippet/full file
+                        self.toggle_full_file_mode();
+                    }
+                    KeyCode::Char('d') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                        // Ctrl+D: Show chunk metadata
+                        self.show_chunks();
+                    }
+                    KeyCode::Char(' ') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                        // Ctrl+Space: Toggle multi-select
+                        self.toggle_select();
+                    }
+                    KeyCode::Tab => {
+                        self.cycle_mode();
+                        self.trigger_search();
+                    }
+                    KeyCode::Up if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                        // Ctrl+Up: Navigate search history
+                        self.history_previous();
+                    }
+                    KeyCode::Down if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                        // Ctrl+Down: Navigate search history
+                        self.history_next();
+                    }
+                    KeyCode::Up => {
+                        self.previous_result();
+                    }
+                    KeyCode::Down => {
+                        self.next_result();
+                    }
+                    KeyCode::PageUp => {
+                        self.scroll_up();
+                    }
+                    KeyCode::PageDown => {
+                        self.scroll_down();
+                    }
+                    KeyCode::Enter => {
+                        // In command mode, execute command; otherwise open selected file
+                        if self.state.command_mode {
+                            self.execute_command()?;
+                        } else {
+                            self.open_selected()?;
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        self.state.query.pop();
+                        // Exit command mode if we backspace the /
+                        if !self.state.query.starts_with('/') {
+                            self.state.command_mode = false;
+                        }
+                        self.trigger_search();
+                    }
+                    KeyCode::Char(c) => {
+                        // All plain characters go to search (including space, s, x, etc.)
+                        self.state.query.push(c);
+
+                        // Enter command mode if / is the first character
+                        if self.state.query == "/" {
+                            self.state.command_mode = true;
+                        }
+
+                        self.trigger_search();
+                    }
+                    _ => {}
+                }
+                self.pump_progress_events();
             }
         }
     }
@@ -1554,7 +1541,8 @@ impl TuiApp {
                 .cloned();
 
             // In Chunks mode + snippet mode, show the full chunk instead of ±5 lines
-            if self.state.preview_mode == PreviewMode::Chunks && !self.state.full_file_mode
+            if self.state.preview_mode == PreviewMode::Chunks
+                && !self.state.full_file_mode
                 && let Some(meta) = chunk_meta.as_ref()
             {
                 context_start = meta
@@ -2115,9 +2103,7 @@ PDF chunk (approximate)
             (line_to_focus + 5).min(total_lines)
         };
 
-        if !full_file_mode
-            && let Some(meta) = chunk_meta
-        {
+        if !full_file_mode && let Some(meta) = chunk_meta {
             context_start = meta
                 .span
                 .line_start

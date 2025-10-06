@@ -1,37 +1,28 @@
 ---
 layout: default
-title: MCP Quick Start
-parent: For Humans Using AI Tools
+title: Setup MCP Server
+parent: How-To Guides
 nav_order: 1
 ---
 
-# MCP Quick Start
-{: .no_toc }
+# Setup MCP Server
 
-Connect ck to Claude Desktop and other AI tools in 5 minutes.
-
-## Table of contents
-{: .no_toc .text-delta }
-
-1. TOC
-{:toc}
-
----
+Connect ck to Claude Desktop and other AI tools using the Model Context Protocol (MCP).
 
 ## What is MCP?
 
-**Model Context Protocol (MCP)** - A standard protocol for AI agents to access external tools.
+**Model Context Protocol (MCP)** is a standard protocol that allows AI agents to access external tools.
 
-ck implements MCP, allowing AI agents to:
+ck implements MCP, giving AI agents the ability to:
 - Search code semantically
 - Find patterns with regex
-- Combine semantic + keyword search
+- Combine semantic + keyword search (hybrid)
 - Check index status
 - Trigger reindexing
 
 ---
 
-## Claude Desktop setup
+## Claude Desktop Setup
 
 ### 1. Install ck
 
@@ -68,7 +59,7 @@ Add:
 2. Reopen
 3. Look for MCP indicator in bottom-left
 
-### 4. Test it
+### 4. Test It
 
 In Claude Desktop:
 
@@ -80,11 +71,58 @@ Claude will use ck's semantic search automatically!
 
 ---
 
-## Command-line testing
+## Other AI Tools
 
-Test MCP server without Claude Desktop:
+### Cursor IDE
 
-### Start server
+Edit Cursor settings (Cmd/Ctrl+Shift+P → "Cursor Settings"):
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "ck-search": {
+        "command": "ck",
+        "args": ["--serve"]
+      }
+    }
+  }
+}
+```
+
+### Windsurf
+
+Add to Windsurf MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "ck-search": {
+      "command": "ck",
+      "args": ["--serve"]
+    }
+  }
+}
+```
+
+### Custom MCP Client
+
+Any MCP-compatible client can connect to ck's MCP server:
+
+```bash
+# Start server (runs on stdio)
+ck --serve
+```
+
+Server accepts JSON-RPC 2.0 messages on stdin and responds on stdout.
+
+---
+
+## Command-Line Testing
+
+Test MCP server without an AI tool:
+
+### Start Server
 
 ```bash
 ck --serve
@@ -92,21 +130,21 @@ ck --serve
 
 Server runs on stdio, waiting for JSON-RPC messages.
 
-### Send test request
+### Send Test Request
 
-**initialize:**
+**Initialize:**
 ```bash
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | ck --serve
 ```
 
-**tools/list:**
+**List tools:**
 ```bash
 printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n' | ck --serve
 ```
 
 ---
 
-## Available tools
+## Available Tools
 
 ### semantic_search
 
@@ -204,42 +242,9 @@ Force rebuild of semantic index.
 
 ---
 
-## Integration patterns
+## Best Practices
 
-### Exploratory search
-
-**Agent task:** "Understand how authentication works"
-
-**Tool calls:**
-1. `semantic_search(query="authentication", path="./src", top_k=5)`
-2. Read returned files
-3. `semantic_search(query="token validation", path="./src/auth")`
-4. Synthesize understanding
-
-### Refactoring assistance
-
-**Agent task:** "Find all database queries"
-
-**Tool calls:**
-1. `hybrid_search(query="database query", path="./src")`
-2. `regex_search(pattern="SELECT .* FROM", path="./src")`
-3. Combine results, propose refactoring
-
-### Code review
-
-**Agent task:** "Find error handling issues"
-
-**Tool calls:**
-1. `semantic_search(query="error handling", path="./src")`
-2. Check each result for best practices
-3. `regex_search(pattern="unwrap\\(\\)|expect\\(", path="./src")`
-4. Report findings
-
----
-
-## Best practices
-
-### For AI agents
+### For AI Agents
 
 **Start broad, then narrow:**
 ```
@@ -258,18 +263,16 @@ Force rebuild of semantic index.
 - `0.7-0.8` - Focused, high precision
 - `0.8+` - Very specific matches only
 
-### For integrators
+### For Integrators
 
-**Handle pagination:**
-- Default `top_k` is 100
-- For large codebases, may need multiple calls
+**Use absolute paths:**
+- MCP servers may have different working directory than expected
+- Always use absolute paths in tool calls
 
-**Check index status first:**
-```json
-{"name": "index_status", "arguments": {"path": "/project"}}
-```
-
-If not indexed, first search will trigger indexing (1-5 seconds).
+**Handle first-search indexing:**
+- First search triggers indexing (1-5 seconds for medium repos)
+- Subsequent searches are instant
+- Check `index_status` first if needed
 
 **Error handling:**
 - Invalid paths return error
@@ -278,16 +281,9 @@ If not indexed, first search will trigger indexing (1-5 seconds).
 
 ---
 
-## Debugging
+## Troubleshooting
 
-### Server not starting
-
-**Check:**
-```bash
-ck --serve --help
-```
-
-Should show MCP server options.
+### Server Not Starting
 
 **Check version:**
 ```bash
@@ -296,7 +292,14 @@ ck --version
 
 Must be 0.5.0+.
 
-### Claude Desktop not finding server
+**Test server:**
+```bash
+ck --serve --help
+```
+
+Should show MCP server options.
+
+### Claude Desktop Not Finding Server
 
 **Verify config:**
 ```bash
@@ -311,9 +314,9 @@ type %APPDATA%\Claude\claude_desktop_config.json
 - macOS: `~/Library/Logs/Claude/mcp*.log`
 - Windows: `%APPDATA%\Claude\logs\mcp*.log`
 
-### No results from search
+### No Results from Search
 
-**Test command-line:**
+**Test command-line first:**
 ```bash
 ck --sem "your query" /path/to/project
 ```
@@ -325,23 +328,41 @@ If CLI works but MCP doesn't:
 
 ---
 
-## Tips
+## Example Workflows
 
-{: .tip }
-**Use absolute paths:** MCP servers may have different working directory than expected
+### Exploratory Search
 
-{: .tip }
-**Index once, search many:** First search triggers indexing; subsequent searches are instant
+**Agent task:** "Understand how authentication works"
 
-{: .tip }
-**Combine with file reading:** Use search to find relevant files, then read them for context
+**Tool calls:**
+1. `semantic_search(query="authentication", path="./src", top_k=5)`
+2. Read returned files
+3. `semantic_search(query="token validation", path="./src/auth")`
+4. Synthesize understanding
+
+### Refactoring Assistance
+
+**Agent task:** "Find all database queries"
+
+**Tool calls:**
+1. `hybrid_search(query="database query", path="./src")`
+2. `regex_search(pattern="SELECT .* FROM", path="./src")`
+3. Combine results, propose refactoring
+
+### Code Review
+
+**Agent task:** "Find error handling issues"
+
+**Tool calls:**
+1. `semantic_search(query="error handling", path="./src")`
+2. Check each result for best practices
+3. `regex_search(pattern="unwrap\\(\\)|expect\\(", path="./src")`
+4. Report findings
 
 ---
 
-## Next steps
+## Next Steps
 
-**→** [MCP API Reference](mcp-api.html) - Complete protocol documentation
-
-**→** [Setup guides](setup-guides.html) - Integration with other AI tools
-
-**→** [Examples](examples.html) - Real-world agent workflows
+- **API details:** [MCP API Reference](../reference/mcp-api.html)
+- **Agent examples:** [Agent Workflows](agent-workflows.html)
+- **Configuration:** [Configuration Guide](configuration.html)

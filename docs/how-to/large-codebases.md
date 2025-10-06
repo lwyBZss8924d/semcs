@@ -2,7 +2,7 @@
 layout: default
 title: Search Large Codebases
 parent: How-To Guides
-nav_order: 2
+nav_order: 5
 ---
 
 # Search Large Codebases

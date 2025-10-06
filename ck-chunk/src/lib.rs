@@ -1404,7 +1404,8 @@ mod tests {
         let mut result: Vec<(usize, usize, ChunkType)> = Vec::new();
         for (start, end, ty) in spans {
             if let Some(last) = result.last_mut()
-                && last.0 == start && last.2 == ty
+                && last.0 == start
+                && last.2 == ty
             {
                 if end > last.1 {
                     last.1 = end;
