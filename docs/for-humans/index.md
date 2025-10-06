@@ -17,12 +17,11 @@ Everything you need to search code semantically, find patterns, and understand c
 
 ## Common tasks
 
-- **[Find Patterns](find-patterns.html)** - Authentication, errors, configs
-- **[Editor Integration](editor-integration.html)** - VS Code, Vim, Neovim
-- **[Large Codebases](large-codebases.html)** - Performance tips
-- **[Configuration](configuration.html)** - .ckignore and settings
+- **[Find Patterns](find-patterns.html)** - Ready-to-use searches for common patterns
+- **[Configuration](configuration.html)** - .ckignore, environment variables, tuning
+- **[Editor Integration](editor-integration.html)** - VS Code, Vim, Neovim, Emacs
+- **[Large Codebases](large-codebases.html)** - Performance tips for big projects
 
 ## Reference
 
-- **[CLI Flags](cli-reference.html)** - Complete command-line options
-- **[Supported Languages](languages.html)** - Language support matrix
+- **[CLI Reference](cli-reference.html)** - Complete command-line options and flags

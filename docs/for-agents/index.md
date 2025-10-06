@@ -11,18 +11,20 @@ Integrate ck's semantic search into your AI workflow via the Model Context Proto
 
 ## Start here
 
-1. **[MCP Quickstart](mcp-quickstart.html)** (5 min) - Get connected
-2. **[API Reference](mcp-api.html)** - Complete tool specifications
-3. **[Examples](examples.html)** - Code samples
+1. **[MCP Quick Start](mcp-quickstart.html)** (5 min) - Connect to Claude Desktop
+2. **[MCP API Reference](mcp-api.html)** - Complete protocol specification
+3. **[Examples](examples.html)** - Real-world agent workflows
 
-## Setup guides
+## Integration guides
 
-- **[Claude Desktop](claude-desktop.html)** - Official Claude app
-- **[Cursor](cursor.html)** - AI-powered editor
-- **[Custom Clients](custom-clients.html)** - Build your own integration
+- **[Setup Guides](setup-guides.html)** - Claude Desktop, LangChain, AutoGPT, Cursor
+- **[Custom clients](setup-guides.html#custom-mcp-client)** - Build your own integration
 
-## Reference
+## Tools available
 
-- **[Tool Specifications](tool-specs.html)** - semantic_search, regex_search, hybrid_search
-- **[Pagination](pagination.html)** - Handle large result sets
-- **[Performance](performance.html)** - Optimize for speed
+- **semantic_search** - Find code by meaning, not text
+- **regex_search** - Pattern matching with full regex support
+- **hybrid_search** - Semantic ranking + keyword filtering
+- **index_status** - Check index health and statistics
+- **reindex** - Force rebuild of semantic index
+- **health_check** - Verify server is running
