@@ -1,7 +1,7 @@
 ---
 layout: default
 title: AI Integration (MCP)
-parent: 🔧 How-To Guides
+parent: How-To Guides
 nav_order: 1
 ---
 

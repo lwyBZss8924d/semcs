@@ -1,7 +1,7 @@
 ---
 layout: default
 title: TUI Reference
-parent: 📖 Reference
+parent: Reference
 nav_order: 1
 ---
 

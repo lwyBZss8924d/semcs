@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Quick Start
-parent: 🎓 Tutorials
+parent: Tutorials
 nav_order: 1
 ---
 

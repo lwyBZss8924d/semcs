@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Search Modes Compared
-parent: 💡 Explanation
+parent: Explanation
 nav_order: 1
 ---
 
