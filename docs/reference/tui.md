@@ -1,7 +1,8 @@
 ---
 layout: default
-title: TUI Guide
-nav_order: 3
+title: TUI Reference
+parent: 📖 Reference
+nav_order: 1
 ---
 
 # TUI (Interactive) Mode
