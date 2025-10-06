@@ -1,80 +1,73 @@
 ---
 layout: default
 title: Home
-nav_order: 1
 ---
 
 # ck - Semantic Code Search
 
-**ck (seek)** finds code by meaning, not just keywords. It's grep that understands what you're looking for — search for "error handling" and find try/catch blocks, error returns, and exception handling code even when those exact words aren't present.
-
-## Quick Start
+**ck (seek)** finds code by meaning, not just keywords. Search for "error handling" and find try/catch blocks, error returns, and exception handling—even when those exact words aren't present.
 
 ```bash
-# Install from crates.io
+# Install
 cargo install ck-search
 
-# Just search — ck builds and updates indexes automatically
-ck --sem "error handling" src/
+# Search by meaning
 ck --sem "authentication logic" src/
-ck --sem "database connection pooling" src/
-
-# Traditional grep-compatible search still works
-ck -n "TODO" *.rs
-ck -R "TODO|FIXME" .
-
-# Combine both: semantic relevance + keyword filtering
-ck --hybrid "connection timeout" src/
-
-# Interactive TUI mode
-ck --tui src/
-```
-
-## Key Features
-
-- **🔍 Semantic Search**: Find code by meaning, not just text matching
-- **🎨 Interactive TUI**: Beautiful terminal UI with live search and preview
-- **🤖 AI Agent Integration**: MCP server for Claude Desktop, Cursor, and more
-- **⚡ Drop-in grep**: Compatible with your existing grep workflows
-- **🎯 Hybrid Search**: Combine semantic understanding with keyword precision
-- **⚙️ Automatic Indexing**: Delta updates keep your index fresh
-- **📁 Smart Filtering**: Respects .gitignore and .ckignore
-
-## Documentation
-
-### Getting Started
-- [Installation](installation.html) - Install on macOS, Linux, Windows
-- [Search Modes](search-modes.html) - Semantic, regex, and hybrid search
-- [TUI Guide](tui-guide.html) - Interactive terminal UI
-
-### Integration
-- [AI Integration](ai-integration.html) - MCP server for AI agents
-- [Advanced Usage](advanced-usage.html) - Index management, model selection
-
-### Reference
-- [Language Support](language-support.html) - Supported languages and chunking
-- [CLI Reference](cli-reference.html) - Complete command-line options
-
-## Example Searches
-
-```bash
-# Semantic search - understands concepts
-ck --sem "error handling" src/
-ck --sem "async task spawning" .
-ck --sem "configuration loading" src/
-
-# Hybrid - semantic + keyword filtering
-ck --hybrid "timeout handling" src/
-ck --hybrid "retry logic" .
-
-# Classic regex (grep-compatible)
-ck "TODO" src/
-ck -r "FIXME|XXX" .
-ck -n "fn main" src/
 
 # Interactive TUI
 ck --tui .
+
+# AI agent integration
+ck --serve
 ```
+
+---
+
+## Documentation
+
+Following the [Divio documentation system](https://docs.divio.com/documentation-system/), our docs are organized by your needs:
+
+### 📚 [Tutorials](tutorials/)
+*Learning-oriented • Get started fast*
+
+Perfect for newcomers. Step-by-step lessons to get you productive quickly.
+
+- **[Quick Start](tutorials/quick-start.html)** - Install and run your first search (5 min)
+- **[Your First TUI Session](tutorials/first-tui-session.html)** - Interactive search walkthrough (10 min)
+- **[Setting Up AI Integration](tutorials/setup-ai-integration.html)** - Connect Claude Desktop (15 min)
+
+### 🔧 [How-To Guides](how-to/)
+*Problem-oriented • Solve specific tasks*
+
+Recipes for common tasks and workflows. Goal-oriented instructions.
+
+- **[Find Specific Patterns](how-to/find-patterns.html)** - Authentication, errors, configs, etc.
+- **[Integrate with Your Editor](how-to/editor-integration.html)** - VS Code, Vim, Emacs
+- **[Search Large Codebases](how-to/large-codebases.html)** - Performance tips and tricks
+- **[Customize File Filtering](how-to/file-filtering.html)** - .ckignore and exclusion patterns
+- **[Use in CI/CD](how-to/ci-cd.html)** - Automated code analysis
+
+### 📖 [Reference](reference/)
+*Information-oriented • Look up details*
+
+Technical specifications and complete API documentation.
+
+- **[CLI Reference](reference/cli.html)** - All command-line flags and options
+- **[MCP API](reference/mcp-api.html)** - Complete MCP tool specifications
+- **[Configuration](reference/configuration.html)** - Environment variables and settings
+- **[Language Support](reference/languages.html)** - Supported languages and chunking
+
+### 💡 [Explanation](explanation/)
+*Understanding-oriented • Conceptual background*
+
+Deep dives into how ck works and why it's designed this way.
+
+- **[How Semantic Search Works](explanation/semantic-search.html)** - Embeddings, chunking, ranking
+- **[Search Modes Compared](explanation/search-modes.html)** - When to use each mode
+- **[Chunking Strategy](explanation/chunking.html)** - Tree-sitter and code structure
+- **[Index Architecture](explanation/index-architecture.html)** - How indexes are built and updated
+
+---
 
 ## Quick Links
 
@@ -82,3 +75,15 @@ ck --tui .
 - [Crates.io](https://crates.io/crates/ck-search)
 - [Report Issues](https://github.com/BeaconBay/ck/issues)
 - [Changelog](https://github.com/BeaconBay/ck/blob/main/CHANGELOG.md)
+
+---
+
+## Not Sure Where to Start?
+
+**→ New to ck?** Start with [Quick Start Tutorial](tutorials/quick-start.html)
+
+**→ Need to solve a problem?** Browse [How-To Guides](how-to/)
+
+**→ Looking for specific info?** Check [Reference](reference/)
+
+**→ Want to understand deeply?** Read [Explanations](explanation/)
