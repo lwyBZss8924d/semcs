@@ -5,6 +5,16 @@ parent: Tutorials
 nav_order: 1
 ---
 
+{: .no_toc }
+
+## Table of contents
+{: .no_toc .text-delta }
+
+1. TOC
+{:toc}
+
+---
+
 # Quick Start Tutorial
 
 **Goal:** Install ck and run your first semantic search in 5 minutes.

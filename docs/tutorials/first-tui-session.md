@@ -5,6 +5,16 @@ parent: Tutorials
 nav_order: 2
 ---
 
+{: .no_toc }
+
+## Table of contents
+{: .no_toc .text-delta }
+
+1. TOC
+{:toc}
+
+---
+
 # Your First TUI Session
 
 **Goal:** Master ck's interactive search interface in 10 minutes.
