@@ -1,6 +1,6 @@
 ---
 layout: default
-title: How-To Guides
+title: 🔧 How-To Guides
 nav_order: 3
 has_children: true
 ---
