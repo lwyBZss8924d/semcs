@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Examples
-parent: For AI Agents
+parent: For Humans Using AI Tools
 nav_order: 4
 ---
 

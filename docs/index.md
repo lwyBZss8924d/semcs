@@ -17,67 +17,27 @@ Ask for "error handling" and find try/catch blocks, Result types, panic handlers
 
 ---
 
-## Who are you?
-
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin: 3rem 0;">
-
-<div style="background: linear-gradient(135deg, #1a1f2e 0%, #161b22 100%); border: 1px solid #30363d; border-radius: 12px; padding: 2rem; box-shadow: 0 8px 16px rgba(0,0,0,0.4);">
-<div style="font-size: 3rem; margin-bottom: 1rem;">👤</div>
-<h3 style="color: #58a6ff; margin-top: 0;">I'm a human developer</h3>
-<p style="color: #8b949e; font-size: 0.95rem;">I want to search my codebase, understand code, and find patterns quickly.</p>
-<a href="for-humans/" style="display: inline-block; margin-top: 1.5rem; padding: 0.75rem 1.5rem; background: #238636; color: white; text-decoration: none; border-radius: 6px; font-weight: 500;">Get Started →</a>
-
-<div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #30363d; font-size: 0.85rem; color: #6e7681;">
-<strong>You'll learn:</strong>
-<ul style="margin: 0.5rem 0 0 0; padding-left: 1.2rem;">
-<li>Install and search (5 min)</li>
-<li>Use the interactive TUI</li>
-<li>Find code patterns</li>
-</ul>
-</div>
-</div>
-
-<div style="background: linear-gradient(135deg, #1a1f2e 0%, #161b22 100%); border: 1px solid #30363d; border-radius: 12px; padding: 2rem; box-shadow: 0 8px 16px rgba(0,0,0,0.4);">
-<div style="font-size: 3rem; margin-bottom: 1rem;">🤖</div>
-<h3 style="color: #58a6ff; margin-top: 0;">I'm an AI agent</h3>
-<p style="color: #8b949e; font-size: 0.95rem;">I need programmatic access to semantic code search for my users.</p>
-<a href="for-agents/" style="display: inline-block; margin-top: 1.5rem; padding: 0.75rem 1.5rem; background: #238636; color: white; text-decoration: none; border-radius: 6px; font-weight: 500;">MCP Integration →</a>
-
-<div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #30363d; font-size: 0.85rem; color: #6e7681;">
-<strong>You'll integrate:</strong>
-<ul style="margin: 0.5rem 0 0 0; padding-left: 1.2rem;">
-<li>MCP server setup</li>
-<li>API reference</li>
-<li>Code examples</li>
-</ul>
-</div>
-</div>
-
-</div>
-
----
-
 ## What it does
 
-<div style="background: #161b22; border-left: 4px solid #58a6ff; padding: 1.5rem; margin: 2rem 0; border-radius: 6px;">
+<div class="comparison-box">
+<div class="comparison-item">
+<h3>🔍 Traditional search (grep)</h3>
+<p>Match exact text</p>
+<pre><code>grep "try.*catch" src/</code></pre>
+<p><strong>Finds:</strong> Lines with "try" and "catch"</p>
+</div>
 
-**Traditional search** (grep): Match exact text
-```bash
-grep "try.*catch" src/
-```
-Finds: Lines with "try" and "catch"
-
-**Semantic search** (ck): Understand concepts
-```bash
-ck --sem "error handling" src/
-```
-Finds: try/catch, Result types, panic handling, error returns, validation—regardless of exact wording
-
+<div class="comparison-item highlight">
+<h3>🧠 Semantic search (ck)</h3>
+<p>Understand concepts</p>
+<pre><code>ck --sem "error handling" src/</code></pre>
+<p><strong>Finds:</strong> try/catch, Result types, panic handling, error returns, validation—regardless of exact wording</p>
+</div>
 </div>
 
 ---
 
-## Quick example
+## Quick start
 
 ```bash
 # Search by meaning
@@ -86,8 +46,257 @@ ck --sem "retry logic" src/
 # Interactive mode
 ck --tui .
 
-# For AI agents
+# For AI tools
 ck --serve
 ```
 
-**One minute to install.** Choose your path above.
+**One minute to install.** Choose your path below.
+
+---
+
+## Documentation
+
+<div class="divio-grid">
+
+<div class="divio-card tutorial">
+<div class="divio-icon">🎓</div>
+<h3><a href="tutorials/">Tutorials</a></h3>
+<p><strong>Learning-oriented</strong> • Step-by-step lessons</p>
+<p>Perfect for newcomers. Follow these tutorials to get productive with ck quickly.</p>
+<div class="divio-links">
+<a href="tutorials/quick-start">Quick Start (5 min)</a>
+<a href="tutorials/first-tui-session">Interactive TUI</a>
+<a href="tutorials/installation">Installation Guide</a>
+</div>
+</div>
+
+<div class="divio-card how-to">
+<div class="divio-icon">🔧</div>
+<h3><a href="how-to/">How-To Guides</a></h3>
+<p><strong>Problem-oriented</strong> • Step-by-step recipes</p>
+<p>Practical guides for specific tasks and common workflows.</p>
+<div class="divio-links">
+<a href="how-to/find-patterns">Find Specific Patterns</a>
+<a href="how-to/editor-integration">Editor Integration</a>
+<a href="how-to/large-codebases">Large Codebases</a>
+</div>
+</div>
+
+<div class="divio-card reference">
+<div class="divio-icon">📖</div>
+<h3><a href="reference/">Reference</a></h3>
+<p><strong>Information-oriented</strong> • Technical specifications</p>
+<p>Complete API documentation and reference materials.</p>
+<div class="divio-links">
+<a href="reference/cli">CLI Reference</a>
+<a href="reference/mcp-api">MCP API</a>
+<a href="reference/configuration">Configuration</a>
+</div>
+</div>
+
+<div class="divio-card explanation">
+<div class="divio-icon">💡</div>
+<h3><a href="explanation/">Explanation</a></h3>
+<p><strong>Understanding-oriented</strong> • Conceptual deep-dives</p>
+<p>Background, design decisions, and how ck works under the hood.</p>
+<div class="divio-links">
+<a href="explanation/semantic-search">How Semantic Search Works</a>
+<a href="explanation/search-modes">Search Modes Compared</a>
+<a href="explanation/architecture">Architecture</a>
+</div>
+</div>
+
+</div>
+
+---
+
+## AI Integration
+
+<div class="ai-integration">
+<div class="ai-card">
+<h3>🤖 For Humans Using AI Tools</h3>
+<p>Connect ck to Claude Desktop, Cursor, and other AI coding assistants via MCP.</p>
+<div class="ai-links">
+<a href="ai-integration/mcp-quickstart">MCP Quick Start</a>
+<a href="ai-integration/mcp-api">MCP API Reference</a>
+<a href="ai-integration/examples">Examples</a>
+</div>
+</div>
+</div>
+
+<style>
+.comparison-box {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin: 2rem 0;
+}
+
+.comparison-item {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.comparison-item.highlight {
+  border-color: #58a6ff;
+  background: linear-gradient(135deg, #1a1f2e 0%, #161b22 100%);
+}
+
+.comparison-item h3 {
+  color: #58a6ff;
+  margin-top: 0;
+}
+
+.comparison-item pre {
+  background: #0d1117;
+  border: 1px solid #21262d;
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+.divio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin: 3rem 0;
+}
+
+.divio-card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 2rem;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.divio-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+
+.divio-card.tutorial {
+  border-left: 4px solid #58a6ff;
+}
+
+.divio-card.how-to {
+  border-left: 4px solid #238636;
+}
+
+.divio-card.reference {
+  border-left: 4px solid #f85149;
+}
+
+.divio-card.explanation {
+  border-left: 4px solid #a5a5a5;
+}
+
+.divio-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.divio-card h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.divio-card h3 a {
+  color: #f0f6fc;
+  text-decoration: none;
+}
+
+.divio-card h3 a:hover {
+  color: #58a6ff;
+}
+
+.divio-card p {
+  color: #8b949e;
+  margin-bottom: 1rem;
+}
+
+.divio-card p strong {
+  color: #f0f6fc;
+}
+
+.divio-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.divio-links a {
+  color: #58a6ff;
+  text-decoration: none;
+  font-size: 0.9rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.divio-links a:hover {
+  border-bottom-color: #58a6ff;
+}
+
+.ai-integration {
+  margin: 3rem 0;
+}
+
+.ai-card {
+  background: linear-gradient(135deg, #1a1f2e 0%, #161b22 100%);
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+}
+
+.ai-card h3 {
+  color: #58a6ff;
+  margin-top: 0;
+}
+
+.ai-card p {
+  color: #8b949e;
+  margin-bottom: 1.5rem;
+}
+
+.ai-links {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ai-links a {
+  background: #238636;
+  color: white;
+  text-decoration: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.ai-links a:hover {
+  background: #2ea043;
+}
+
+@media (max-width: 768px) {
+  .comparison-box {
+    grid-template-columns: 1fr;
+  }
+  
+  .divio-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .ai-links {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+</style>

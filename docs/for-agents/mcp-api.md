@@ -1,7 +1,7 @@
 ---
 layout: default
 title: MCP API Reference
-parent: For AI Agents
+parent: For Humans Using AI Tools
 nav_order: 2
 ---
 

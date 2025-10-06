@@ -1,8 +1,8 @@
 ---
 layout: default
 title: Setup Guides
-parent: For AI Agents
-nav_order: 3
+parent: For Humans Using AI Tools
+nav_order: 5
 ---
 
 # Setup Guides

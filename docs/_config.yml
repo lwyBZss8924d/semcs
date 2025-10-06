@@ -52,3 +52,41 @@ callouts:
     color: yellow
   important:
     color: purple
+
+# Collections for better organization
+collections:
+  tutorials:
+    output: true
+    permalink: /:collection/:name/
+  how-to:
+    output: true
+    permalink: /:collection/:name/
+  reference:
+    output: true
+    permalink: /:collection/:name/
+  explanation:
+    output: true
+    permalink: /:collection/:name/
+
+# Defaults for collections
+defaults:
+  - scope:
+      path: ""
+      type: "tutorials"
+    values:
+      layout: "default"
+  - scope:
+      path: ""
+      type: "how-to"
+    values:
+      layout: "default"
+  - scope:
+      path: ""
+      type: "reference"
+    values:
+      layout: "default"
+  - scope:
+      path: ""
+      type: "explanation"
+    values:
+      layout: "default"

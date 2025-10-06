@@ -1,13 +1,13 @@
 ---
 layout: default
-title: For AI Agents
+title: For Humans Using AI Tools
 nav_order: 3
 has_children: true
 ---
 
-# For AI Agents
+# For Humans Using AI Tools
 
-Integrate ck's semantic search into your AI workflow via the Model Context Protocol.
+Integrate ck's semantic search into your AI coding workflow via the Model Context Protocol.
 
 ## Start here
 
