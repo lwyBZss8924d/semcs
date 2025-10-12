@@ -14,6 +14,7 @@ interface SearchBackend {
   getIndexStatus(path: string): Promise<IndexStatus>;
   dispose(): void;
   onIndexProgress?: vscode.Event<IndexProgressUpdate>;
+  getDefaultCkignoreContent?(indexRoot: string): Promise<string>;
 }
 
 export class CkSearchPanel implements vscode.WebviewViewProvider {
@@ -25,57 +26,73 @@ export class CkSearchPanel implements vscode.WebviewViewProvider {
   private currentIndexRoot: string | undefined;
   private adapterDisposables: vscode.Disposable[] = [];
 
-  private static readonly DEFAULT_CKIGNORE_CONTENT = `# .ckignore - Default patterns for ck semantic search
-# Adjust these patterns to control what ck indexes and searches.
-# Lines starting with # are comments.
+  // Fallback copy of ck-core defaults; extension fetches live content when possible.
+  private static readonly FALLBACK_CKIGNORE_CONTENT = `# .ckignore - Default patterns for ck semantic search
+# Created automatically during first index
+# Syntax: same as .gitignore (glob patterns, ! for negation)
 
-# Common build directories
-node_modules/
-target/
-dist/
-build/
-out/
-.next/
-.nuxt/
-.turbo/
-
-# Version control and CI artifacts
-.git/
-.hg/
-.svn/
-.idea/
-.vscode/
-.venv/
-__pycache__/
-
-# Binary and archive formats
+# Images
 *.png
 *.jpg
 *.jpeg
 *.gif
 *.bmp
-*.ico
 *.svg
+*.ico
+*.webp
+*.tiff
+
+# Video
 *.mp4
+*.avi
+*.mov
+*.mkv
+*.wmv
+*.flv
+*.webm
+
+# Audio
 *.mp3
 *.wav
+*.flac
+*.aac
 *.ogg
+*.m4a
+
+# Binary/Compiled
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.obj
+*.o
+
+# Archives
 *.zip
 *.tar
-*.gz
+*.tar.gz
+*.tgz
 *.rar
 *.7z
+*.bz2
+*.gz
 
-# Generated files and logs
-*.min.js
-*.bundle.js
-*.map
-*.log
-*.tmp
-*.cache
-*.lock
+# Data files
+*.db
 *.sqlite
-`; // Matches ck-core defaults
+*.sqlite3
+*.parquet
+*.arrow
+
+# Config formats (issue #27)
+*.json
+*.yaml
+*.yml
+
+# Add your custom patterns below this line
+`;
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
@@ -507,9 +524,28 @@ __pycache__/
         return;
       }
 
+      const indexRoot = this.resolveIndexRoot(workspaceFolder);
+      const adapter = this.getAdapter(indexRoot);
+      let defaultContent = CkSearchPanel.FALLBACK_CKIGNORE_CONTENT;
+
+      if (adapter.getDefaultCkignoreContent) {
+        try {
+          const fetched = await adapter.getDefaultCkignoreContent(indexRoot);
+          if (typeof fetched === 'string' && fetched.trim().length > 0) {
+            defaultContent = fetched;
+          }
+        } catch (error) {
+          console.warn('Failed to fetch default .ckignore content from ck backend:', error);
+        }
+      }
+
+      if (!defaultContent.endsWith('\n')) {
+        defaultContent = `${defaultContent}\n`;
+      }
+
       await vscode.workspace.fs.writeFile(
         ckignoreUri,
-        Buffer.from(CkSearchPanel.DEFAULT_CKIGNORE_CONTENT, 'utf8')
+        Buffer.from(defaultContent, 'utf8')
       );
       vscode.window.showInformationMessage('.ckignore created with default ck patterns');
     }

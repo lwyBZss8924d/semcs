@@ -116,6 +116,16 @@ export class CkMcpAdapter {
     }
   }
 
+  async getDefaultCkignoreContent(_indexRoot: string): Promise<string> {
+    await this.ensureServer();
+    const response = await this.callTool('default_ckignore', {});
+    const content = response?.ckignore ?? response?.content ?? response;
+    if (typeof content === 'string') {
+      return content;
+    }
+    throw new Error('MCP server did not return default .ckignore content');
+  }
+
   dispose(): void {
     this.shutdownChild('MCP server disposed');
     this.outputChannel.dispose();

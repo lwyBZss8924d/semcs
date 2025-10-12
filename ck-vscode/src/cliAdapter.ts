@@ -146,6 +146,38 @@ export class CkCliAdapter {
     });
   }
 
+  async getDefaultCkignoreContent(indexRoot: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const child = spawn(this.cliPath, ['--print-default-ckignore'], {
+        cwd: indexRoot,
+        shell: false
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      child.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      child.on('close', (code) => {
+        if (code === 0) {
+          resolve(stdout);
+        } else {
+          reject(new Error(`Failed to fetch default .ckignore (exit code ${code}): ${stderr}`));
+        }
+      });
+
+      child.on('error', (err) => {
+        reject(new Error(`Failed to spawn ck: ${err.message}`));
+      });
+    });
+  }
+
   /**
    * Trigger reindexing
    */
