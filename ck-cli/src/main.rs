@@ -446,33 +446,13 @@ fn find_search_root(include_patterns: &[IncludePattern]) -> PathBuf {
 }
 
 fn build_exclude_patterns(cli: &Cli, repo_root: Option<&Path>) -> Vec<String> {
-    let mut patterns = Vec::new();
-
-    // Build exclusion patterns that will be merged with .gitignore (if respected)
-    // Note: These patterns are ADDITIVE with .gitignore, not replacements
-    // Final exclusions = .gitignore + .ckignore + command-line + defaults
-    //
-    // Priority order within these additional patterns:
-    // .ckignore > command-line excludes > defaults
-
-    // 1. Load .ckignore patterns (highest priority among additional patterns)
-    if !cli.no_ckignore
-        && let Some(root) = repo_root
-        && let Ok(ckignore_patterns) = ck_core::read_ckignore_patterns(root)
-        && !ckignore_patterns.is_empty()
-    {
-        patterns.extend(ckignore_patterns);
-    }
-
-    // 2. Add command-line exclude patterns
-    patterns.extend(cli.exclude.clone());
-
-    // 3. Add defaults (lowest priority)
-    if !cli.no_default_excludes {
-        patterns.extend(ck_core::get_default_exclude_patterns());
-    }
-
-    patterns
+    // Use the centralized pattern builder from ck-core
+    ck_core::build_exclude_patterns(
+        repo_root,
+        &cli.exclude,
+        !cli.no_ckignore,
+        !cli.no_default_excludes,
+    )
 }
 
 fn resolve_model_selection(
