@@ -6,13 +6,14 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { CkCliAdapter } from './cliAdapter';
 import { CkMcpAdapter } from './mcpAdapter';
-import { SearchMode, SearchOptions, SearchResult, CkConfig, SearchResponse, IndexStatus } from './types';
+import { SearchMode, SearchOptions, SearchResult, CkConfig, SearchResponse, IndexStatus, IndexProgressUpdate } from './types';
 
 interface SearchBackend {
   search(options: SearchOptions): Promise<SearchResponse>;
   reindex(path: string, progress?: vscode.Progress<{ message?: string; increment?: number }>): Promise<void>;
   getIndexStatus(path: string): Promise<IndexStatus>;
   dispose(): void;
+  onIndexProgress?: vscode.Event<IndexProgressUpdate>;
 }
 
 export class CkSearchPanel implements vscode.WebviewViewProvider {
@@ -22,6 +23,59 @@ export class CkSearchPanel implements vscode.WebviewViewProvider {
   private adapter: SearchBackend | undefined;
   private config: CkConfig;
   private currentIndexRoot: string | undefined;
+  private adapterDisposables: vscode.Disposable[] = [];
+
+  private static readonly DEFAULT_CKIGNORE_CONTENT = `# .ckignore - Default patterns for ck semantic search
+# Adjust these patterns to control what ck indexes and searches.
+# Lines starting with # are comments.
+
+# Common build directories
+node_modules/
+target/
+dist/
+build/
+out/
+.next/
+.nuxt/
+.turbo/
+
+# Version control and CI artifacts
+.git/
+.hg/
+.svn/
+.idea/
+.vscode/
+.venv/
+__pycache__/
+
+# Binary and archive formats
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.ico
+*.svg
+*.mp4
+*.mp3
+*.wav
+*.ogg
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+
+# Generated files and logs
+*.min.js
+*.bundle.js
+*.map
+*.log
+*.tmp
+*.cache
+*.lock
+*.sqlite
+`; // Matches ck-core defaults
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
@@ -60,6 +114,9 @@ export class CkSearchPanel implements vscode.WebviewViewProvider {
           break;
         case 'getIndexStatus':
           await this.handleIndexStatus();
+          break;
+        case 'openCkignore':
+          await this.openCkignore();
           break;
       }
     });
@@ -152,6 +209,18 @@ export class CkSearchPanel implements vscode.WebviewViewProvider {
 
     const indexRoot = this.resolveIndexRoot(workspaceFolder);
     const adapter = this.getAdapter(indexRoot);
+    const source: IndexProgressUpdate['source'] = this.config.mode === 'mcp' ? 'mcp' : 'cli';
+
+    if (this._view) {
+      this._view.webview.postMessage({
+        type: 'indexProgress',
+        update: {
+          message: 'Starting reindex…',
+          source,
+          timestamp: Date.now()
+        }
+      });
+    }
 
     await vscode.window.withProgress(
       {
@@ -303,9 +372,21 @@ export class CkSearchPanel implements vscode.WebviewViewProvider {
         <input type="text" id="includeInput" placeholder="files to include: *.ts *.js (comma or space separated)" class="filter-input">
         <input type="text" id="excludeInput" placeholder="files to exclude: *.html *.md (comma or space separated)" class="filter-input">
       </div>
-      <div class="index-status" id="indexStatus">
-        <span class="status-indicator"></span>
-        <span class="status-text">Checking index...</span>
+      <div class="index-meta">
+        <div class="index-status" id="indexStatus" role="status">
+          <span class="status-indicator"></span>
+          <span class="status-text">Checking index...</span>
+        </div>
+        <div class="index-actions">
+          <button id="refreshStatusButton" class="icon-button" title="Refresh index status">
+            <span class="codicon codicon-refresh"></span>
+          </button>
+          <button id="ckignoreButton" class="link-button" title="Open .ckignore rules">.ckignore</button>
+        </div>
+      </div>
+      <div class="index-progress hidden" id="indexProgress">
+        <span class="codicon codicon-sync"></span>
+        <span class="progress-text">Indexing...</span>
       </div>
     </div>
 
@@ -340,6 +421,7 @@ export class CkSearchPanel implements vscode.WebviewViewProvider {
       this.adapter.dispose();
       this.adapter = undefined;
     }
+    this.disposeAdapterEvents();
   }
 
   private resetAdapter() {
@@ -348,6 +430,7 @@ export class CkSearchPanel implements vscode.WebviewViewProvider {
     }
     this.adapter = undefined;
     this.currentIndexRoot = undefined;
+    this.disposeAdapterEvents();
   }
 
   private getAdapter(indexRoot: string): SearchBackend {
@@ -355,8 +438,10 @@ export class CkSearchPanel implements vscode.WebviewViewProvider {
       if (this.adapter) {
         this.adapter.dispose();
       }
+      this.disposeAdapterEvents();
       this.adapter = this.createAdapter(this.config, indexRoot);
       this.currentIndexRoot = indexRoot;
+      this.registerAdapterEvents(this.adapter);
     }
     return this.adapter;
   }
@@ -368,6 +453,25 @@ export class CkSearchPanel implements vscode.WebviewViewProvider {
     return new CkCliAdapter(config.cliPath);
   }
 
+  private registerAdapterEvents(adapter: SearchBackend) {
+    if (adapter.onIndexProgress) {
+      const disposable = adapter.onIndexProgress((update) => {
+        if (this._view) {
+          this._view.webview.postMessage({
+            type: 'indexProgress',
+            update
+          });
+        }
+      });
+      this.adapterDisposables.push(disposable);
+    }
+  }
+
+  private disposeAdapterEvents() {
+    this.adapterDisposables.forEach((disposable) => disposable.dispose());
+    this.adapterDisposables = [];
+  }
+
   private resolveIndexRoot(workspaceFolder?: vscode.WorkspaceFolder): string {
     const workspacePath = workspaceFolder?.uri.fsPath ?? process.cwd();
     const template = this.config.indexRoot ?? '${workspaceFolder}';
@@ -375,6 +479,43 @@ export class CkSearchPanel implements vscode.WebviewViewProvider {
     return path.isAbsolute(substituted)
       ? substituted
       : path.resolve(workspacePath, substituted);
+  }
+
+  private async openCkignore() {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) {
+      vscode.window.showErrorMessage('No workspace folder open');
+      return;
+    }
+
+    const ckignoreUri = vscode.Uri.joinPath(workspaceFolder.uri, '.ckignore');
+    let exists = true;
+    try {
+      await vscode.workspace.fs.stat(ckignoreUri);
+    } catch (error) {
+      exists = false;
+    }
+
+    if (!exists) {
+      const selection = await vscode.window.showInformationMessage(
+        'No .ckignore file found for this workspace. Create one with the default ck patterns?',
+        'Create .ckignore',
+        'Cancel'
+      );
+
+      if (selection !== 'Create .ckignore') {
+        return;
+      }
+
+      await vscode.workspace.fs.writeFile(
+        ckignoreUri,
+        Buffer.from(CkSearchPanel.DEFAULT_CKIGNORE_CONTENT, 'utf8')
+      );
+      vscode.window.showInformationMessage('.ckignore created with default ck patterns');
+    }
+
+    const document = await vscode.workspace.openTextDocument(ckignoreUri);
+    await vscode.window.showTextDocument(document, { preview: false });
   }
 }
 

@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as readline from 'readline';
 import * as vscode from 'vscode';
 import packageJson from '../package.json';
-import { CkConfig, IndexStatus, SearchOptions, SearchResponse, SearchResult } from './types';
+import { CkConfig, IndexStatus, SearchOptions, SearchResponse, SearchResult, IndexProgressUpdate } from './types';
 
 interface PendingRequest {
   resolve: (value: any) => void;
@@ -22,6 +22,9 @@ export class CkMcpAdapter {
   private nextId = 1;
   private initializationPromise: Promise<void> | undefined;
   private outputChannel = vscode.window.createOutputChannel('ck MCP');
+  private progressEmitter = new vscode.EventEmitter<IndexProgressUpdate>();
+
+  public readonly onIndexProgress = this.progressEmitter.event;
 
   constructor(private readonly config: CkConfig, private readonly indexRoot: string) {}
 
@@ -86,9 +89,13 @@ export class CkMcpAdapter {
     return {
       exists: Boolean(status.index_exists ?? status.indexed ?? false),
       path: status.path ?? pathToCheck,
-      totalFiles: status.total_files ?? status.estimated_file_count,
+      totalFiles: status.total_files,
       totalChunks: status.total_chunks,
-      lastModified: status.last_modified
+      lastModified: status.last_modified,
+      indexPath: status.index_path,
+      indexSizeBytes: status.index_size_bytes,
+      estimatedFileCount: status.estimated_file_count,
+      cacheHit: status.cache_hit
     };
   }
 
@@ -112,6 +119,7 @@ export class CkMcpAdapter {
   dispose(): void {
     this.shutdownChild('MCP server disposed');
     this.outputChannel.dispose();
+    this.progressEmitter.dispose();
   }
 
   private resolvePath(targetPath: string): string {
@@ -344,6 +352,13 @@ export class CkMcpAdapter {
         if (notification.params?.message) {
           this.outputChannel.appendLine(`[ck-mcp] ${notification.params.message}`);
         }
+        this.progressEmitter.fire({
+          message: notification.params?.message,
+          progress: notification.params?.progress,
+          total: notification.params?.total,
+          source: 'mcp',
+          timestamp: Date.now()
+        });
         break;
       default:
         this.outputChannel.appendLine(`[ck-mcp] notification ${notification.method}`);

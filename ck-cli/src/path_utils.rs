@@ -1,6 +1,7 @@
 use anyhow::Result;
 use ck_core::IncludePattern;
 use glob::glob;
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use std::path::{Component, Path, PathBuf};
 
 /// Expand user-provided glob patterns, mimicking shell behaviour while tolerating
@@ -71,6 +72,7 @@ fn expand_glob_patterns_internal(
     exclude_patterns: &[String],
     base_dir: Option<&Path>,
 ) -> Result<Vec<PathBuf>> {
+    let globset = build_globset(exclude_patterns);
     let mut expanded = Vec::new();
 
     for path in paths {
@@ -89,7 +91,7 @@ fn expand_glob_patterns_internal(
             };
 
             let glob_str = glob_path.to_string_lossy().to_string();
-            let mut matched = run_glob(&glob_str, exclude_patterns, &mut expanded)?;
+            let mut matched = run_glob(&glob_str, &globset, base_dir, &mut expanded)?;
 
             if is_simple {
                 let fallback_path = if let Some(base) = base_dir {
@@ -98,7 +100,7 @@ fn expand_glob_patterns_internal(
                     PathBuf::from(format!("**/{}", pattern))
                 };
                 let fallback_str = fallback_path.to_string_lossy().to_string();
-                matched |= run_glob(&fallback_str, exclude_patterns, &mut expanded)?;
+                matched |= run_glob(&fallback_str, &globset, base_dir, &mut expanded)?;
             }
 
             if !matched {
@@ -112,7 +114,8 @@ fn expand_glob_patterns_internal(
 
 fn run_glob(
     pattern: &str,
-    exclude_patterns: &[String],
+    globset: &GlobSet,
+    base_dir: Option<&Path>,
     expanded: &mut Vec<PathBuf>,
 ) -> Result<bool> {
     let mut matched = false;
@@ -121,7 +124,7 @@ fn run_glob(
             for glob_result in glob_paths {
                 match glob_result {
                     Ok(matched_path) => {
-                        if should_exclude_path(&matched_path, exclude_patterns) {
+                        if should_exclude_path(&matched_path, globset, base_dir) {
                             continue;
                         }
                         matched = true;
@@ -156,16 +159,63 @@ fn canonicalize_lossy(path: &Path) -> PathBuf {
         .unwrap_or_else(|_| path.to_path_buf())
 }
 
-fn should_exclude_path(path: &Path, exclude_patterns: &[String]) -> bool {
-    for component in path.components() {
-        if let Component::Normal(name) = component {
-            let name_str = name.to_string_lossy();
-            if exclude_patterns.iter().any(|pattern| pattern == &name_str) {
+fn should_exclude_path(path: &Path, globset: &GlobSet, base_dir: Option<&Path>) -> bool {
+    if globset.is_match(path) {
+        return true;
+    }
+
+    if let Some(base) = base_dir
+        && let Ok(relative) = path.strip_prefix(base)
+    {
+        if !relative.as_os_str().is_empty() && globset.is_match(relative) {
+            return true;
+        }
+
+        for component in relative.components() {
+            if let Component::Normal(name) = component
+                && globset.is_match(name)
+            {
                 return true;
             }
         }
     }
+
+    for component in path.components() {
+        if let Component::Normal(name) = component
+            && globset.is_match(name)
+        {
+            return true;
+        }
+    }
+
     false
+}
+
+fn build_globset(patterns: &[String]) -> GlobSet {
+    let mut builder = GlobSetBuilder::new();
+
+    for pattern in patterns {
+        if let Ok(glob) = Glob::new(pattern) {
+            builder.add(glob);
+        }
+
+        if let Some(stripped) = pattern.strip_suffix("/**") {
+            if !stripped.is_empty()
+                && let Ok(glob) = Glob::new(stripped)
+            {
+                builder.add(glob);
+            }
+        } else if let Some(stripped) = pattern.strip_suffix("\\**") {
+            // Support Windows-style globstar suffixes as well.
+            if !stripped.is_empty()
+                && let Ok(glob) = Glob::new(stripped)
+            {
+                builder.add(glob);
+            }
+        }
+    }
+
+    builder.build().unwrap_or_else(|_| GlobSet::empty())
 }
 
 #[cfg(test)]
@@ -247,5 +297,46 @@ mod tests {
         assert!(has_docs, "docs directory should be present");
         assert!(has_rs, "lib.rs should be matched from glob");
         assert!(has_ts, "file.ts should be included explicitly");
+    }
+
+    #[test]
+    fn respects_wildcard_exclude_patterns() {
+        let temp_dir = tempdir().unwrap();
+        let base = temp_dir.path();
+
+        write_file(&base.join("keep.rs"), "fn main() {}");
+        write_file(&base.join("ignore.json"), "{}");
+        write_file(&base.join("nested/keep.rs"), "fn helper() {}");
+        write_file(&base.join("nested/ignore.json"), "{}");
+
+        let expanded =
+            expand_glob_patterns_with_base(base, &[PathBuf::from("**/*")], &["*.json".to_string()])
+                .expect("expand with excludes");
+
+        let includes_json = expanded.iter().any(|p| p.ends_with("ignore.json"));
+        let includes_rs = expanded.iter().filter(|p| p.ends_with("keep.rs")).count();
+
+        assert!(!includes_json, "*.json files should be excluded");
+        assert_eq!(includes_rs, 2, "both keep.rs files should remain");
+    }
+
+    #[test]
+    fn respects_directory_globstar_excludes() {
+        let temp_dir = tempdir().unwrap();
+        let base = temp_dir.path();
+
+        write_file(&base.join("foo/bar/data.txt"), "foo");
+        write_file(&base.join("foo/other.txt"), "foo");
+        write_file(&base.join("root.txt"), "root");
+
+        let expanded =
+            expand_glob_patterns_with_base(base, &[PathBuf::from("**/*")], &["foo/**".to_string()])
+                .expect("expand with directory glob");
+
+        let includes_foo = expanded.iter().any(|p| p.to_string_lossy().contains("foo"));
+        let includes_root = expanded.iter().any(|p| p.ends_with("root.txt"));
+
+        assert!(!includes_foo, "foo/** should exclude everything under foo");
+        assert!(includes_root, "root.txt should still be present");
     }
 }
