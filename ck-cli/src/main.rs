@@ -1,5 +1,8 @@
 use anyhow::Result;
-use ck_core::{IncludePattern, SearchMode, SearchOptions};
+use ck_core::{
+    IncludePattern, SearchMode, SearchOptions, get_default_ckignore_content,
+    heatmap::{self, HeatmapBucket},
+};
 use clap::Parser;
 use console::style;
 use owo_colors::{OwoColorize, Rgb};
@@ -245,6 +248,12 @@ struct Cli {
     no_ckignore: bool,
 
     #[arg(
+        long = "print-default-ckignore",
+        help = "Print the default .ckignore content that ck generates and exit"
+    )]
+    print_default_ckignore: bool,
+
+    #[arg(
         long = "full-section",
         help = "Return complete code sections (functions/classes) instead of just matching lines. Uses tree-sitter to identify semantic boundaries. Supported: Python, JavaScript, TypeScript, Haskell, Rust, Ruby"
     )]
@@ -437,33 +446,13 @@ fn find_search_root(include_patterns: &[IncludePattern]) -> PathBuf {
 }
 
 fn build_exclude_patterns(cli: &Cli, repo_root: Option<&Path>) -> Vec<String> {
-    let mut patterns = Vec::new();
-
-    // Build exclusion patterns that will be merged with .gitignore (if respected)
-    // Note: These patterns are ADDITIVE with .gitignore, not replacements
-    // Final exclusions = .gitignore + .ckignore + command-line + defaults
-    //
-    // Priority order within these additional patterns:
-    // .ckignore > command-line excludes > defaults
-
-    // 1. Load .ckignore patterns (highest priority among additional patterns)
-    if !cli.no_ckignore
-        && let Some(root) = repo_root
-        && let Ok(ckignore_patterns) = ck_core::read_ckignore_patterns(root)
-        && !ckignore_patterns.is_empty()
-    {
-        patterns.extend(ckignore_patterns);
-    }
-
-    // 2. Add command-line exclude patterns
-    patterns.extend(cli.exclude.clone());
-
-    // 3. Add defaults (lowest priority)
-    if !cli.no_default_excludes {
-        patterns.extend(ck_core::get_default_exclude_patterns());
-    }
-
-    patterns
+    // Use the centralized pattern builder from ck-core
+    ck_core::build_exclude_patterns(
+        repo_root,
+        &cli.exclude,
+        !cli.no_ckignore,
+        !cli.no_default_excludes,
+    )
 }
 
 fn resolve_model_selection(
@@ -933,6 +922,11 @@ async fn main() {
 
 async fn run_main() -> Result<()> {
     let cli = Cli::parse();
+
+    if cli.print_default_ckignore {
+        print!("{}", get_default_ckignore_content());
+        return Ok(());
+    }
 
     // Handle MCP server mode first
     if cli.serve {
@@ -1523,14 +1517,12 @@ fn highlight_regex_matches(text: &str, pattern: &str, options: &SearchOptions) -
 }
 
 fn highlight_semantic_chunks(text: &str, pattern: &str, _options: &SearchOptions) -> String {
-    // Split text into tokens for more granular heatmap highlighting
-    let tokens = split_into_tokens(text);
+    let tokens = heatmap::split_into_tokens(text);
 
-    // Calculate similarity scores for each token/phrase
     let highlighted_tokens: Vec<String> = tokens
         .into_iter()
         .map(|token| {
-            let similarity_score = calculate_token_similarity(&token, pattern);
+            let similarity_score = heatmap::calculate_token_similarity(&token, pattern);
             apply_heatmap_color(&token, similarity_score)
         })
         .collect();
@@ -1538,124 +1530,23 @@ fn highlight_semantic_chunks(text: &str, pattern: &str, _options: &SearchOptions
     highlighted_tokens.join("")
 }
 
-fn split_into_tokens(text: &str) -> Vec<String> {
-    // Split text into meaningful tokens for heatmap highlighting
-    // This preserves spaces and punctuation as separate tokens
-    let mut tokens = Vec::new();
-    let mut current_token = String::new();
-
-    for ch in text.chars() {
-        match ch {
-            ' ' | '\t' | '\n' => {
-                if !current_token.is_empty() {
-                    tokens.push(current_token.clone());
-                    current_token.clear();
-                }
-                tokens.push(ch.to_string());
-            }
-            '(' | ')' | '[' | ']' | '{' | '}' | ',' | ';' | ':' | '.' | '!' | '?' => {
-                if !current_token.is_empty() {
-                    tokens.push(current_token.clone());
-                    current_token.clear();
-                }
-                tokens.push(ch.to_string());
-            }
-            _ => {
-                current_token.push(ch);
-            }
-        }
-    }
-
-    if !current_token.is_empty() {
-        tokens.push(current_token);
-    }
-
-    tokens
-}
-
-fn calculate_token_similarity(token: &str, pattern: &str) -> f32 {
-    // Skip whitespace and punctuation
-    if token.trim().is_empty() || token.chars().all(|c| !c.is_alphanumeric()) {
-        return 0.0;
-    }
-
-    let token_lower = token.to_lowercase();
-    let pattern_lower = pattern.to_lowercase();
-
-    // Exact match gets highest score
-    if token_lower == pattern_lower {
-        return 1.0;
-    }
-
-    // Check if token contains any pattern words or vice versa
-    let pattern_words: Vec<&str> = pattern_lower.split_whitespace().collect();
-    let mut max_score: f32 = 0.0;
-
-    for pattern_word in &pattern_words {
-        if pattern_word.len() < 3 {
-            continue; // Skip short words
-        }
-
-        // Exact word match
-        if token_lower == *pattern_word {
-            max_score = max_score.max(0.9);
-        }
-        // Substring match
-        else if token_lower.contains(pattern_word) {
-            let ratio = pattern_word.len() as f32 / token_lower.len() as f32;
-            max_score = max_score.max(0.6 * ratio);
-        }
-        // Pattern word contains token
-        else if pattern_word.contains(&token_lower) && token_lower.len() >= 3 {
-            let ratio = token_lower.len() as f32 / pattern_word.len() as f32;
-            max_score = max_score.max(0.5 * ratio);
-        }
-        // Fuzzy similarity for related terms
-        else {
-            let similarity = calculate_fuzzy_similarity(&token_lower, pattern_word);
-            max_score = max_score.max(similarity * 0.4);
-        }
-    }
-
-    max_score
-}
-
-fn calculate_fuzzy_similarity(s1: &str, s2: &str) -> f32 {
-    // Simple edit distance-based similarity
-    if s1.is_empty() || s2.is_empty() || s1.len() < 3 || s2.len() < 3 {
-        return 0.0;
-    }
-
-    let len1 = s1.len();
-    let len2 = s2.len();
-    let max_len = len1.max(len2);
-
-    // Count common characters
-    let s1_chars: std::collections::HashSet<char> = s1.chars().collect();
-    let s2_chars: std::collections::HashSet<char> = s2.chars().collect();
-    let common_chars = s1_chars.intersection(&s2_chars).count();
-
-    // Similarity based on common characters
-    common_chars as f32 / max_len as f32
-}
-
 fn apply_heatmap_color(token: &str, score: f32) -> String {
-    // Skip coloring whitespace and punctuation
     if token.trim().is_empty() || token.chars().all(|c| !c.is_alphanumeric()) {
         return token.to_string();
     }
 
-    // 8-step linear gradient: grey to green with bright final step
-    match score {
-        s if s >= 0.875 => token.color(Rgb(0, 255, 100)).bold().to_string(), // Step 8: Extra bright green (bold)
-        s if s >= 0.75 => token.color(Rgb(0, 180, 80)).to_string(),          // Step 7: Bright green
-        s if s >= 0.625 => token.color(Rgb(0, 160, 70)).to_string(), // Step 6: Medium-bright green
-        s if s >= 0.5 => token.color(Rgb(0, 140, 60)).to_string(),   // Step 5: Medium green
-        s if s >= 0.375 => token.color(Rgb(50, 120, 80)).to_string(), // Step 4: Green-grey
-        s if s >= 0.25 => token.color(Rgb(100, 130, 100)).to_string(), // Step 3: Light green-grey
-        s if s >= 0.125 => token.color(Rgb(140, 140, 140)).to_string(), // Step 2: Medium grey
-        s if s > 0.0 => token.color(Rgb(180, 180, 180)).to_string(), // Step 1: Light grey
-        _ => token.to_string(),                                      // No relevance: no color
+    let bucket = HeatmapBucket::from_score(score);
+
+    match bucket.rgb() {
+        Some((r, g, b)) => {
+            let coloured = token.color(Rgb(r, g, b));
+            if bucket.is_bold() {
+                coloured.bold().to_string()
+            } else {
+                coloured.to_string()
+            }
+        }
+        None => token.to_string(),
     }
 }
 
@@ -1729,20 +1620,16 @@ async fn run_search(
         );
     }
 
-    // We'll create the search spinner after indexing is complete to avoid conflicts
-    let search_spinner: Option<indicatif::ProgressBar> = None;
+    // Create search spinner for showing live search progress
+    let search_spinner = status.create_spinner("Searching...");
 
     // Create progress callback for search operations
-    let search_progress_callback = if !status.quiet && search_spinner.is_some() {
-        let spinner_clone = search_spinner.clone();
-        Some(Box::new(move |msg: &str| {
-            if let Some(ref pb) = spinner_clone {
-                pb.set_message(msg.to_string());
-            }
-        }) as ck_engine::SearchProgressCallback)
-    } else {
-        None
-    };
+    let search_progress_callback = search_spinner.as_ref().map(|spinner| {
+        let spinner_clone = spinner.clone();
+        Box::new(move |msg: &str| {
+            spinner_clone.set_message(msg.to_string());
+        }) as ck_engine::SearchProgressCallback
+    });
 
     // Create indexing progress callbacks for automatic indexing during semantic search
     let (indexing_progress_callback, detailed_indexing_progress_callback) = if !status.quiet
@@ -1834,9 +1721,7 @@ async fn run_search(
     let results = &search_results.matches;
     let matched_paths: Vec<PathBuf> = results.iter().map(|result| result.file.clone()).collect();
 
-    if let Some(spinner) = search_spinner {
-        status.finish_progress(Some(spinner), &format!("Found {} results", results.len()));
-    }
+    status.finish_progress(search_spinner, &format!("Found {} results", results.len()));
 
     let mut has_matches = false;
     if options.jsonl_output {

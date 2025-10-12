@@ -1,3 +1,5 @@
+pub mod heatmap;
+
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
@@ -517,6 +519,52 @@ pub fn create_ckignore_if_missing(repo_root: &Path) -> Result<bool> {
     std::fs::write(&ckignore_path, get_default_ckignore_content()).map_err(CkError::Io)?;
 
     Ok(true) // Created new file
+}
+
+/// Build exclusion patterns with proper priority ordering
+///
+/// This centralizes the pattern building logic used across CLI, TUI, and MCP interfaces
+/// to prevent drift and ensure consistent behavior.
+///
+/// Priority order (highest to lowest):
+/// 1. .ckignore patterns (if use_ckignore is true)
+/// 2. Additional excludes (from command-line or API calls)
+/// 3. Default patterns (if use_defaults is true)
+///
+/// # Arguments
+/// * `repo_root` - Optional repository root for loading .ckignore file
+/// * `additional_excludes` - Additional exclusion patterns (e.g., from CLI flags)
+/// * `use_ckignore` - Whether to load and include .ckignore patterns
+/// * `use_defaults` - Whether to include default exclusion patterns
+///
+/// # Returns
+/// Combined list of exclusion patterns in priority order
+pub fn build_exclude_patterns(
+    repo_root: Option<&Path>,
+    additional_excludes: &[String],
+    use_ckignore: bool,
+    use_defaults: bool,
+) -> Vec<String> {
+    let mut patterns = Vec::new();
+
+    // 1. Load .ckignore patterns (highest priority among additional patterns)
+    if use_ckignore
+        && let Some(root) = repo_root
+        && let Ok(ckignore_patterns) = read_ckignore_patterns(root)
+        && !ckignore_patterns.is_empty()
+    {
+        patterns.extend(ckignore_patterns);
+    }
+
+    // 2. Add additional exclude patterns (e.g., from command-line)
+    patterns.extend(additional_excludes.iter().cloned());
+
+    // 3. Add defaults (lowest priority)
+    if use_defaults {
+        patterns.extend(get_default_exclude_patterns());
+    }
+
+    patterns
 }
 
 pub fn get_sidecar_path(repo_root: &Path, file_path: &Path) -> PathBuf {

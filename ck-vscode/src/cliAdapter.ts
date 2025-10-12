@@ -3,11 +3,16 @@
  */
 
 import { spawn } from 'child_process';
+import * as fs from 'fs';
+import * as pathModule from 'path';
 import * as vscode from 'vscode';
-import { SearchOptions, SearchResponse, SearchResult, IndexStatus } from './types';
+import { SearchOptions, SearchResponse, SearchResult, IndexStatus, IndexProgressUpdate } from './types';
 
 export class CkCliAdapter {
   private cliPath: string;
+  private progressEmitter = new vscode.EventEmitter<IndexProgressUpdate>();
+
+  public readonly onIndexProgress = this.progressEmitter.event;
 
   constructor(cliPath: string) {
     this.cliPath = cliPath;
@@ -116,16 +121,59 @@ export class CkCliAdapter {
         // This is a simplified version - actual parsing depends on ck's status output format
         const exists = !stdout.includes('No index found');
 
+        const indexDir = pathModule.join(path, '.ck');
+        let lastModified: number | undefined;
+        try {
+          const stats = fs.statSync(indexDir);
+          lastModified = Math.floor(stats.mtimeMs / 1000);
+        } catch {
+          // ignore missing directory or access issues
+        }
+
         resolve({
           exists,
           path,
           totalFiles: this.extractNumber(stdout, /(\d+)\s+files/),
-          totalChunks: this.extractNumber(stdout, /(\d+)\s+chunks/)
+          totalChunks: this.extractNumber(stdout, /(\d+)\s+chunks/),
+          indexPath: indexDir,
+          lastModified
         });
       });
 
       child.on('error', (err) => {
         reject(new Error(`Failed to get index status: ${err.message}`));
+      });
+    });
+  }
+
+  async getDefaultCkignoreContent(indexRoot: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const child = spawn(this.cliPath, ['--print-default-ckignore'], {
+        cwd: indexRoot,
+        shell: false
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      child.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      child.on('close', (code) => {
+        if (code === 0) {
+          resolve(stdout);
+        } else {
+          reject(new Error(`Failed to fetch default .ckignore (exit code ${code}): ${stderr}`));
+        }
+      });
+
+      child.on('error', (err) => {
+        reject(new Error(`Failed to spawn ck: ${err.message}`));
       });
     });
   }
@@ -149,17 +197,41 @@ export class CkCliAdapter {
         if (progress) {
           progress.report({ message: message.trim() });
         }
+
+        const trimmed = message.trim();
+        if (trimmed) {
+          this.progressEmitter.fire({
+            message: trimmed,
+            source: 'cli',
+            timestamp: Date.now()
+          });
+        }
       });
 
       child.on('close', (code) => {
         if (code === 0) {
+          this.progressEmitter.fire({
+            message: 'Reindexing complete',
+            source: 'cli',
+            timestamp: Date.now()
+          });
           resolve();
         } else {
+          this.progressEmitter.fire({
+            message: `Reindexing failed (code ${code})`,
+            source: 'cli',
+            timestamp: Date.now()
+          });
           reject(new Error(`Reindexing failed with code ${code}: ${stderr}`));
         }
       });
 
       child.on('error', (err) => {
+        this.progressEmitter.fire({
+          message: `Failed to reindex: ${err.message}`,
+          source: 'cli',
+          timestamp: Date.now()
+        });
         reject(new Error(`Failed to reindex: ${err.message}`));
       });
     });
@@ -290,5 +362,6 @@ export class CkCliAdapter {
 
   dispose(): void {
     // CLI adapter does not maintain persistent resources
+    this.progressEmitter.dispose();
   }
 }

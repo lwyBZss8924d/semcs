@@ -22,16 +22,31 @@
   const includeInput = document.getElementById('includeInput');
   const excludeInput = document.getElementById('excludeInput');
   const indexStatus = document.getElementById('indexStatus');
+  const indexProgress = document.getElementById('indexProgress');
+  const indexProgressText = indexProgress ? indexProgress.querySelector('.progress-text') : null;
+  const ckignoreButton = document.getElementById('ckignoreButton');
+  const refreshStatusButton = document.getElementById('refreshStatusButton');
   const loadingIndicator = document.getElementById('loadingIndicator');
   const resultsContainer = document.getElementById('resultsContainer');
   const errorContainer = document.getElementById('errorContainer');
   const resultCount = document.getElementById('resultCount');
+  let hideProgressTimeout = null;
 
   // Event listeners
   searchInput.addEventListener('input', handleSearchInput);
   searchInput.addEventListener('keydown', handleSearchKeydown);
   modeSelector.addEventListener('change', handleModeChange);
   reindexButton.addEventListener('click', handleReindexClick);
+  if (ckignoreButton) {
+    ckignoreButton.addEventListener('click', () => {
+      vscode.postMessage({ type: 'openCkignore' });
+    });
+  }
+  if (refreshStatusButton) {
+    refreshStatusButton.addEventListener('click', () => {
+      vscode.postMessage({ type: 'getIndexStatus' });
+    });
+  }
 
   // Trigger search when include/exclude patterns change
   if (includeInput) {
@@ -74,10 +89,13 @@
         break;
       case 'searchError':
         handleSearchError(message.error);
-        break;
-      case 'indexStatus':
-        handleIndexStatus(message.status);
-        break;
+      break;
+    case 'indexStatus':
+      handleIndexStatus(message.status);
+      break;
+    case 'indexProgress':
+      handleIndexProgress(message.update);
+      break;
     }
   });
 
@@ -221,22 +239,103 @@
    * Handle index status
    */
   function handleIndexStatus(status) {
+    if (!indexStatus) {
+      return;
+    }
+
     const indicator = indexStatus.querySelector('.status-indicator');
     const text = indexStatus.querySelector('.status-text');
 
-    if (status.exists) {
-      indicator.classList.add('healthy');
-      indicator.classList.remove('warning', 'error');
+    if (!status) {
+      indicator?.classList.remove('healthy', 'warning', 'error');
+      if (text) {
+        text.textContent = 'Index status unavailable';
+      }
+      return;
+    }
 
-      if (status.totalFiles !== undefined) {
-        text.textContent = `${status.totalFiles} files`;
-      } else {
-        text.textContent = 'Ready';
+    indexStatus.dataset.path = status.path || '';
+    indexStatus.title = 'ck respects .gitignore, .ckignore, include/exclude filters, and default VS Code excludes';
+
+    const parts = [];
+    const fileCount = typeof status.totalFiles === 'number'
+      ? status.totalFiles
+      : typeof status.estimatedFileCount === 'number'
+        ? status.estimatedFileCount
+        : undefined;
+
+    if (status.exists) {
+      indicator?.classList.add('healthy');
+      indicator?.classList.remove('warning', 'error');
+
+      if (typeof fileCount === 'number') {
+        const approxPrefix = status.totalFiles === undefined && status.estimatedFileCount !== undefined ? '≈' : '';
+        parts.push(`${approxPrefix}${fileCount.toLocaleString()} ${fileCount === 1 ? 'file' : 'files'}`);
+      }
+
+      if (typeof status.totalChunks === 'number') {
+        parts.push(`${status.totalChunks.toLocaleString()} chunks`);
+      }
+
+      if (typeof status.indexSizeBytes === 'number') {
+        parts.push(formatBytes(status.indexSizeBytes));
+      }
+
+      if (typeof status.lastModified === 'number' && status.lastModified > 0) {
+        parts.push(`updated ${formatRelativeTime(status.lastModified)}`);
+      }
+
+      if (parts.length === 0) {
+        parts.push('Ready');
       }
     } else {
-      indicator.classList.add('warning');
-      indicator.classList.remove('healthy', 'error');
-      text.textContent = 'Not indexed';
+      indicator?.classList.add('warning');
+      indicator?.classList.remove('healthy', 'error');
+      parts.push('Not indexed');
+      if (typeof fileCount === 'number') {
+        parts.push(`~${fileCount.toLocaleString()} files in scope`);
+      }
+    }
+
+    if (text) {
+      text.textContent = parts.join(' · ');
+    }
+  }
+
+  function handleIndexProgress(update) {
+    if (!indexProgress || !indexProgressText || !update) {
+      return;
+    }
+
+    const message = typeof update.message === 'string' ? update.message.trim() : '';
+    if (!message) {
+      return;
+    }
+
+    clearTimeout(hideProgressTimeout);
+
+    let displayMessage = message;
+    if (typeof update.total === 'number' && typeof update.progress === 'number' && update.total > 0) {
+      const current = Math.min(update.progress, update.total);
+      displayMessage = `${message} (${current}/${update.total})`;
+    }
+
+    indexProgress.classList.remove('hidden');
+    indexProgress.dataset.source = update.source || '';
+    indexProgressText.textContent = displayMessage;
+
+    const lowered = message.toLowerCase();
+    const completed = ['complete', 'completed', 'success', 'done', 'indexed'].some((token) => lowered.includes(token));
+
+    const hideDelay = completed ? 3000 : 9000;
+    hideProgressTimeout = setTimeout(() => {
+      indexProgress.classList.add('hidden');
+    }, hideDelay);
+
+    if (completed) {
+      setTimeout(() => {
+        vscode.postMessage({ type: 'getIndexStatus' });
+      }, 500);
     }
   }
 
@@ -319,23 +418,28 @@
 
     nameWrapper.title = items[0].result.absolutePath || filePath;
 
-    const matchCount = document.createElement('span');
-    matchCount.className = 'file-group-count';
-    matchCount.textContent = `${items.length} match${items.length > 1 ? 'es' : ''}`;
+    const metricsWrapper = document.createElement('div');
+    metricsWrapper.className = 'file-group-metrics';
+
+    const matchCountPill = document.createElement('span');
+    matchCountPill.className = 'metric-pill metric-pill--count';
+    matchCountPill.textContent = items.length.toString();
+    metricsWrapper.appendChild(matchCountPill);
 
     const bestScore = items
       .map(({ result }) => (typeof result.score === 'number' ? result.score : undefined))
       .filter((score) => score !== undefined);
     if (bestScore.length > 0) {
-      const scoreBadge = document.createElement('span');
-      scoreBadge.className = 'file-group-score';
-      scoreBadge.textContent = Math.max(...bestScore).toFixed(3);
-      matchCount.appendChild(scoreBadge);
+      const topScore = Math.max(...bestScore);
+      const scorePill = document.createElement('span');
+      scorePill.className = `metric-pill metric-pill--score ${getScoreLabelClass(topScore)}`;
+      scorePill.textContent = topScore.toFixed(topScore >= 0.1 ? 2 : 3);
+      metricsWrapper.appendChild(scorePill);
     }
 
     header.appendChild(toggleIcon);
     header.appendChild(nameWrapper);
-    header.appendChild(matchCount);
+    header.appendChild(metricsWrapper);
 
     const resultsDiv = document.createElement('div');
     resultsDiv.className = 'file-group-results';
@@ -961,5 +1065,51 @@
       : `<span class="count-text">${text}</span>`;
 
     resultCount.innerHTML = html;
+  }
+
+  function formatRelativeTime(epochSeconds) {
+    const timestampMs = epochSeconds * 1000;
+    const now = Date.now();
+    const diff = Math.max(0, now - timestampMs);
+    const seconds = Math.floor(diff / 1000);
+
+    if (seconds < 45) {
+      return 'just now';
+    }
+    if (seconds < 90) {
+      return 'a minute ago';
+    }
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) {
+      return `${minutes} min${minutes === 1 ? '' : 's'} ago`;
+    }
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) {
+      return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+    }
+    const days = Math.floor(hours / 24);
+    if (days < 7) {
+      return `${days} day${days === 1 ? '' : 's'} ago`;
+    }
+    const weeks = Math.floor(days / 7);
+    if (weeks < 5) {
+      return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+    }
+    const months = Math.floor(days / 30);
+    if (months < 12) {
+      return `${months} month${months === 1 ? '' : 's'} ago`;
+    }
+    const years = Math.floor(days / 365);
+    return `${years} year${years === 1 ? '' : 's'} ago`;
+  }
+
+  function formatBytes(bytes) {
+    if (!bytes || bytes <= 0) {
+      return '0 B';
+    }
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const exponent = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+    const value = bytes / Math.pow(1024, exponent);
+    return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
   }
 })();

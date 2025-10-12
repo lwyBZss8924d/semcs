@@ -8,7 +8,7 @@ use crate::preview::{
 use crate::rendering::{draw_preview, draw_query_input, draw_results_list, draw_status_bar};
 use crate::state::{PreviewCache, TuiState};
 use anyhow::Result;
-use ck_core::{SearchMode, SearchOptions, get_default_exclude_patterns, read_ckignore_patterns};
+use ck_core::{SearchMode, SearchOptions};
 use ck_index::get_index_stats;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
@@ -543,10 +543,13 @@ impl TuiApp {
             SearchMode::Lexical => None,
         };
 
-        let mut exclude_patterns = get_default_exclude_patterns();
-        if let Ok(extra) = read_ckignore_patterns(&self.state.search_path) {
-            exclude_patterns.extend(extra);
-        }
+        // Use the centralized pattern builder from ck-core
+        let exclude_patterns = ck_core::build_exclude_patterns(
+            Some(&self.state.search_path),
+            &[],  // No additional excludes in TUI
+            true, // Use .ckignore
+            true, // Use defaults
+        );
 
         let options = SearchOptions {
             mode: self.state.mode.clone(),

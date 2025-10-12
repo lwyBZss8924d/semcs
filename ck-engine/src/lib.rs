@@ -1095,8 +1095,7 @@ fn build_globset(patterns: &[String]) -> GlobSet {
     builder.build().unwrap_or_else(|_| GlobSet::empty())
 }
 
-fn should_exclude_path(path: &Path, exclude_patterns: &[String]) -> bool {
-    let globset = build_globset(exclude_patterns);
+fn should_exclude_path(path: &Path, globset: &GlobSet) -> bool {
     // Match against each path component and the full path
     if globset.is_match(path) {
         return true;
@@ -1130,9 +1129,7 @@ fn collect_files(
         }) {
             match entry {
                 Ok(entry) => {
-                    if entry.file_type().is_file()
-                        && !should_exclude_path(entry.path(), exclude_patterns)
-                    {
+                    if entry.file_type().is_file() && !should_exclude_path(entry.path(), &globset) {
                         files.push(entry.path().to_path_buf());
                     }
                 }
@@ -1150,7 +1147,7 @@ fn collect_files(
                     match entry {
                         Ok(entry) => {
                             let path = entry.path();
-                            if path.is_file() && !should_exclude_path(&path, exclude_patterns) {
+                            if path.is_file() && !should_exclude_path(&path, &globset) {
                                 files.push(path);
                             }
                         }

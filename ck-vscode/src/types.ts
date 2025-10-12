@@ -45,6 +45,10 @@ export interface IndexStatus {
   totalFiles?: number;
   totalChunks?: number;
   lastModified?: number;
+  indexPath?: string;
+  indexSizeBytes?: number;
+  estimatedFileCount?: number;
+  cacheHit?: boolean;
 }
 
 export interface SearchResponse {
@@ -68,4 +72,14 @@ export interface CkConfig {
   threshold: number;
   topK: number;
   contextLines: number;
+}
+
+export type IndexProgressSource = 'cli' | 'mcp';
+
+export interface IndexProgressUpdate {
+  message?: string;
+  progress?: number;
+  total?: number;
+  source: IndexProgressSource;
+  timestamp?: number;
 }
