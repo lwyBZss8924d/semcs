@@ -106,6 +106,18 @@ pub struct ChunkEntry {
     pub span: Span,
     pub embedding: Option<Vec<f32>>,
     pub chunk_type: Option<String>, // "function", "class", "method", or None for generic
+    #[serde(default)]
+    pub breadcrumb: Option<String>,
+    #[serde(default)]
+    pub ancestry: Option<Vec<String>>,
+    #[serde(default)]
+    pub byte_length: Option<usize>,
+    #[serde(default)]
+    pub estimated_tokens: Option<usize>,
+    #[serde(default)]
+    pub leading_trivia: Option<Vec<String>>,
+    #[serde(default)]
+    pub trailing_trivia: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1121,10 +1133,33 @@ fn index_single_file_with_progress(
                     ck_chunk::ChunkType::Text => None,
                 };
 
+                let breadcrumb = chunk.metadata.breadcrumb.clone();
+                let ancestry = if chunk.metadata.ancestry.is_empty() {
+                    None
+                } else {
+                    Some(chunk.metadata.ancestry.clone())
+                };
+                let leading_trivia = if chunk.metadata.leading_trivia.is_empty() {
+                    None
+                } else {
+                    Some(chunk.metadata.leading_trivia.clone())
+                };
+                let trailing_trivia = if chunk.metadata.trailing_trivia.is_empty() {
+                    None
+                } else {
+                    Some(chunk.metadata.trailing_trivia.clone())
+                };
+
                 chunk_entries.push(ChunkEntry {
                     span: chunk.span,
                     embedding: Some(embedding),
                     chunk_type: chunk_type_str,
+                    breadcrumb,
+                    ancestry,
+                    byte_length: Some(chunk.metadata.byte_length),
+                    estimated_tokens: Some(chunk.metadata.estimated_tokens),
+                    leading_trivia,
+                    trailing_trivia,
                 });
             }
             chunk_entries
@@ -1159,10 +1194,32 @@ fn index_single_file_with_progress(
                         ck_chunk::ChunkType::Module => Some("module".to_string()),
                         ck_chunk::ChunkType::Text => None,
                     };
+                    let breadcrumb = chunk.metadata.breadcrumb.clone();
+                    let ancestry = if chunk.metadata.ancestry.is_empty() {
+                        None
+                    } else {
+                        Some(chunk.metadata.ancestry.clone())
+                    };
+                    let leading_trivia = if chunk.metadata.leading_trivia.is_empty() {
+                        None
+                    } else {
+                        Some(chunk.metadata.leading_trivia.clone())
+                    };
+                    let trailing_trivia = if chunk.metadata.trailing_trivia.is_empty() {
+                        None
+                    } else {
+                        Some(chunk.metadata.trailing_trivia.clone())
+                    };
                     ChunkEntry {
                         span: chunk.span,
                         embedding: Some(embedding),
                         chunk_type: chunk_type_str,
+                        breadcrumb,
+                        ancestry,
+                        byte_length: Some(chunk.metadata.byte_length),
+                        estimated_tokens: Some(chunk.metadata.estimated_tokens),
+                        leading_trivia,
+                        trailing_trivia,
                     }
                 })
                 .collect()
@@ -1179,10 +1236,32 @@ fn index_single_file_with_progress(
                     ck_chunk::ChunkType::Module => Some("module".to_string()),
                     ck_chunk::ChunkType::Text => None,
                 };
+                let breadcrumb = chunk.metadata.breadcrumb.clone();
+                let ancestry = if chunk.metadata.ancestry.is_empty() {
+                    None
+                } else {
+                    Some(chunk.metadata.ancestry.clone())
+                };
+                let leading_trivia = if chunk.metadata.leading_trivia.is_empty() {
+                    None
+                } else {
+                    Some(chunk.metadata.leading_trivia.clone())
+                };
+                let trailing_trivia = if chunk.metadata.trailing_trivia.is_empty() {
+                    None
+                } else {
+                    Some(chunk.metadata.trailing_trivia.clone())
+                };
                 ChunkEntry {
                     span: chunk.span,
                     embedding: None,
                     chunk_type: chunk_type_str,
+                    breadcrumb,
+                    ancestry,
+                    byte_length: Some(chunk.metadata.byte_length),
+                    estimated_tokens: Some(chunk.metadata.estimated_tokens),
+                    leading_trivia,
+                    trailing_trivia,
                 }
             })
             .collect()

@@ -461,6 +461,7 @@ mod tests {
             files_with_matches: false,
             files_without_matches: false,
             exclude_patterns: vec![],
+            include_patterns: Vec::new(),
             respect_gitignore: true,
             full_section: false,
             rerank: false,

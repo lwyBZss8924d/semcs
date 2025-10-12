@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2025-10-12
+
+### Added
+- **MCP Server**: Full Model Context Protocol implementation with stdio transport for AI agent integration
+- **Pagination Support**: Cursor-based pagination for all search modes (page_size: 1-200, default: 50)
+- **Session Management**: TTL-based session cleanup for paginated results with automatic expiration (60s)
+- **MCP Search Tools**: `semantic_search`, `regex_search`, `hybrid_search`, `lexical_search` with unified interface
+- **MCP Index Tools**: `index_status`, `reindex`, `health_check` for index management
+- **CLI Heatmap Visualization**: Color-coded similarity scores with RGB gradient highlighting (red→yellow→green)
+- **Enhanced Visual Output**: Unicode box drawing and sophisticated match highlighting in CLI
+- **Near-Miss Tracking**: Track closest result below threshold for better search feedback
+- **Fallback Strategies**: Automatic fallback from semantic to lexical search when embeddings unavailable
+- **Graceful Error Handling**: Skip stale index entries when files no longer exist
+
+### Fixed
+- **Mixed Line Endings**: Proper handling of Unix (\n), Windows (\r\n), and Mac (\r) line endings
+- **Span Validation**: Prevent invalid spans with zero line numbers using `Span::new()` validation
+- **Streaming File Operations**: Memory-efficient line extraction without loading entire files
+- **PDF Content Resolution**: Better content path resolution and caching for PDF files
+
+### Technical
+- **MCP Protocol**: Full implementation with tool discovery, validation, and error handling
+- **Session Cleanup**: LRU-based eviction with periodic cleanup task (every 30s)
+- **Streaming Reads**: Optimized `extract_lines_from_file()` for minimal memory footprint
+- **SearchResults Enhancement**: Added `closest_below_threshold` field for improved UX
+- **Comprehensive Testing**: 7 new MCP integration tests covering pagination, validation, and edge cases
+- **Line Ending Support**: `split_lines_with_endings()` tracks exact byte lengths per line
+- **TUI Refactoring**: Extracted TUI functionality into dedicated `ck-tui` crate (3,084 lines)
+- **Modular Architecture**: Clean separation of TUI components with public API
+- **Config Persistence**: TUI preferences saved to `~/.config/ck/tui.json`
+
+### Breaking Changes
+- **Span Construction**: Use `Span::new()` for validated construction instead of struct literals (backward compatible via `Span::new_unchecked()`)
+
 ## [0.5.3] - 2025-09-29
 
 ### Added

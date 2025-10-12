@@ -67,6 +67,29 @@ claude mcp list  # or use /mcp in Claude Code
 
 **Built-in Pagination:** Handles large result sets gracefully with page_size controls, cursors, and snippet length management.
 
+### 🎨 **Interactive TUI (Terminal User Interface)**
+Launch an interactive search interface with real-time results and multiple preview modes:
+
+```bash
+# Start TUI for current directory
+ck --tui
+
+# Start with initial query
+ck --tui "error handling"
+```
+
+**Features:**
+- **Multiple Search Modes**: Toggle between Semantic, Regex, and Hybrid search with `Tab`
+- **Preview Modes**: Switch between Heatmap, Syntax highlighting, and Chunk view with `Ctrl+V`
+- **View Options**: Toggle between snippet and full-file view with `Ctrl+F`
+- **Multi-select**: Select multiple files with `Ctrl+Space`, open all in editor with `Enter`
+- **Search History**: Navigate with `Ctrl+Up/Down`
+- **Editor Integration**: Opens files in `$EDITOR` with line numbers (Vim, VS Code, Cursor, etc.)
+- **Progress Tracking**: Live indexing progress with file and chunk counts
+- **Config Persistence**: Preferences saved to `~/.config/ck/tui.json`
+
+See [TUI.md](TUI.md) for keyboard shortcuts and detailed usage.
+
 ### 🔍 **Semantic Search**
 Find code by concept, not keywords. Understands synonyms, related terms, and conceptual similarity:
 
@@ -191,6 +214,13 @@ ck --sem --scores "machine learning" docs/
 # [0.847] ./ai_guide.txt: Machine learning introduction...
 # [0.732] ./statistics.txt: Statistical learning methods...
 ```
+
+
+### Language Coverage
+
+| Language | Indexing | Chunking | AST-aware | Notes |
+|----------|----------|----------|-----------|-------|
+| Zig | ✅ | ✅ | ✅ | contributed by [@Nevon](https://github.com/Nevon) (PR #72) |
 
 ### Model Selection
 
@@ -341,12 +371,13 @@ ck --json --sem "public API" src/ | generate_docs.py
 ck uses a modular Rust workspace:
 
 - **`ck-cli`** - Command-line interface and MCP server
+- **`ck-tui`** - Interactive terminal user interface (ratatui-based)
 - **`ck-core`** - Shared types, configuration, and utilities
 - **`ck-engine`** - Search engine implementations (regex, semantic, hybrid)
 - **`ck-index`** - File indexing, hashing, and sidecar management
 - **`ck-embed`** - Text embedding providers (FastEmbed, API backends)
 - **`ck-ann`** - Approximate nearest neighbor search indices
-- **`ck-chunk`** - Text segmentation and language-aware parsing
+- **`ck-chunk`** - Text segmentation and language-aware parsing ([query-based chunking](docs/QUERY_BASED_CHUNKING.md))
 - **`ck-models`** - Model registry and configuration management
 
 ### Index Storage
