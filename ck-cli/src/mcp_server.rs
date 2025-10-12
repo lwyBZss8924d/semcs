@@ -13,24 +13,116 @@ use rmcp::{ServerHandler, ServiceExt};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Instant;
 use tracing::info;
 use walkdir::WalkDir;
 
 use crate::mcp::context::McpContext;
 use crate::mcp::session::{PaginationConfig, SearchPage};
-use ck_core::{SearchMode, SearchOptions, get_default_exclude_patterns};
+use crate::path_utils::{build_include_patterns, expand_glob_patterns_with_base};
+use ck_core::{IncludePattern, SearchMode, SearchOptions, get_default_exclude_patterns};
 
 /// Default top_k for MCP when not specified by client
-/// Higher than CLI default (10) to allow multiple pages
-const DEFAULT_MCP_TOP_K: usize = 100;
+/// Align with CLI default for semantic search to avoid heavy responses
+const DEFAULT_MCP_TOP_K: usize = 10;
 
 /// Filter out search results from missing files to prevent errors during result processing
 fn filter_valid_results(mut results: Vec<ck_core::SearchResult>) -> Vec<ck_core::SearchResult> {
     results.retain(|result| result.file.exists());
     results
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn include_patterns_support_semicolon_lists_and_globs() {
+        let temp_dir = tempdir().unwrap();
+        let base = temp_dir.path();
+
+        fs::create_dir_all(base.join("docs/sub")).unwrap();
+        fs::write(base.join("docs/readme.md"), "# docs").unwrap();
+        fs::write(base.join("docs/sub/note.md"), "note").unwrap();
+        fs::create_dir_all(base.join("src")).unwrap();
+        fs::write(base.join("src/lib.rs"), "pub fn lib() {}").unwrap();
+        fs::write(base.join("file.ts"), "export {}").unwrap();
+
+        let patterns =
+            resolve_include_patterns(base, Some(vec!["docs/;*.rs;file.ts".to_string()]), &[])
+                .expect("resolve patterns");
+
+        let saw_docs = patterns
+            .iter()
+            .any(|pattern| pattern.is_dir && pattern.path.ends_with("docs"));
+        let saw_rs = patterns
+            .iter()
+            .any(|pattern| !pattern.is_dir && pattern.path.ends_with("lib.rs"));
+        let saw_ts = patterns
+            .iter()
+            .any(|pattern| !pattern.is_dir && pattern.path.ends_with("file.ts"));
+
+        assert!(saw_docs, "docs directory should be included");
+        assert!(saw_rs, "lib.rs should be included via glob");
+        assert!(saw_ts, "file.ts should be included explicitly");
+    }
+}
+
+fn resolve_exclude_patterns(
+    base_path: &Path,
+    explicit: Option<Vec<String>>,
+    use_default_excludes: Option<bool>,
+) -> Vec<String> {
+    let mut patterns = Vec::new();
+
+    if let Ok(ckignore_patterns) = ck_core::read_ckignore_patterns(base_path) {
+        patterns.extend(ckignore_patterns);
+    }
+
+    if let Some(mut provided) = explicit {
+        patterns.append(&mut provided);
+    }
+
+    if use_default_excludes.unwrap_or(true) {
+        patterns.extend(get_default_exclude_patterns());
+    }
+
+    patterns
+}
+
+fn resolve_include_patterns(
+    base_path: &Path,
+    include_patterns: Option<Vec<String>>,
+    exclude_patterns: &[String],
+) -> Result<Vec<IncludePattern>, ErrorData> {
+    let Some(patterns) = include_patterns else {
+        return Ok(Vec::new());
+    };
+
+    let mut prepared_patterns: Vec<PathBuf> = Vec::new();
+
+    for pattern in patterns {
+        for segment in pattern.split(';') {
+            let trimmed = segment.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            prepared_patterns.push(PathBuf::from(trimmed));
+        }
+    }
+
+    let expanded = expand_glob_patterns_with_base(base_path, &prepared_patterns, exclude_patterns)
+        .map_err(|e| {
+            ErrorData::invalid_params(format!("Failed to expand include patterns: {}", e), None)
+        })?;
+
+    Ok(build_include_patterns(&expanded))
 }
 
 /// Trait for extracting pagination parameters from request structures
@@ -44,12 +136,23 @@ trait PaginationParams {
     fn get_search_params(&self) -> serde_json::Value;
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Default)]
 pub struct SemanticSearchRequest {
     pub query: String,
     pub path: String,
     pub top_k: Option<usize>,
     pub threshold: Option<f32>,
+    pub include_patterns: Option<Vec<String>>,
+    pub exclude_patterns: Option<Vec<String>>,
+    pub respect_gitignore: Option<bool>,
+    pub use_default_excludes: Option<bool>,
+    pub rerank: Option<bool>,
+    pub rerank_model: Option<String>,
+    pub case_insensitive: Option<bool>,
+    pub whole_word: Option<bool>,
+    pub fixed_string: Option<bool>,
+    pub before_context_lines: Option<usize>,
+    pub after_context_lines: Option<usize>,
     // Pagination parameters
     pub cursor: Option<String>,
     pub page_size: Option<usize>,
@@ -58,12 +161,18 @@ pub struct SemanticSearchRequest {
     pub context_lines: Option<usize>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Default)]
 pub struct RegexSearchRequest {
     pub pattern: String,
     pub path: String,
     pub ignore_case: Option<bool>,
     pub context: Option<usize>,
+    pub include_patterns: Option<Vec<String>>,
+    pub exclude_patterns: Option<Vec<String>>,
+    pub respect_gitignore: Option<bool>,
+    pub use_default_excludes: Option<bool>,
+    pub whole_word: Option<bool>,
+    pub fixed_string: Option<bool>,
     // Pagination parameters
     pub cursor: Option<String>,
     pub page_size: Option<usize>,
@@ -71,12 +180,46 @@ pub struct RegexSearchRequest {
     pub snippet_length: Option<usize>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Default)]
 pub struct HybridSearchRequest {
     pub query: String,
     pub path: String,
     pub top_k: Option<usize>,
     pub threshold: Option<f32>,
+    pub include_patterns: Option<Vec<String>>,
+    pub exclude_patterns: Option<Vec<String>>,
+    pub respect_gitignore: Option<bool>,
+    pub use_default_excludes: Option<bool>,
+    pub rerank: Option<bool>,
+    pub rerank_model: Option<String>,
+    pub case_insensitive: Option<bool>,
+    pub whole_word: Option<bool>,
+    pub fixed_string: Option<bool>,
+    pub before_context_lines: Option<usize>,
+    pub after_context_lines: Option<usize>,
+    // Pagination parameters
+    pub cursor: Option<String>,
+    pub page_size: Option<usize>,
+    pub include_snippet: Option<bool>,
+    pub snippet_length: Option<usize>,
+    pub context_lines: Option<usize>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Default)]
+pub struct LexicalSearchRequest {
+    pub query: String,
+    pub path: String,
+    pub top_k: Option<usize>,
+    pub threshold: Option<f32>,
+    pub include_patterns: Option<Vec<String>>,
+    pub exclude_patterns: Option<Vec<String>>,
+    pub respect_gitignore: Option<bool>,
+    pub use_default_excludes: Option<bool>,
+    pub case_insensitive: Option<bool>,
+    pub whole_word: Option<bool>,
+    pub fixed_string: Option<bool>,
+    pub before_context_lines: Option<usize>,
+    pub after_context_lines: Option<usize>,
     // Pagination parameters
     pub cursor: Option<String>,
     pub page_size: Option<usize>,
@@ -118,7 +261,21 @@ impl PaginationParams for SemanticSearchRequest {
     fn get_search_params(&self) -> serde_json::Value {
         json!({
             "top_k": self.top_k,
-            "threshold": self.threshold.unwrap_or(0.6)
+            "threshold": self.threshold.unwrap_or(0.6),
+            "rerank": self.rerank.unwrap_or(false),
+            "rerank_model": self.rerank_model,
+            "case_insensitive": self.case_insensitive.unwrap_or(false),
+            "whole_word": self.whole_word.unwrap_or(false),
+            "fixed_string": self.fixed_string.unwrap_or(false),
+            "include_patterns": self.include_patterns,
+            "exclude_patterns": self.exclude_patterns,
+            "respect_gitignore": self.respect_gitignore.unwrap_or(true),
+            "use_default_excludes": self.use_default_excludes.unwrap_or(true),
+            "context_lines": self.context_lines,
+            "before_context_lines": self.before_context_lines,
+            "after_context_lines": self.after_context_lines,
+            "include_snippet": self.include_snippet.unwrap_or(true),
+            "snippet_length": self.snippet_length
         })
     }
 }
@@ -145,7 +302,15 @@ impl PaginationParams for RegexSearchRequest {
     fn get_search_params(&self) -> serde_json::Value {
         json!({
             "ignore_case": self.ignore_case.unwrap_or(false),
-            "context_lines": self.context.unwrap_or(0)
+            "context_lines": self.context.unwrap_or(0),
+            "whole_word": self.whole_word.unwrap_or(false),
+            "fixed_string": self.fixed_string.unwrap_or(false),
+            "include_patterns": self.include_patterns,
+            "exclude_patterns": self.exclude_patterns,
+            "respect_gitignore": self.respect_gitignore.unwrap_or(true),
+            "use_default_excludes": self.use_default_excludes.unwrap_or(true),
+            "include_snippet": self.include_snippet.unwrap_or(true),
+            "snippet_length": self.snippet_length
         })
     }
 }
@@ -172,7 +337,60 @@ impl PaginationParams for HybridSearchRequest {
     fn get_search_params(&self) -> serde_json::Value {
         json!({
             "top_k": self.top_k,
-            "threshold": self.threshold.unwrap_or(0.02)
+            "threshold": self.threshold.unwrap_or(0.02),
+            "rerank": self.rerank.unwrap_or(false),
+            "rerank_model": self.rerank_model,
+            "case_insensitive": self.case_insensitive.unwrap_or(false),
+            "whole_word": self.whole_word.unwrap_or(false),
+            "fixed_string": self.fixed_string.unwrap_or(false),
+            "include_patterns": self.include_patterns,
+            "exclude_patterns": self.exclude_patterns,
+            "respect_gitignore": self.respect_gitignore.unwrap_or(true),
+            "use_default_excludes": self.use_default_excludes.unwrap_or(true),
+            "context_lines": self.context_lines,
+            "before_context_lines": self.before_context_lines,
+            "after_context_lines": self.after_context_lines,
+            "include_snippet": self.include_snippet.unwrap_or(true),
+            "snippet_length": self.snippet_length
+        })
+    }
+}
+
+impl PaginationParams for LexicalSearchRequest {
+    fn get_page_size(&self) -> Option<usize> {
+        self.page_size
+    }
+    fn get_include_snippet(&self) -> Option<bool> {
+        self.include_snippet
+    }
+    fn get_snippet_length(&self) -> Option<usize> {
+        self.snippet_length
+    }
+    fn get_context_lines(&self) -> Option<usize> {
+        self.context_lines
+    }
+    fn get_search_mode(&self) -> String {
+        "lexical".to_string()
+    }
+    fn get_query(&self) -> String {
+        self.query.clone()
+    }
+    fn get_search_params(&self) -> serde_json::Value {
+        json!({
+            "top_k": self.top_k,
+            "threshold": self.threshold,
+            "case_insensitive": self.case_insensitive.unwrap_or(false),
+            "whole_word": self.whole_word.unwrap_or(false),
+            "fixed_string": self.fixed_string.unwrap_or(false),
+            "include_patterns": self.include_patterns,
+            "exclude_patterns": self.exclude_patterns,
+            "respect_gitignore": self.respect_gitignore.unwrap_or(true),
+            "use_default_excludes": self.use_default_excludes.unwrap_or(true),
+            "context_lines": self.context_lines,
+            "before_context_lines": self.before_context_lines,
+            "after_context_lines": self.after_context_lines,
+            "include_snippet": self.include_snippet.unwrap_or(true),
+            "snippet_length": self.snippet_length
         })
     }
 }
@@ -303,6 +521,7 @@ impl CkMcpServer {
         query: &str,
         mode: &str,
         search_params: serde_json::Value,
+        search_time_ms: u64,
     ) -> serde_json::Value {
         let results: Vec<serde_json::Value> = page.matches.iter().map(|result| {
             let match_type = format!("{}_match", mode);
@@ -331,10 +550,7 @@ impl CkMcpServer {
                 }
             }
 
-            // Add line number for regex searches
-            if mode == "regex" {
-                match_obj["match"]["line_number"] = json!(result.span.line_start);
-            }
+            match_obj["match"]["line_number"] = json!(result.span.line_start);
 
             match_obj
         }).collect();
@@ -358,7 +574,7 @@ impl CkMcpServer {
                 "current_page": page.current_page
             },
             "metadata": {
-                "search_time_ms": 0, // TODO: Add timing
+                "search_time_ms": search_time_ms,
                 "index_stats": null  // TODO: Add index information
             }
         })
@@ -391,7 +607,7 @@ impl CkMcpServer {
         let query = request.get_query();
         let search_params = request.get_search_params();
 
-        let structured_result = Self::search_page_to_json(page, &query, &mode, search_params);
+        let structured_result = Self::search_page_to_json(page, &query, &mode, search_params, 0);
 
         let summary = format!(
             "Retrieved page {} of {} search results for '{}'",
@@ -405,6 +621,7 @@ impl CkMcpServer {
         let mut router = ToolRouter::new();
         router.add_route(Self::health_check_route());
         router.add_route(Self::semantic_search_route());
+        router.add_route(Self::lexical_search_route());
         router.add_route(Self::regex_search_route());
         router.add_route(Self::hybrid_search_route());
         router.add_route(Self::index_status_route());
@@ -527,6 +744,45 @@ impl CkMcpServer {
 
                 let service: &CkMcpServer = context.service;
                 match service.handle_regex_search(request).await {
+                    Ok((summary, result)) => Ok(CallToolResult {
+                        content: vec![
+                            Content::text(summary),
+                            Content::json(result.clone())
+                                .map_err(|e| ErrorData::internal_error(e.to_string(), None))?,
+                        ],
+                        structured_content: Some(result),
+                        is_error: Some(false),
+                        meta: None,
+                    }),
+                    Err(e) => Err(e),
+                }
+            })
+        })
+    }
+
+    fn lexical_search_route() -> ToolRoute<Self> {
+        let schema = schemars::schema_for!(LexicalSearchRequest);
+        let input_schema = serde_json::to_value(schema).unwrap();
+        let tool = Tool {
+            name: "lexical_search".into(),
+            title: Some("Lexical Search".into()),
+            description: Some("BM25 lexical search".into()),
+            input_schema: Arc::new(input_schema.as_object().unwrap().clone()),
+            output_schema: None,
+            annotations: None,
+            icons: None,
+        };
+
+        ToolRoute::new_dyn(tool, |context: ToolCallContext<'_, CkMcpServer>| {
+            Box::pin(async move {
+                let arguments = context.arguments.clone().unwrap_or_default();
+                let request: LexicalSearchRequest =
+                    serde_json::from_value(serde_json::Value::Object(arguments)).map_err(|e| {
+                        rmcp::ErrorData::invalid_params(format!("Invalid parameters: {}", e), None)
+                    })?;
+
+                let service: &CkMcpServer = context.service;
+                match service.handle_lexical_search(request).await {
                     Ok((summary, result)) => Ok(CallToolResult {
                         content: vec![
                             Content::text(summary),
@@ -697,6 +953,27 @@ impl CkMcpServer {
         let top_k = request.top_k;
         let threshold = request.threshold;
         let path_buf = PathBuf::from(path);
+        let search_root = if path_buf.is_dir() {
+            path_buf.clone()
+        } else {
+            path_buf
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| PathBuf::from("."))
+        };
+
+        let respect_gitignore = request.respect_gitignore.unwrap_or(true);
+        let use_default_excludes = request.use_default_excludes.unwrap_or(true);
+        let exclude_patterns = resolve_exclude_patterns(
+            &search_root,
+            request.exclude_patterns.clone(),
+            Some(use_default_excludes),
+        );
+        let include_patterns = resolve_include_patterns(
+            &search_root,
+            request.include_patterns.clone(),
+            &exclude_patterns,
+        )?;
 
         // Clone values before they're moved into SearchOptions
         let query_clone = query.clone();
@@ -747,33 +1024,39 @@ impl CkMcpServer {
             None
         };
 
+        let include_snippet = request.include_snippet.unwrap_or(true);
+        let context_lines = request.context_lines.unwrap_or(0);
+        let before_context_lines = request.before_context_lines.unwrap_or(context_lines);
+        let after_context_lines = request.after_context_lines.unwrap_or(context_lines);
+
         let options = SearchOptions {
             mode: SearchMode::Semantic,
             query,
             path: path_buf,
-            top_k: top_k.or(Some(DEFAULT_MCP_TOP_K)), // User-defined or MCP default
+            top_k: top_k.or(Some(DEFAULT_MCP_TOP_K)),
             threshold: threshold.or(Some(0.6)),
-            case_insensitive: false,
-            whole_word: false,
-            fixed_string: false,
+            case_insensitive: request.case_insensitive.unwrap_or(false),
+            whole_word: request.whole_word.unwrap_or(false),
+            fixed_string: request.fixed_string.unwrap_or(false),
             line_numbers: false,
-            context_lines: 0,
-            before_context_lines: 0,
-            after_context_lines: 0,
+            context_lines,
+            before_context_lines,
+            after_context_lines,
             recursive: true,
             json_output: false,
             jsonl_output: true,
-            no_snippet: false,
+            no_snippet: !include_snippet,
             reindex: false,
             show_scores: true,
             show_filenames: true,
             files_with_matches: false,
             files_without_matches: false,
-            exclude_patterns: get_default_exclude_patterns(),
-            respect_gitignore: true,
+            exclude_patterns,
+            include_patterns,
+            respect_gitignore,
             full_section: false,
-            rerank: false,
-            rerank_model: None,
+            rerank: request.rerank.unwrap_or(false),
+            rerank_model: request.rerank_model.clone(),
             embedding_model: None,
         };
 
@@ -783,6 +1066,7 @@ impl CkMcpServer {
         // Perform the search with progress reporting
         let mut indexing_progress_callback = indexing_progress_callback;
         let mut effective_mode: Option<String> = None;
+        let started = Instant::now();
         let search_results = match ck_engine::search_enhanced_with_indexing_progress(
             &options,
             None,
@@ -849,6 +1133,7 @@ impl CkMcpServer {
                 }
             }
         };
+        let elapsed_ms = started.elapsed().as_millis() as u64;
 
         // Create session and get first page
         let page = self
@@ -869,7 +1154,7 @@ impl CkMcpServer {
 
         let current_page = page.current_page;
         let mut structured_result =
-            Self::search_page_to_json(page, &query_clone, "semantic", search_params);
+            Self::search_page_to_json(page, &query_clone, "semantic", search_params, elapsed_ms);
 
         if let Some(ref note) = effective_mode
             && let Some(metadata) = structured_result.get_mut("metadata")
@@ -896,6 +1181,141 @@ impl CkMcpServer {
         Ok((summary, structured_result))
     }
 
+    pub async fn handle_lexical_search(
+        &self,
+        request: LexicalSearchRequest,
+    ) -> Result<(String, Value), ErrorData> {
+        if let Some(cursor) = &request.cursor {
+            return self.handle_paginated_request(cursor, &request).await;
+        }
+
+        let query = request.query.clone();
+        let path = request.path;
+        let top_k = request.top_k;
+        let threshold = request.threshold;
+        let path_buf = PathBuf::from(path);
+        let search_root = if path_buf.is_dir() {
+            path_buf.clone()
+        } else {
+            path_buf
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| PathBuf::from("."))
+        };
+
+        let respect_gitignore = request.respect_gitignore.unwrap_or(true);
+        let use_default_excludes = request.use_default_excludes.unwrap_or(true);
+        let exclude_patterns = resolve_exclude_patterns(
+            &search_root,
+            request.exclude_patterns.clone(),
+            Some(use_default_excludes),
+        );
+        let include_patterns = resolve_include_patterns(
+            &search_root,
+            request.include_patterns.clone(),
+            &exclude_patterns,
+        )?;
+
+        let query_clone = query.clone();
+        let path_clone = path_buf.clone();
+
+        if !path_buf.exists() {
+            return Err(ErrorData::invalid_params(
+                format!("Path does not exist: {}", path_buf.display()),
+                None,
+            ));
+        }
+
+        let config = Self::extract_pagination_config(
+            request.page_size,
+            request.include_snippet,
+            request.snippet_length,
+            request.context_lines,
+        );
+
+        let include_snippet = request.include_snippet.unwrap_or(true);
+        let context_lines = request.context_lines.unwrap_or(0);
+        let before_context_lines = request.before_context_lines.unwrap_or(context_lines);
+        let after_context_lines = request.after_context_lines.unwrap_or(context_lines);
+
+        let options = SearchOptions {
+            mode: SearchMode::Lexical,
+            query,
+            path: path_buf,
+            top_k,
+            threshold,
+            case_insensitive: request.case_insensitive.unwrap_or(false),
+            whole_word: request.whole_word.unwrap_or(false),
+            fixed_string: request.fixed_string.unwrap_or(false),
+            line_numbers: false,
+            context_lines,
+            before_context_lines,
+            after_context_lines,
+            recursive: true,
+            json_output: false,
+            jsonl_output: true,
+            no_snippet: !include_snippet,
+            reindex: false,
+            show_scores: true,
+            show_filenames: true,
+            files_with_matches: false,
+            files_without_matches: false,
+            exclude_patterns,
+            include_patterns,
+            respect_gitignore,
+            full_section: false,
+            rerank: false,
+            rerank_model: None,
+            embedding_model: None,
+        };
+
+        let started = Instant::now();
+        let search_results =
+            match ck_engine::search_enhanced_with_indexing_progress(&options, None, None, None)
+                .await
+            {
+                Ok(results) => results,
+                Err(e) => return Err(ErrorData::internal_error(e.to_string(), None)),
+            };
+        let elapsed_ms = started.elapsed().as_millis() as u64;
+
+        let page = self
+            .context
+            .session_manager
+            .get_first_page(
+                options,
+                filter_valid_results(search_results.matches),
+                config,
+            )
+            .await
+            .map_err(|e| ErrorData::internal_error(e, None))?;
+
+        let search_params = json!({
+            "top_k": top_k,
+            "threshold": threshold
+        });
+
+        let current_page = page.current_page;
+        let structured_result =
+            Self::search_page_to_json(page, &query_clone, "lexical", search_params, elapsed_ms);
+
+        let summary = format!(
+            "Lexical search for '{}' found {} matches in {} (top_k: {}, threshold: {}) - Page {}",
+            query_clone,
+            structured_result["results"]["count"],
+            path_clone.display(),
+            top_k
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "unbounded".to_string()),
+            threshold
+                .map(|v| format!("{:.3}", v))
+                .unwrap_or_else(|| "n/a".into()),
+            current_page
+        );
+
+        Ok((summary, structured_result))
+    }
+
     pub async fn handle_regex_search(
         &self,
         request: RegexSearchRequest,
@@ -909,6 +1329,27 @@ impl CkMcpServer {
         let ignore_case = request.ignore_case;
         let context = request.context;
         let path_buf = PathBuf::from(path);
+        let search_root = if path_buf.is_dir() {
+            path_buf.clone()
+        } else {
+            path_buf
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| PathBuf::from("."))
+        };
+
+        let respect_gitignore = request.respect_gitignore.unwrap_or(true);
+        let use_default_excludes = request.use_default_excludes.unwrap_or(true);
+        let exclude_patterns = resolve_exclude_patterns(
+            &search_root,
+            request.exclude_patterns.clone(),
+            Some(use_default_excludes),
+        );
+        let include_patterns = resolve_include_patterns(
+            &search_root,
+            request.include_patterns.clone(),
+            &exclude_patterns,
+        )?;
 
         // Clone values before they're moved into SearchOptions
         let pattern_clone = pattern.clone();
@@ -932,6 +1373,8 @@ impl CkMcpServer {
             Some(context_lines),
         );
 
+        let include_snippet = request.include_snippet.unwrap_or(true);
+
         let options = SearchOptions {
             mode: SearchMode::Regex,
             query: pattern,
@@ -939,8 +1382,8 @@ impl CkMcpServer {
             top_k: None,     // No limit for regex search
             threshold: None, // No threshold for regex search
             case_insensitive: ignore_case.unwrap_or(false),
-            whole_word: false,
-            fixed_string: false,
+            whole_word: request.whole_word.unwrap_or(false),
+            fixed_string: request.fixed_string.unwrap_or(false),
             line_numbers: true,
             context_lines,
             before_context_lines: context_lines,
@@ -948,14 +1391,15 @@ impl CkMcpServer {
             recursive: true,
             json_output: false,
             jsonl_output: true,
-            no_snippet: false,
+            no_snippet: !include_snippet,
             reindex: false,
             show_scores: false, // No scores for regex search
             show_filenames: true,
             files_with_matches: false,
             files_without_matches: false,
-            exclude_patterns: get_default_exclude_patterns(),
-            respect_gitignore: true,
+            exclude_patterns,
+            include_patterns,
+            respect_gitignore,
             full_section: false,
             rerank: false,
             rerank_model: None,
@@ -963,6 +1407,7 @@ impl CkMcpServer {
         };
 
         // Perform the search (no indexing needed for regex)
+        let started = Instant::now();
         let search_results = match ck_engine::search_enhanced_with_indexing_progress(
             &options, None, // No search progress callback for MCP
             None, // No indexing progress callback for MCP
@@ -973,6 +1418,7 @@ impl CkMcpServer {
             Ok(results) => results,
             Err(e) => return Err(ErrorData::internal_error(e.to_string(), None)),
         };
+        let elapsed_ms = started.elapsed().as_millis() as u64;
 
         // Create session and get first page
         let page = self
@@ -992,7 +1438,7 @@ impl CkMcpServer {
         });
 
         let structured_result =
-            Self::search_page_to_json(page, &pattern_clone, "regex", search_params);
+            Self::search_page_to_json(page, &pattern_clone, "regex", search_params, elapsed_ms);
 
         let summary = format!(
             "Regex search for pattern '{}' found {} matches in {} (case_sensitive: {}, context: {} lines) - Page 1",
@@ -1019,6 +1465,27 @@ impl CkMcpServer {
         let top_k = request.top_k;
         let threshold = request.threshold;
         let path_buf = PathBuf::from(path);
+        let search_root = if path_buf.is_dir() {
+            path_buf.clone()
+        } else {
+            path_buf
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| PathBuf::from("."))
+        };
+
+        let respect_gitignore = request.respect_gitignore.unwrap_or(true);
+        let use_default_excludes = request.use_default_excludes.unwrap_or(true);
+        let exclude_patterns = resolve_exclude_patterns(
+            &search_root,
+            request.exclude_patterns.clone(),
+            Some(use_default_excludes),
+        );
+        let include_patterns = resolve_include_patterns(
+            &search_root,
+            request.include_patterns.clone(),
+            &exclude_patterns,
+        )?;
 
         // Clone values before they're moved into SearchOptions
         let query_clone = query.clone();
@@ -1040,37 +1507,44 @@ impl CkMcpServer {
             request.context_lines,
         );
 
+        let include_snippet = request.include_snippet.unwrap_or(true);
+        let context_lines = request.context_lines.unwrap_or(0);
+        let before_context_lines = request.before_context_lines.unwrap_or(context_lines);
+        let after_context_lines = request.after_context_lines.unwrap_or(context_lines);
+
         let options = SearchOptions {
             mode: SearchMode::Hybrid,
             query,
             path: path_buf,
             top_k: top_k.or(Some(DEFAULT_MCP_TOP_K)), // User-defined or MCP default
             threshold: threshold.or(Some(0.02)),      // Lower threshold for hybrid (RRF scores)
-            case_insensitive: false,
-            whole_word: false,
-            fixed_string: false,
+            case_insensitive: request.case_insensitive.unwrap_or(false),
+            whole_word: request.whole_word.unwrap_or(false),
+            fixed_string: request.fixed_string.unwrap_or(false),
             line_numbers: false,
-            context_lines: 0,
-            before_context_lines: 0,
-            after_context_lines: 0,
+            context_lines,
+            before_context_lines,
+            after_context_lines,
             recursive: true,
             json_output: false,
             jsonl_output: true,
-            no_snippet: false,
+            no_snippet: !include_snippet,
             reindex: false,
             show_scores: true,
             show_filenames: true,
             files_with_matches: false,
             files_without_matches: false,
-            exclude_patterns: get_default_exclude_patterns(),
-            respect_gitignore: true,
+            exclude_patterns,
+            include_patterns,
+            respect_gitignore,
             full_section: false,
-            rerank: false,
-            rerank_model: None,
+            rerank: request.rerank.unwrap_or(false),
+            rerank_model: request.rerank_model.clone(),
             embedding_model: None,
         };
 
         // Perform the search (suppress progress callbacks for MCP)
+        let started = Instant::now();
         let search_results = match ck_engine::search_enhanced_with_indexing_progress(
             &options, None, // No search progress callback for MCP
             None, // No indexing progress callback for MCP
@@ -1081,6 +1555,7 @@ impl CkMcpServer {
             Ok(results) => results,
             Err(e) => return Err(ErrorData::internal_error(e.to_string(), None)),
         };
+        let elapsed_ms = started.elapsed().as_millis() as u64;
 
         // Create session and get first page
         let page = self
@@ -1101,7 +1576,7 @@ impl CkMcpServer {
 
         let current_page = page.current_page;
         let structured_result =
-            Self::search_page_to_json(page, &query_clone, "hybrid", search_params);
+            Self::search_page_to_json(page, &query_clone, "hybrid", search_params, elapsed_ms);
 
         let summary = format!(
             "Hybrid search for '{}' found {} matches in {} (threshold: {:.3}, top_k: {}, combines semantic + regex) - Page {}",
@@ -1314,6 +1789,7 @@ impl CkMcpServer {
             files_with_matches: false,
             files_without_matches: false,
             exclude_patterns: get_default_exclude_patterns(),
+            include_patterns: Vec::new(),
             respect_gitignore: true,
             full_section: false,
             rerank: false,

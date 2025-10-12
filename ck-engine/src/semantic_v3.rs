@@ -50,6 +50,9 @@ pub async fn semantic_search_v3_with_progress(
                 if let Ok(index_entry) = ck_index::load_index_entry(path) {
                     let original_file = reconstruct_original_path(path, &index_dir, &index_root);
                     if let Some(original_file) = original_file {
+                        if !super::path_matches_include(&original_file, &options.include_patterns) {
+                            continue;
+                        }
                         for chunk in index_entry.chunks {
                             if chunk.embedding.is_some() {
                                 file_chunks.push((original_file.clone(), chunk));

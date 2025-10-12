@@ -1,5 +1,5 @@
 use anyhow::Result;
-use ck_core::{SearchMode, SearchOptions};
+use ck_core::{IncludePattern, SearchMode, SearchOptions};
 use clap::Parser;
 use console::style;
 use owo_colors::{OwoColorize, Rgb};
@@ -8,9 +8,11 @@ use std::path::{Path, PathBuf};
 
 mod mcp;
 mod mcp_server;
+mod path_utils;
 mod progress;
-mod tui;
+// TUI is now in its own crate: ck-tui
 
+use path_utils::{build_include_patterns, expand_glob_patterns};
 use progress::StatusReporter;
 
 #[derive(Parser)]
@@ -368,66 +370,70 @@ struct Cli {
     tui: bool,
 }
 
-fn expand_glob_patterns(paths: &[PathBuf], exclude_patterns: &[String]) -> Result<Vec<PathBuf>> {
-    let mut expanded = Vec::new();
-
-    for path in paths {
-        let path_str = path.to_string_lossy();
-
-        // Check if this looks like a glob pattern
-        if path_str.contains('*') || path_str.contains('?') || path_str.contains('[') {
-            // Use glob to expand the pattern
-            match glob::glob(&path_str) {
-                Ok(glob_paths) => {
-                    let mut found_matches = false;
-                    for glob_result in glob_paths {
-                        match glob_result {
-                            Ok(matched_path) => {
-                                // Apply exclusion patterns to glob results
-                                if !should_exclude_path(&matched_path, exclude_patterns) {
-                                    expanded.push(matched_path);
-                                }
-                                found_matches = true;
-                            }
-                            Err(e) => {
-                                eprintln!("Warning: glob error for pattern '{}': {}", path_str, e);
-                            }
-                        }
-                    }
-
-                    // If no matches found, treat as literal path (grep behavior)
-                    if !found_matches {
-                        expanded.push(path.clone());
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Warning: invalid glob pattern '{}': {}", path_str, e);
-                    // Treat as literal path if glob pattern is invalid
-                    expanded.push(path.clone());
-                }
-            }
-        } else {
-            // Not a glob pattern, use as-is
-            expanded.push(path.clone());
-        }
+fn canonicalize_for_comparison(path: &Path) -> PathBuf {
+    if let Ok(canonical) = path.canonicalize() {
+        return canonical;
     }
 
-    Ok(expanded)
+    std::env::current_dir()
+        .map(|cwd| cwd.join(path))
+        .unwrap_or_else(|_| path.to_path_buf())
 }
 
-fn should_exclude_path(path: &Path, exclude_patterns: &[String]) -> bool {
-    // Check if any component in the path matches an exclusion pattern
-    for component in path.components() {
-        if let std::path::Component::Normal(name) = component {
-            let name_str = name.to_string_lossy();
-            for pattern in exclude_patterns {
-                if name_str == pattern.as_str() {
-                    return true;
-                }
+fn find_search_root(include_patterns: &[IncludePattern]) -> PathBuf {
+    if include_patterns.is_empty() {
+        return PathBuf::from(".");
+    }
+
+    let mut root = if include_patterns[0].is_dir {
+        include_patterns[0].path.clone()
+    } else {
+        include_patterns[0]
+            .path
+            .parent()
+            .unwrap_or(&include_patterns[0].path)
+            .to_path_buf()
+    };
+
+    for pattern in include_patterns.iter().skip(1) {
+        let mut candidate = if pattern.is_dir {
+            pattern.path.clone()
+        } else {
+            pattern.path.parent().unwrap_or(&pattern.path).to_path_buf()
+        };
+
+        if candidate.starts_with(&root) {
+            continue;
+        }
+
+        while !root.starts_with(&candidate) && !candidate.starts_with(&root) {
+            if let Some(parent) = root.parent() {
+                root = parent.to_path_buf();
+            } else {
+                break;
             }
         }
+
+        if !candidate.starts_with(&root) {
+            while let Some(parent) = candidate.parent() {
+                if parent.starts_with(&root) {
+                    candidate = parent.to_path_buf();
+                    break;
+                }
+                candidate = parent.to_path_buf();
+            }
+        }
+
+        if root.starts_with(&candidate) {
+            root = candidate;
+        }
     }
-    false
+
+    if root.as_os_str().is_empty() {
+        PathBuf::from(".")
+    } else {
+        root
+    }
 }
 
 fn build_exclude_patterns(cli: &Cli, repo_root: Option<&Path>) -> Vec<String> {
@@ -736,13 +742,13 @@ async fn dump_file_chunks(file_path: &PathBuf) -> Result<()> {
     let path = Path::new(file_path);
 
     // Use the shared live chunking function
-    let (lines, chunk_metas) = tui::chunk_file_live(path).map_err(|err| {
+    let (lines, chunk_metas) = ck_tui::chunk_file_live(path).map_err(|err| {
         eprintln!("Error: {}", err);
         std::process::exit(1);
     })?;
 
     // Display chunks for entire file
-    let display_lines = tui::collect_chunk_display_lines(
+    let display_lines = ck_tui::chunks::collect_chunk_display_lines(
         &lines,
         0,            // context_start
         lines.len(),  // context_end
@@ -773,7 +779,7 @@ async fn dump_file_chunks(file_path: &PathBuf) -> Result<()> {
 
     // Convert display lines to strings and print
     for line in display_lines {
-        println!("{}", tui::chunk_display_line_to_string(&line));
+        println!("{}", ck_tui::chunk_display_line_to_string(&line));
     }
 
     Ok(())
@@ -941,7 +947,7 @@ async fn run_main() -> Result<()> {
             .cloned()
             .unwrap_or_else(|| PathBuf::from("."));
         let initial_query = cli.pattern.clone();
-        return tui::run_tui(search_path, initial_query).await;
+        return ck_tui::run_tui(search_path, initial_query).await;
     }
 
     // Regular CLI mode
@@ -1297,45 +1303,86 @@ async fn run_cli_mode(cli: Cli) -> Result<()> {
         // Build options to get exclusion patterns
         let temp_options = build_options(&cli, reindex, repo_root);
 
-        let files = if cli.files.is_empty() {
+        let expanded_targets = if cli.files.is_empty() {
             vec![PathBuf::from(".")]
         } else {
             expand_glob_patterns(&cli.files, &temp_options.exclude_patterns)?
         };
 
+        let include_patterns = if cli.files.is_empty() {
+            Vec::new()
+        } else {
+            build_include_patterns(&expanded_targets)
+        };
+
+        let mut search_root = if include_patterns.is_empty() {
+            PathBuf::from(".")
+        } else {
+            find_search_root(&include_patterns)
+        };
+
+        if expanded_targets.len() == 1 && !expanded_targets[0].exists() {
+            search_root = expanded_targets[0].clone();
+        }
+
+        let include_patterns = if include_patterns.len() > 1 {
+            include_patterns
+                .into_iter()
+                .filter(|pattern| !(pattern.is_dir && pattern.path == search_root))
+                .collect()
+        } else {
+            include_patterns
+        };
+
         // Handle multiple files like grep; allow -h/-H overrides
-        let mut show_filenames = files.len() > 1 || files.iter().any(|p| p.is_dir());
+        let mut show_filenames = if include_patterns.is_empty() {
+            expanded_targets.len() > 1 || expanded_targets.iter().any(|p| p.is_dir())
+        } else {
+            include_patterns.len() > 1 || include_patterns.iter().any(|p| p.is_dir)
+        };
         if cli.no_filenames {
             show_filenames = false;
         }
         if cli.with_filenames {
             show_filenames = true;
         }
-        let mut any_matches = false;
-        let mut closest_overall: Option<ck_core::SearchResult> = None;
+        let mut options = build_options(&cli, reindex, repo_root);
+        options.show_filenames = show_filenames;
+        options.include_patterns = include_patterns.clone();
+        options.path = search_root.clone();
 
-        for file_path in files {
-            let mut options = build_options(&cli, reindex, repo_root);
-            options.show_filenames = show_filenames;
-            let summary = run_search(pattern.clone(), file_path, options, &status).await?;
-            if summary.had_matches {
-                any_matches = true;
-            }
-            // Track the highest-scoring closest match across all searches
-            if let Some(closest) = summary.closest_below_threshold
-                && (closest_overall.is_none()
-                    || closest.score > closest_overall.as_ref().unwrap().score)
-            {
-                closest_overall = Some(closest);
+        let summary = run_search(pattern.clone(), search_root, options, &status).await?;
+
+        if cli.files_without_matches {
+            let matched_canon: Vec<PathBuf> = summary
+                .matched_paths
+                .iter()
+                .map(|p| canonicalize_for_comparison(p))
+                .collect();
+
+            for target in &expanded_targets {
+                let canonical_target = canonicalize_for_comparison(target);
+                let target_is_dir = target.is_dir();
+                let has_match = matched_canon.iter().any(|matched| {
+                    if target_is_dir {
+                        matched.starts_with(&canonical_target)
+                    } else {
+                        matched == &canonical_target
+                    }
+                });
+
+                if !has_match {
+                    println!("{}", target.display());
+                }
             }
         }
 
         // grep-like exit codes: 0 if matches found, 1 if none
-        if !any_matches {
+        if !summary.had_matches {
             eprintln!("No matches found");
 
             // Show the closest match below threshold if available
-            if let Some(closest) = closest_overall {
+            if let Some(closest) = summary.closest_below_threshold {
                 // Format like a regular result but in red
                 let score_text = format!("[{:.3}] ", closest.score);
                 let file_text = format!("{}:", closest.file.display());
@@ -1417,6 +1464,7 @@ fn build_options(cli: &Cli, reindex: bool, repo_root: Option<&Path>) -> SearchOp
         files_with_matches: cli.files_with_matches,
         files_without_matches: cli.files_without_matches,
         exclude_patterns,
+        include_patterns: Vec::new(),
         respect_gitignore: !cli.no_ignore,
         full_section: cli.full_section,
         // Enhanced embedding options (search-time only)
@@ -1614,6 +1662,7 @@ fn apply_heatmap_color(token: &str, score: f32) -> String {
 struct SearchSummary {
     had_matches: bool,
     closest_below_threshold: Option<ck_core::SearchResult>,
+    matched_paths: Vec<PathBuf>,
 }
 
 async fn run_search(
@@ -1783,6 +1832,7 @@ async fn run_search(
     )
     .await?;
     let results = &search_results.matches;
+    let matched_paths: Vec<PathBuf> = results.iter().map(|result| result.file.clone()).collect();
 
     if let Some(spinner) = search_spinner {
         status.finish_progress(Some(spinner), &format!("Found {} results", results.len()));
@@ -1873,20 +1923,65 @@ async fn run_search(
         }
     }
 
-    // For -L flag: if this file had no matches, print the filename
-    if options.files_without_matches && !has_matches {
-        println!("{}", options.path.display());
-    }
-
     Ok(SearchSummary {
         had_matches: has_matches,
         closest_below_threshold: search_results.closest_below_threshold,
+        matched_paths,
     })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
+    use crate::path_utils::{self, expand_glob_patterns_with_base};
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_expand_glob_patterns_supports_semicolon_lists() {
+        let temp_dir = tempdir().unwrap();
+        let base = temp_dir.path();
+
+        let rust_file = base.join("example.rs");
+        let html_file = base.join("page.html");
+        let docs_dir = base.join("docs");
+        let nested_dir = docs_dir.join("nested");
+        let nested_rust_file = nested_dir.join("lib.rs");
+
+        fs::write(&rust_file, "fn main() {}\n").unwrap();
+        fs::write(&html_file, "<html></html>").unwrap();
+        fs::create_dir_all(&nested_dir).unwrap();
+        fs::write(&nested_rust_file, "pub fn lib() {}\n").unwrap();
+
+        let expanded =
+            expand_glob_patterns_with_base(base, &[PathBuf::from("*.rs;*.html;docs/")], &[])
+                .expect("pattern expansion");
+
+        let has_example = expanded.iter().any(|p| p.ends_with("example.rs"));
+        let has_page = expanded.iter().any(|p| p.ends_with("page.html"));
+        let has_docs = expanded.iter().any(|p| p.ends_with("docs"));
+        let has_nested = expanded.iter().any(|p| p.ends_with("docs/nested/lib.rs"));
+
+        assert!(has_example);
+        assert!(has_page);
+        assert!(has_docs);
+        assert!(has_nested);
+    }
+
+    #[test]
+    fn test_split_path_patterns_trims_whitespace_and_empties() {
+        let patterns = path_utils::split_path_patterns(Path::new(" foo.rs ; ; *.html ;docs/ "));
+        assert_eq!(
+            patterns,
+            vec![
+                "foo.rs".to_string(),
+                "*.html".to_string(),
+                "docs/".to_string()
+            ]
+        );
+    }
 
     #[test]
     fn test_highlight_regex_matches_with_valid_pattern() {

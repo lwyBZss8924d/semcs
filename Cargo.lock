@@ -494,7 +494,7 @@ dependencies = [
 
 [[package]]
 name = "ck-ann"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -505,7 +505,7 @@ dependencies = [
 
 [[package]]
 name = "ck-chunk"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "ck-core",
@@ -527,7 +527,7 @@ dependencies = [
 
 [[package]]
 name = "ck-core"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -541,7 +541,7 @@ dependencies = [
 
 [[package]]
 name = "ck-embed"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "ck-core",
@@ -552,7 +552,7 @@ dependencies = [
 
 [[package]]
 name = "ck-engine"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "ck-ann",
@@ -575,7 +575,7 @@ dependencies = [
 
 [[package]]
 name = "ck-index"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -599,7 +599,7 @@ dependencies = [
 
 [[package]]
 name = "ck-models"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "ck-core",
@@ -609,7 +609,7 @@ dependencies = [
 
 [[package]]
 name = "ck-search"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -621,6 +621,7 @@ dependencies = [
  "ck-engine",
  "ck-index",
  "ck-models",
+ "ck-tui",
  "clap",
  "console",
  "crossterm",
@@ -649,6 +650,26 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "walkdir",
+]
+
+[[package]]
+name = "ck-tui"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "ck-chunk",
+ "ck-core",
+ "ck-embed",
+ "ck-engine",
+ "ck-index",
+ "crossterm",
+ "dirs 5.0.1",
+ "ratatui",
+ "serde",
+ "serde_json",
+ "shlex",
+ "syntect",
+ "tokio",
 ]
 
 [[package]]

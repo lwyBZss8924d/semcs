@@ -1,5 +1,5 @@
 use anyhow::Result;
-use ck_core::{CkError, SearchMode, SearchOptions, SearchResult, Span};
+use ck_core::{CkError, IncludePattern, SearchMode, SearchOptions, SearchResult, Span};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use rayon::prelude::*;
 use regex::{Regex, RegexBuilder};
@@ -137,6 +137,49 @@ fn split_lines_with_endings(content: &str) -> (Vec<String>, Vec<usize>) {
     }
 
     (lines, endings)
+}
+
+fn canonicalize_for_matching(path: &Path) -> PathBuf {
+    if let Ok(canonical) = path.canonicalize() {
+        return canonical;
+    }
+
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map(|cwd| cwd.join(path))
+            .unwrap_or_else(|_| path.to_path_buf())
+    }
+}
+
+fn path_matches_include(path: &Path, include_patterns: &[IncludePattern]) -> bool {
+    if include_patterns.is_empty() {
+        return true;
+    }
+
+    let candidate = canonicalize_for_matching(path);
+    include_patterns.iter().any(|pattern| {
+        if pattern.is_dir {
+            candidate.starts_with(&pattern.path)
+        } else {
+            candidate == pattern.path
+        }
+    })
+}
+
+fn filter_files_by_include(
+    files: Vec<PathBuf>,
+    include_patterns: &[IncludePattern],
+) -> Vec<PathBuf> {
+    if include_patterns.is_empty() {
+        return files;
+    }
+
+    files
+        .into_iter()
+        .filter(|path| path_matches_include(path, include_patterns))
+        .collect()
 }
 
 fn find_nearest_index_root(path: &Path) -> Option<StdPathBuf> {
@@ -385,14 +428,16 @@ fn regex_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
     let should_recurse = options.path.is_dir() || options.recursive;
     let files = if should_recurse {
         // Use ck_index's collect_files which respects gitignore
-        ck_index::collect_files(
+        let collected = ck_index::collect_files(
             &options.path,
             options.respect_gitignore,
             &options.exclude_patterns,
-        )?
+        )?;
+        filter_files_by_include(collected, &options.include_patterns)
     } else {
         // For non-recursive, use the local collect_files
-        collect_files(&options.path, should_recurse, &options.exclude_patterns)?
+        let collected = collect_files(&options.path, should_recurse, &options.exclude_patterns)?;
+        filter_files_by_include(collected, &options.include_patterns)
     };
 
     let results: Vec<Vec<SearchResult>> = files
@@ -768,6 +813,9 @@ async fn lexical_search(options: &SearchOptions) -> Result<Vec<SearchResult>> {
             .unwrap_or("");
 
         let file_path = PathBuf::from(path_text);
+        if !path_matches_include(&file_path, &options.include_patterns) {
+            continue;
+        }
         let preview = if options.full_section {
             content_text.to_string()
         } else {
@@ -846,7 +894,10 @@ async fn build_tantivy_index(options: &SearchOptions) -> Result<Vec<SearchResult
         .writer(50_000_000)
         .map_err(|e| CkError::Index(format!("Failed to create index writer: {}", e)))?;
 
-    let files = collect_files(index_root, true, &options.exclude_patterns)?;
+    let files = filter_files_by_include(
+        collect_files(index_root, true, &options.exclude_patterns)?,
+        &options.include_patterns,
+    );
 
     for file_path in &files {
         if let Ok(content) = fs::read_to_string(file_path) {
@@ -1017,6 +1068,8 @@ async fn hybrid_search_with_progress(
         })
         .collect();
 
+    rrf_results.retain(|result| path_matches_include(&result.file, &options.include_patterns));
+
     // Sort by RRF score (highest first)
     rrf_results.sort_by(|a, b| {
         b.score
@@ -1129,7 +1182,7 @@ async fn ensure_index_updated_with_progress(
     exclude_patterns: &[String],
     model_override: Option<&str>,
 ) -> Result<()> {
-    // Handle both files and directories and reuse nearest existing .ck index up the tree
+    // Find index root for .ck directory location
     let index_root_buf = find_nearest_index_root(path).unwrap_or_else(|| {
         if path.is_file() {
             path.parent().unwrap_or(path).to_path_buf()
@@ -1139,7 +1192,8 @@ async fn ensure_index_updated_with_progress(
     });
     let index_root = &index_root_buf;
 
-    // If force reindex is requested, always update
+    // Pass the original path to indexing function so it can index just that file/directory
+    // The indexing function will use collect_files() which now handles individual files correctly
     if force_reindex {
         let stats = ck_index::smart_update_index_with_detailed_progress(
             index_root,
@@ -1162,24 +1216,32 @@ async fn ensure_index_updated_with_progress(
         return Ok(());
     }
 
-    // Always use smart_update_index for incremental updates (handles both new and existing indexes)
-    let stats = ck_index::smart_update_index_with_detailed_progress(
-        index_root,
-        false,
-        progress_callback,
-        detailed_progress_callback,
-        need_embeddings,
-        respect_gitignore,
-        exclude_patterns,
-        model_override,
-    )
-    .await?;
-    if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {
-        tracing::info!(
-            "Index updated: {} files indexed, {} orphaned files removed",
-            stats.files_indexed,
-            stats.orphaned_files_removed
-        );
+    // For incremental updates with individual files, we need special handling
+    // to ensure only the specific file is indexed, not the entire directory
+    if path.is_file() {
+        // Index just this one file
+        use ck_index::index_file;
+        index_file(path, need_embeddings).await?;
+    } else {
+        // For directories, use the standard smart update
+        let stats = ck_index::smart_update_index_with_detailed_progress(
+            index_root,
+            false,
+            progress_callback,
+            detailed_progress_callback,
+            need_embeddings,
+            respect_gitignore,
+            exclude_patterns,
+            model_override,
+        )
+        .await?;
+        if stats.files_indexed > 0 || stats.orphaned_files_removed > 0 {
+            tracing::info!(
+                "Index updated: {} files indexed, {} orphaned files removed",
+                stats.files_indexed,
+                stats.orphaned_files_removed
+            );
+        }
     }
 
     Ok(())
