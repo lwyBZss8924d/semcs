@@ -280,6 +280,12 @@ pub enum SearchMode {
 }
 
 #[derive(Debug, Clone)]
+pub struct IncludePattern {
+    pub path: PathBuf,
+    pub is_dir: bool,
+}
+
+#[derive(Debug, Clone)]
 pub struct SearchOptions {
     pub mode: SearchMode,
     pub query: String,
@@ -303,6 +309,7 @@ pub struct SearchOptions {
     pub files_with_matches: bool,
     pub files_without_matches: bool,
     pub exclude_patterns: Vec<String>,
+    pub include_patterns: Vec<IncludePattern>,
     pub respect_gitignore: bool,
     pub full_section: bool,
     // Enhanced embedding options (search-time only)
@@ -358,6 +365,7 @@ impl Default for SearchOptions {
             files_with_matches: false,
             files_without_matches: false,
             exclude_patterns: get_default_exclude_patterns(),
+            include_patterns: Vec::new(),
             respect_gitignore: true,
             full_section: false,
             // Enhanced embedding options (search-time only)

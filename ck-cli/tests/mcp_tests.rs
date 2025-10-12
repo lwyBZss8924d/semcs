@@ -21,6 +21,7 @@ async fn test_mcp_semantic_search_basic_functionality() {
         include_snippet: Some(true),
         snippet_length: Some(100),
         context_lines: Some(0),
+        ..Default::default()
     };
 
     let result = server.handle_semantic_search(request, None, None).await;
@@ -56,6 +57,7 @@ async fn test_mcp_regex_search_basic_functionality() {
         page_size: Some(3),
         include_snippet: Some(true),
         snippet_length: Some(50),
+        ..Default::default()
     };
 
     let result = server.handle_regex_search(request).await;
@@ -94,6 +96,7 @@ async fn test_mcp_hybrid_search_basic_functionality() {
         include_snippet: Some(true),
         snippet_length: Some(200),
         context_lines: Some(1),
+        ..Default::default()
     };
 
     let result = server.handle_hybrid_search(request).await;
@@ -133,6 +136,7 @@ async fn test_mcp_invalid_cursor_handling() {
         include_snippet: Some(true),
         snippet_length: Some(100),
         context_lines: Some(0),
+        ..Default::default()
     };
 
     let result = server.handle_semantic_search(request, None, None).await;
@@ -155,6 +159,7 @@ async fn test_mcp_search_parameters_validation() {
         include_snippet: Some(true),
         snippet_length: Some(10000), // Should be clamped to 2000
         context_lines: Some(50),     // Should be clamped to 10
+        ..Default::default()
     };
 
     let result = server.handle_semantic_search(request, None, None).await;
@@ -180,6 +185,7 @@ async fn test_mcp_nonexistent_path() {
         include_snippet: Some(true),
         snippet_length: Some(100),
         context_lines: Some(0),
+        ..Default::default()
     };
 
     let result = server.handle_semantic_search(request, None, None).await;
@@ -239,6 +245,7 @@ async fn test_mcp_top_k_page_size_interaction() {
         include_snippet: Some(true),
         snippet_length: Some(100),
         context_lines: Some(0),
+        ..Default::default()
     };
 
     let result = server.handle_semantic_search(request, None, None).await;
@@ -283,6 +290,7 @@ async fn test_mcp_top_k_page_size_interaction() {
         include_snippet: Some(true),
         snippet_length: Some(100),
         context_lines: Some(0),
+        ..Default::default()
     };
 
     let result2 = server.handle_semantic_search(request2, None, None).await;
@@ -332,6 +340,7 @@ async fn test_mcp_semantic_search_with_missing_files() {
         include_snippet: Some(true),
         snippet_length: Some(100),
         context_lines: Some(0),
+        ..Default::default()
     };
 
     let _ = server
@@ -355,6 +364,7 @@ async fn test_mcp_semantic_search_with_missing_files() {
         include_snippet: Some(true),
         snippet_length: Some(100),
         context_lines: Some(0),
+        ..Default::default()
     };
 
     let result = server.handle_semantic_search(request, None, None).await;

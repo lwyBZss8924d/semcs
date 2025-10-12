@@ -51,6 +51,7 @@ impl McpContext {
             files_with_matches: false,
             files_without_matches: false,
             exclude_patterns: get_default_exclude_patterns(),
+            include_patterns: Vec::new(),
             respect_gitignore: true,
             full_section: false,
             rerank: false,
