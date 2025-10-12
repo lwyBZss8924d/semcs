@@ -1640,20 +1640,16 @@ async fn run_search(
         );
     }
 
-    // We'll create the search spinner after indexing is complete to avoid conflicts
-    let search_spinner: Option<indicatif::ProgressBar> = None;
+    // Create search spinner for showing live search progress
+    let search_spinner = status.create_spinner("Searching...");
 
     // Create progress callback for search operations
-    let search_progress_callback = if !status.quiet && search_spinner.is_some() {
-        let spinner_clone = search_spinner.clone();
-        Some(Box::new(move |msg: &str| {
-            if let Some(ref pb) = spinner_clone {
-                pb.set_message(msg.to_string());
-            }
-        }) as ck_engine::SearchProgressCallback)
-    } else {
-        None
-    };
+    let search_progress_callback = search_spinner.as_ref().map(|spinner| {
+        let spinner_clone = spinner.clone();
+        Box::new(move |msg: &str| {
+            spinner_clone.set_message(msg.to_string());
+        }) as ck_engine::SearchProgressCallback
+    });
 
     // Create indexing progress callbacks for automatic indexing during semantic search
     let (indexing_progress_callback, detailed_indexing_progress_callback) = if !status.quiet
@@ -1745,9 +1741,7 @@ async fn run_search(
     let results = &search_results.matches;
     let matched_paths: Vec<PathBuf> = results.iter().map(|result| result.file.clone()).collect();
 
-    if let Some(spinner) = search_spinner {
-        status.finish_progress(Some(spinner), &format!("Found {} results", results.len()));
-    }
+    status.finish_progress(search_spinner, &format!("Found {} results", results.len()));
 
     let mut has_matches = false;
     if options.jsonl_output {
