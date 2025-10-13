@@ -12,7 +12,7 @@ nav_order: 3
 The fastest way to get started:
 
 ```bash
-cargo install ck-search
+cargo install cc-search
 ```
 
 That's it! You're ready to search.
@@ -23,13 +23,13 @@ That's it! You're ready to search.
 
 ```bash
 # Install latest stable version
-cargo install ck-search
+cargo install cc-search
 
 # Update to latest version
-cargo install ck-search --force
+cargo install cc-search --force
 
 # Install specific version
-cargo install ck-search --version 0.5.3
+cargo install cc-search --version 0.5.3
 ```
 
 **Requirements:**
@@ -47,15 +47,15 @@ For latest features or development:
 
 ```bash
 # Clone repository
-git clone https://github.com/BeaconBay/ck
-cd ck
+git clone https://github.com/BeaconBay/cc
+cd cc
 
 # Install from source
-cargo install --path ck-cli
+cargo install --path cc-cli
 
 # Or just build (doesn't install)
 cargo build --release
-./target/release/ck --version
+./target/release/cc --version
 ```
 
 **Benefits:**
@@ -69,22 +69,22 @@ cargo build --release
 
 ```bash
 # Homebrew (macOS/Linux) - In development
-brew install ck-search
+brew install cc-search
 
 # APT (Debian/Ubuntu) - In development
-apt install ck-search
+apt install cc-search
 
 # DNF/YUM (Fedora/RHEL) - In development
-dnf install ck-search
+dnf install cc-search
 
 # Scoop (Windows) - In development
-scoop install ck-search
+scoop install cc-search
 
 # Chocolatey (Windows) - In development
-choco install ck-search
+choco install cc-search
 ```
 
-For now, use `cargo install ck-search` on all platforms.
+For now, use `cargo install cc-search` on all platforms.
 
 ## Platform-Specific Instructions
 
@@ -97,18 +97,18 @@ For now, use `cargo install ck-search` on all platforms.
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 
-# Install ck
-cargo install ck-search
+# Install cc
+cargo install cc-search
 
 # Verify installation
-ck --version
+cc --version
 ```
 
 #### Using Homebrew (Coming Soon)
 
 ```bash
 # Not yet available - use cargo for now
-brew install ck-search
+brew install cc-search
 ```
 
 **Troubleshooting:**
@@ -129,11 +129,11 @@ source ~/.zshrc
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 
-# Install ck
-cargo install ck-search
+# Install cc
+cargo install cc-search
 
 # Verify installation
-ck --version
+cc --version
 ```
 
 #### Debian/Ubuntu (Coming Soon)
@@ -141,21 +141,21 @@ ck --version
 ```bash
 # Not yet available - use cargo for now
 sudo apt update
-sudo apt install ck-search
+sudo apt install cc-search
 ```
 
 #### Fedora/RHEL (Coming Soon)
 
 ```bash
 # Not yet available - use cargo for now
-sudo dnf install ck-search
+sudo dnf install cc-search
 ```
 
 #### Arch Linux (Coming Soon)
 
 ```bash
 # Not yet available - use cargo for now
-yay -S ck-search
+yay -S cc-search
 ```
 
 **Troubleshooting:**
@@ -180,25 +180,25 @@ sudo pacman -S base-devel
 # Install Rust if needed
 # Download and run: https://rustup.rs/
 
-# Install ck
-cargo install ck-search
+# Install cc
+cargo install cc-search
 
 # Verify installation
-ck --version
+cc --version
 ```
 
 #### Using Scoop (Coming Soon)
 
 ```powershell
 # Not yet available - use cargo for now
-scoop install ck-search
+scoop install cc-search
 ```
 
 #### Using Chocolatey (Coming Soon)
 
 ```powershell
 # Not yet available - use cargo for now
-choco install ck-search
+choco install cc-search
 ```
 
 **Troubleshooting:**
@@ -221,13 +221,13 @@ Add-Content $PROFILE "`n`$env:PATH += `";`$env:USERPROFILE\.cargo\bin`""
 
 ```bash
 # Check version
-ck --version
+cc --version
 
 # Test basic search
-ck "test" .
+cc "test" .
 
 # Test semantic search
-ck --sem "error handling" .
+cc --sem "error handling" .
 ```
 
 If these work, you're all set!
@@ -238,31 +238,31 @@ If these work, you're all set!
 
 ```bash
 # Update to latest version
-cargo install ck-search --force
+cargo install cc-search --force
 
 # Check new version
-ck --version
+cc --version
 ```
 
 ### Update from source
 
 ```bash
 # Pull latest changes
-cd /path/to/ck
+cd /path/to/cc
 git pull
 
 # Rebuild and install
-cargo install --path ck-cli --force
+cargo install --path cc-cli --force
 ```
 
 ## Uninstalling
 
 ```bash
-# Remove ck binary
-cargo uninstall ck-search
+# Remove cc binary
+cargo uninstall cc-search
 
 # Remove index data (optional)
-rm -rf .ck/  # In each repository where you used ck
+rm -rf .cc/  # In each repository where you used cc
 ```
 
 ## System Requirements
@@ -283,7 +283,7 @@ rm -rf .ck/  # In each repository where you used ck
 
 ### Index Size Estimates
 
-Typical `.ck/` index sizes:
+Typical `.cc/` index sizes:
 
 | Repository Size | Index Size | Indexing Time |
 |-----------------|------------|---------------|
@@ -297,7 +297,7 @@ Typical `.ck/` index sizes:
 
 ### Default Settings
 
-ck works out of the box with sensible defaults. No configuration required!
+cc works out of the box with sensible defaults. No configuration required!
 
 ### Optional Configuration
 
@@ -307,40 +307,40 @@ Generate completions for your shell:
 
 ```bash
 # Bash
-ck --generate-completions bash > ~/.local/share/bash-completion/completions/ck
+cc --generate-completions bash > ~/.local/share/bash-completion/completions/cc
 
 # Zsh
-ck --generate-completions zsh > ~/.zfunc/_ck
+cc --generate-completions zsh > ~/.zfunc/_ck
 
 # Fish
-ck --generate-completions fish > ~/.config/fish/completions/ck.fish
+cc --generate-completions fish > ~/.config/fish/completions/cc.fish
 
 # PowerShell
-ck --generate-completions powershell > ck.ps1
+cc --generate-completions powershell > cc.ps1
 ```
 
 #### Environment Variables
 
 ```bash
 # Change embedding model
-export CK_MODEL=large
+export CC_MODEL=large
 
 # Custom index location
-export CK_INDEX_PATH=/custom/path
+export CC_INDEX_PATH=/custom/path
 
 # Adjust worker threads
-export CK_WORKERS=8
+export CC_WORKERS=8
 ```
 
 See [Advanced Usage](advanced-usage.html) for details.
 
-#### .ckignore Files
+#### .ccignore Files
 
-Customize what files ck indexes:
+Customize what files cc indexes:
 
 ```bash
-# Create .ckignore in repository root
-cat > .ckignore <<EOF
+# Create .ccignore in repository root
+cat > .ccignore <<EOF
 # Exclude generated files
 *.generated.ts
 dist/
@@ -358,13 +358,13 @@ EOF
 
 Syntax matches `.gitignore` (glob patterns, `!` for negation).
 
-See [Advanced Usage](advanced-usage.html#ckignore-patterns) for details.
+See [Advanced Usage](advanced-usage.html#ccignore-patterns) for details.
 
 ## Troubleshooting
 
 ### Command not found
 
-**Problem:** `ck: command not found`
+**Problem:** `cc: command not found`
 
 **Solution:**
 ```bash
@@ -385,7 +385,7 @@ source ~/.bashrc
 **Solution:**
 ```bash
 # Don't use sudo with cargo
-cargo install ck-search  # Without sudo
+cargo install cc-search  # Without sudo
 
 # If you accidentally used sudo, fix ownership
 sudo chown -R $USER:$USER ~/.cargo
@@ -420,36 +420,36 @@ xcode-select --install
 
 ### Version conflicts
 
-**Problem:** Multiple ck versions installed
+**Problem:** Multiple cc versions installed
 
 **Solution:**
 ```bash
-# Check which ck is being used
-which ck
+# Check which cc is being used
+which cc
 
 # Uninstall all versions
-cargo uninstall ck-search
+cargo uninstall cc-search
 
 # Reinstall latest
-cargo install ck-search
+cargo install cc-search
 
 # Verify
-ck --version
+cc --version
 ```
 
 ## Next Steps
 
 ✅ **Installation complete!** Here's what to do next:
 
-1. **Quick test:** `ck --sem "error handling" .`
-2. **Try TUI mode:** `ck --tui .`
+1. **Quick test:** `cc --sem "error handling" .`
+2. **Try TUI mode:** `cc --tui .`
 3. **Learn search modes:** [Search Modes Guide](search-modes.html)
 4. **Setup AI integration:** [AI Integration Guide](ai-integration.html)
 5. **Explore advanced features:** [Advanced Usage](advanced-usage.html)
 
 ## Getting Help
 
-- **Documentation:** [beaconbay.github.io/ck](https://beaconbay.github.io/ck) (you are here!)
-- **GitHub Issues:** [Report bugs / request features](https://github.com/BeaconBay/ck/issues)
-- **Examples:** [EXAMPLES.md](https://github.com/BeaconBay/ck/blob/main/EXAMPLES.md)
-- **Changelog:** [CHANGELOG.md](https://github.com/BeaconBay/ck/blob/main/CHANGELOG.md)
+- **Documentation:** [beaconbay.github.io/cc](https://beaconbay.github.io/cc) (you are here!)
+- **GitHub Issues:** [Report bugs / request features](https://github.com/BeaconBay/cc/issues)
+- **Examples:** [EXAMPLES.md](https://github.com/BeaconBay/cc/blob/main/EXAMPLES.md)
+- **Changelog:** [CHANGELOG.md](https://github.com/BeaconBay/cc/blob/main/CHANGELOG.md)

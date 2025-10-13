@@ -17,10 +17,10 @@ nav_order: 6
 
 ---
 
-**Goal:** Customize ck's behavior with configuration files, environment variables, and filtering options.
+**Goal:** Customize cc's behavior with configuration files, environment variables, and filtering options.
 
 **You'll learn:**
-- .ckignore file configuration
+- .ccignore file configuration
 - Environment variables
 - Model selection
 - Performance tuning
@@ -28,14 +28,14 @@ nav_order: 6
 
 ---
 
-## .ckignore Files
+## .ccignore Files
 
-### Creating .ckignore
+### Creating .ccignore
 
-Create a `.ckignore` file in your repository root to control what files ck indexes:
+Create a `.ccignore` file in your repository root to control what files cc indexes:
 
 ```bash
-# .ckignore
+# .ccignore
 # Exclude build artifacts
 build/
 dist/
@@ -76,7 +76,7 @@ examples/data/
 !Cargo.toml
 ```
 
-### .ckignore Syntax
+### .ccignore Syntax
 
 **Pattern matching:**
 - `*` - Matches any characters
@@ -108,12 +108,12 @@ dist/
 *_test.*
 ```
 
-### Global .ckignore
+### Global .ccignore
 
 Create a global ignore file:
 
 ```bash
-# ~/.ckignore
+# ~/.ccignore
 # Global exclusions
 .DS_Store
 Thumbs.db
@@ -124,7 +124,7 @@ Thumbs.db
 
 Set environment variable:
 ```bash
-export CK_GLOBAL_IGNORE="$HOME/.ckignore"
+export CC_GLOBAL_IGNORE="$HOME/.ccignore"
 ```
 
 ---
@@ -135,50 +135,50 @@ export CK_GLOBAL_IGNORE="$HOME/.ckignore"
 
 ```bash
 # Embedding model selection
-export CK_MODEL=default          # default, large
-export CK_MODEL_PATH=/path/to/model  # Custom model path
+export CC_MODEL=default          # default, large
+export CC_MODEL_PATH=/path/to/model  # Custom model path
 
 # Model parameters
-export CK_CHUNK_SIZE=512         # Chunk size for embeddings
-export CK_BATCH_SIZE=32          # Batch size for processing
+export CC_CHUNK_SIZE=512         # Chunk size for embeddings
+export CC_BATCH_SIZE=32          # Batch size for processing
 ```
 
 ### Index Configuration
 
 ```bash
 # Index location
-export CK_INDEX_PATH=/custom/path  # Default: .ck/
+export CC_INDEX_PATH=/custom/path  # Default: .cc/
 
 # Index management
-export CK_WORKERS=8              # Worker threads (default: CPU cores)
-export CK_MEMORY_LIMIT=2GB       # Memory limit
-export CK_CACHE_SIZE=1GB         # Cache size
+export CC_WORKERS=8              # Worker threads (default: CPU cores)
+export CC_MEMORY_LIMIT=2GB       # Memory limit
+export CC_CACHE_SIZE=1GB         # Cache size
 ```
 
 ### Performance Configuration
 
 ```bash
 # Search performance
-export CK_SEARCH_THREADS=4       # Search threads
-export CK_MAX_RESULTS=1000       # Maximum results
-export CK_TIMEOUT=30             # Search timeout (seconds)
+export CC_SEARCH_THREADS=4       # Search threads
+export CC_MAX_RESULTS=1000       # Maximum results
+export CC_TIMEOUT=30             # Search timeout (seconds)
 
 # Indexing performance
-export CK_INDEX_THREADS=8        # Indexing threads
-export CK_INDEX_BATCH_SIZE=100   # Indexing batch size
+export CC_INDEX_THREADS=8        # Indexing threads
+export CC_INDEX_BATCH_SIZE=100   # Indexing batch size
 ```
 
 ### Output Configuration
 
 ```bash
 # Output format
-export CK_NO_COLOR=1             # Disable colored output
-export CK_JSON_OUTPUT=1          # JSON output
-export CK_VERBOSE=1              # Verbose logging
+export CC_NO_COLOR=1             # Disable colored output
+export CC_JSON_OUTPUT=1          # JSON output
+export CC_VERBOSE=1              # Verbose logging
 
 # Debug options
-export CK_DEBUG=1                # Debug mode
-export CK_LOG_LEVEL=info         # Log level (debug, info, warn, error)
+export CC_DEBUG=1                # Debug mode
+export CC_LOG_LEVEL=info         # Log level (debug, info, warn, error)
 ```
 
 ---
@@ -204,19 +204,19 @@ export CK_LOG_LEVEL=info         # Log level (debug, info, warn, error)
 **Command line:**
 ```bash
 # Use default model
-ck --sem "pattern" .
+cc --sem "pattern" .
 
 # Use large model
-ck --sem "pattern" --model large .
+cc --sem "pattern" --model large .
 
 # Use custom model
-ck --sem "pattern" --model-path /path/to/model .
+cc --sem "pattern" --model-path /path/to/model .
 ```
 
 **Environment variable:**
 ```bash
-export CK_MODEL=large
-ck --sem "pattern" .
+export CC_MODEL=large
+cc --sem "pattern" .
 ```
 
 ### Model Performance
@@ -235,28 +235,28 @@ ck --sem "pattern" .
 **Worker threads:**
 ```bash
 # Use all CPU cores (default)
-export CK_WORKERS=8
+export CC_WORKERS=8
 
 # Reduce for memory-constrained systems
-export CK_WORKERS=4
+export CC_WORKERS=4
 ```
 
 **Chunk size:**
 ```bash
 # Larger chunks = fewer embeddings, faster indexing
-export CK_CHUNK_SIZE=1024
+export CC_CHUNK_SIZE=1024
 
 # Smaller chunks = more embeddings, better accuracy
-export CK_CHUNK_SIZE=256
+export CC_CHUNK_SIZE=256
 ```
 
 **Batch size:**
 ```bash
 # Larger batches = faster processing, more memory
-export CK_BATCH_SIZE=64
+export CC_BATCH_SIZE=64
 
 # Smaller batches = less memory, slower processing
-export CK_BATCH_SIZE=16
+export CC_BATCH_SIZE=16
 ```
 
 ### Search Performance
@@ -264,19 +264,19 @@ export CK_BATCH_SIZE=16
 **Result limits:**
 ```bash
 # Limit results for faster search
-ck --sem "pattern" --topk 50 .
+cc --sem "pattern" --topk 50 .
 
 # Use thresholds to filter results
-ck --sem "pattern" --threshold 0.8 .
+cc --sem "pattern" --threshold 0.8 .
 ```
 
 **Memory usage:**
 ```bash
 # Limit memory usage
-export CK_MEMORY_LIMIT=1GB
+export CC_MEMORY_LIMIT=1GB
 
 # Adjust cache size
-export CK_CACHE_SIZE=512MB
+export CC_CACHE_SIZE=512MB
 ```
 
 ---
@@ -287,7 +287,7 @@ export CK_CACHE_SIZE=512MB
 
 **Default location:**
 ```
-.ck/
+.cc/
 ├── index.bin
 ├── embeddings.bin
 ├── metadata.json
@@ -296,21 +296,21 @@ export CK_CACHE_SIZE=512MB
 
 **Custom location:**
 ```bash
-export CK_INDEX_PATH=/custom/path
+export CC_INDEX_PATH=/custom/path
 ```
 
 ### Index Operations
 
 **Check index status:**
 ```bash
-ls -la .ck/
-du -sh .ck/
+ls -la .cc/
+du -sh .cc/
 ```
 
 **Force reindex:**
 ```bash
-rm -rf .ck/
-ck --sem "test" .  # Rebuilds index
+rm -rf .cc/
+cc --sem "test" .  # Rebuilds index
 ```
 
 **Incremental updates:**
@@ -326,7 +326,7 @@ ck --sem "test" .  # Rebuilds index
 - **Large repo (100k files):** 1-5GB
 
 **Optimization strategies:**
-- Use .ckignore to exclude unnecessary files
+- Use .ccignore to exclude unnecessary files
 - Reduce chunk size for smaller indexes
 - Use default model instead of large model
 
@@ -348,22 +348,22 @@ ck --sem "test" .  # Rebuilds index
 
 **Higher precision:**
 ```bash
-ck --sem "pattern" --threshold 0.8 .
+cc --sem "pattern" --threshold 0.8 .
 ```
 
 **More results:**
 ```bash
-ck --sem "pattern" --topk 200 .
+cc --sem "pattern" --topk 200 .
 ```
 
 **More context:**
 ```bash
-ck --sem "pattern" --context 5 .
+cc --sem "pattern" --context 5 .
 ```
 
 **Shorter snippets:**
 ```bash
-ck --sem "pattern" --snippet-length 200 .
+cc --sem "pattern" --snippet-length 200 .
 ```
 
 ---
@@ -372,7 +372,7 @@ ck --sem "pattern" --snippet-length 200 .
 
 ### Supported Languages
 
-ck supports 15+ programming languages:
+cc supports 15+ programming languages:
 - Rust, JavaScript, TypeScript, Python, Go, Java, C++, C#
 - Ruby, PHP, Swift, Kotlin, Scala, Haskell, Zig
 
@@ -387,7 +387,7 @@ ck supports 15+ programming languages:
 **Custom chunking (future):**
 ```bash
 # Custom chunking rules
-export CK_CHUNKING_RULES=/path/to/rules.json
+export CC_CHUNKING_RULES=/path/to/rules.json
 ```
 
 ---
@@ -396,7 +396,7 @@ export CK_CHUNKING_RULES=/path/to/rules.json
 
 ### Project Configuration
 
-**Create `ck.toml` in project root:**
+**Create `cc.toml` in project root:**
 ```toml
 [model]
 name = "large"
@@ -424,11 +424,11 @@ patterns = [
 
 ### Global Configuration
 
-**Create `~/.config/ck/config.toml`:**
+**Create `~/.config/cc/config.toml`:**
 ```toml
 [model]
 default_model = "default"
-model_cache_dir = "~/.cache/ck/models"
+model_cache_dir = "~/.cache/cc/models"
 
 [index]
 default_workers = 4
@@ -448,38 +448,38 @@ enable_colors = true
 **Model not found:**
 ```bash
 # Check model path
-echo $CK_MODEL_PATH
+echo $CC_MODEL_PATH
 
 # Download model
-ck --download-model large
+cc --download-model large
 ```
 
 **Index corruption:**
 ```bash
 # Remove corrupted index
-rm -rf .ck/
+rm -rf .cc/
 
 # Rebuild index
-ck --sem "test" .
+cc --sem "test" .
 ```
 
 **Memory issues:**
 ```bash
 # Reduce workers
-export CK_WORKERS=2
+export CC_WORKERS=2
 
 # Reduce memory limit
-export CK_MEMORY_LIMIT=512MB
+export CC_MEMORY_LIMIT=512MB
 ```
 
 **Performance issues:**
 ```bash
 # Check system resources
-top -p $(pgrep ck)
+top -p $(pgrep cc)
 
-# Optimize .ckignore
+# Optimize .ccignore
 # Reduce chunk size
-export CK_CHUNK_SIZE=256
+export CC_CHUNK_SIZE=256
 ```
 
 ### Configuration Validation
@@ -487,16 +487,16 @@ export CK_CHUNK_SIZE=256
 **Test configuration:**
 ```bash
 # Test with debug output
-CK_DEBUG=1 ck --sem "test" .
+CC_DEBUG=1 cc --sem "test" .
 
 # Check configuration
-ck --config-check
+cc --config-check
 ```
 
-**Validate .ckignore:**
+**Validate .ccignore:**
 ```bash
 # Test ignore patterns
-ck --test-ignore .ckignore
+cc --test-ignore .ccignore
 ```
 
 ---
@@ -506,19 +506,19 @@ ck --test-ignore .ckignore
 ### Configuration Management
 
 **Version control:**
-- Commit `.ckignore` to repository
-- Don't commit `.ck/` directory
+- Commit `.ccignore` to repository
+- Don't commit `.cc/` directory
 - Document environment variables
 
 **Team coordination:**
 - Share configuration files
 - Document custom settings
-- Use consistent .ckignore patterns
+- Use consistent .ccignore patterns
 
 ### Performance Optimization
 
 **For large codebases:**
-- Use .ckignore to exclude build artifacts
+- Use .ccignore to exclude build artifacts
 - Reduce chunk size for memory efficiency
 - Use default model for speed
 
@@ -530,7 +530,7 @@ ck --test-ignore .ckignore
 ### Security Considerations
 
 **Sensitive files:**
-- Add sensitive files to .ckignore
+- Add sensitive files to .ccignore
 - Use global ignore for system files
 - Review configuration before sharing
 

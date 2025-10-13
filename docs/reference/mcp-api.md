@@ -7,23 +7,23 @@ nav_order: 2
 
 # MCP API Reference
 
-Complete Model Context Protocol specification for ck. All tools, parameters, and response formats.
+Complete Model Context Protocol specification for cc. All tools, parameters, and response formats.
 
 ## Overview
 
-ck implements the Model Context Protocol (MCP) to provide AI agents with semantic code search capabilities.
+cc implements the Model Context Protocol (MCP) to provide AI agents with semantic code search capabilities.
 
 **Protocol Details:**
 - **MCP Version:** 2024-11-05
 - **Transport:** JSON-RPC over stdio
-- **ck Version:** 0.5.0+
+- **cc Version:** 0.5.0+
 
 ## Server Setup
 
 ### Starting the Server
 
 ```bash
-ck --serve
+cc --serve
 ```
 
 ### Client Configuration
@@ -32,8 +32,8 @@ ck --serve
 ```json
 {
   "mcpServers": {
-    "ck-search": {
-      "command": "ck",
+    "cc-search": {
+      "command": "cc",
       "args": ["--serve"]
     }
   }
@@ -351,7 +351,7 @@ If not indexed, first search will trigger indexing (1-5 seconds).
 ### File Access
 
 - Server can only access files in specified `path`
-- Respects `.gitignore` and `.ckignore`
+- Respects `.gitignore` and `.ccignore`
 - No write access (read-only search)
 
 ## Troubleshooting
@@ -361,14 +361,14 @@ If not indexed, first search will trigger indexing (1-5 seconds).
 **Server not starting:**
 ```bash
 # Check version
-ck --version
+cc --version
 
 # Test server
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ck --serve
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | cc --serve
 ```
 
 **No results from search:**
 - Check if path exists and is readable
 - Verify index status
 - Try lower threshold
-- Check .ckignore rules
+- Check .ccignore rules

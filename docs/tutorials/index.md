@@ -9,15 +9,15 @@ has_children: true
 
 **Learning-oriented • Step-by-step lessons**
 
-Perfect for newcomers. Follow these tutorials to get productive with ck quickly.
+Perfect for newcomers. Follow these tutorials to get productive with cc quickly.
 
 <div class="tutorial-grid">
 
 <div class="tutorial-card primary">
 <div class="tutorial-badge">⭐ Essential</div>
 <h3><a href="quick-start">Quick Start</a></h3>
-<p><strong>5 minutes</strong> • Install ck and run your first semantic search</p>
-<p>Get up and running with ck in minutes. Learn the basics of semantic search and understand your first results.</p>
+<p><strong>5 minutes</strong> • Install cc and run your first semantic search</p>
+<p>Get up and running with cc in minutes. Learn the basics of semantic search and understand your first results.</p>
 <div class="tutorial-progress">
 <span class="progress-step">Install</span> → <span class="progress-step">Search</span> → <span class="progress-step">Understand</span>
 </div>
@@ -26,7 +26,7 @@ Perfect for newcomers. Follow these tutorials to get productive with ck quickly.
 <div class="tutorial-card">
 <h3><a href="first-tui-session">Your First TUI Session</a></h3>
 <p><strong>10 minutes</strong> • Master the interactive search interface</p>
-<p>Learn to use ck's beautiful interactive interface with live results, code preview, and multiple search modes.</p>
+<p>Learn to use cc's beautiful interactive interface with live results, code preview, and multiple search modes.</p>
 <div class="tutorial-progress">
 <span class="progress-step">Launch</span> → <span class="progress-step">Navigate</span> → <span class="progress-step">Master</span>
 </div>
@@ -52,7 +52,7 @@ Perfect for newcomers. Follow these tutorials to get productive with ck quickly.
 <div class="step-number">1</div>
 <div class="step-content">
 <h4>Quick Start (Required)</h4>
-<p>Essential first steps to get ck working</p>
+<p>Essential first steps to get cc working</p>
 </div>
 </div>
 
@@ -85,8 +85,8 @@ Perfect for newcomers. Follow these tutorials to get productive with ck quickly.
 <div class="outcome">
 <div class="outcome-icon">✅</div>
 <div class="outcome-text">
-<h4>Install and configure ck</h4>
-<p>Get ck running on your system</p>
+<h4>Install and configure cc</h4>
+<p>Get cc running on your system</p>
 </div>
 </div>
 
@@ -123,7 +123,7 @@ After completing the tutorials, explore:
 
 - **[How-To Guides](../how-to/)** - Solve specific problems
 - **[Reference](../reference/)** - Complete technical documentation  
-- **[Explanation](../explanation/)** - Understand how ck works
+- **[Explanation](../explanation/)** - Understand how cc works
 
 <style>
 .tutorial-grid {

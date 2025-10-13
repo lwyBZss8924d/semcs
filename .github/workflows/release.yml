@@ -126,16 +126,16 @@ jobs:
           # Different approaches for different platforms
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             # Windows approach from c0a84af - no --locked, no vendored features, use system OpenSSL
-            ${{ env.CARGO_CMD }} build --release --target ${{ matrix.target }} --package ck-search
+            ${{ env.CARGO_CMD }} build --release --target ${{ matrix.target }} --package cc-search
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
             # macOS approach - use system OpenSSL to avoid cross-compilation issues
-            ${{ env.CARGO_CMD }} build --locked --release --target ${{ matrix.target }} --package ck-search
+            ${{ env.CARGO_CMD }} build --locked --release --target ${{ matrix.target }} --package cc-search
           else
             # Linux approach from 4cf1a9b - keep working approach unchanged
             if [ "${{ matrix.target }}" = "x86_64-pc-windows-gnu" ]; then
-              ${{ env.CARGO_CMD }} build --locked --release --target ${{ matrix.target }} --package ck-search
+              ${{ env.CARGO_CMD }} build --locked --release --target ${{ matrix.target }} --package cc-search
             else
-              ${{ env.CARGO_CMD }} build --locked --release --target ${{ matrix.target }} --package ck-search --features=openssl/vendored
+              ${{ env.CARGO_CMD }} build --locked --release --target ${{ matrix.target }} --package cc-search --features=openssl/vendored
             fi
           fi
         shell: bash
@@ -144,28 +144,28 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: |
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
-            strip target/${{ matrix.target }}/release/ck
+            strip target/${{ matrix.target }}/release/cc
           elif [ "${{ matrix.use-cross }}" != "true" ]; then
-            strip target/${{ matrix.target }}/release/ck
+            strip target/${{ matrix.target }}/release/cc
           fi
       
       - name: Sign macOS binary (ad-hoc)
         if: matrix.os == 'macos-latest'
         run: |
           # Ad-hoc code signing to avoid Gatekeeper warnings
-          codesign --force --sign - target/${{ matrix.target }}/release/ck
+          codesign --force --sign - target/${{ matrix.target }}/release/cc
       
       - name: Determine archive name
         run: |
           version="${{ github.ref_name }}"
-          echo "ARCHIVE_NAME=ck-${version}-${{ matrix.target }}" >> $GITHUB_ENV
+          echo "ARCHIVE_NAME=cc-${version}-${{ matrix.target }}" >> $GITHUB_ENV
         shell: bash
       
       - name: Create archive (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           mkdir dist
-          cp target/${{ matrix.target }}/release/ck.exe dist/
+          cp target/${{ matrix.target }}/release/cc.exe dist/
           cp README.md LICENSE-MIT LICENSE-APACHE dist/ 2>/dev/null || true
           cd dist
           7z a ../${{ env.ARCHIVE_NAME }}.zip *
@@ -175,7 +175,7 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: |
           mkdir dist
-          cp target/${{ matrix.target }}/release/ck dist/
+          cp target/${{ matrix.target }}/release/cc dist/
           cp README.md LICENSE-MIT LICENSE-APACHE dist/ 2>/dev/null || true
           tar czf ${{ env.ARCHIVE_NAME }}.tar.gz -C dist .
       
@@ -290,14 +290,14 @@ jobs:
 
           # Publish in dependency order with verification
           CRATES=(
-            "ck-core"
-            "ck-models"
-            "ck-embed"
-            "ck-chunk"
-            "ck-ann"
-            "ck-index"
-            "ck-engine"
-            "ck-search"
+            "cc-core"
+            "cc-models"
+            "cc-embed"
+            "cc-chunk"
+            "cc-ann"
+            "cc-index"
+            "cc-engine"
+            "cc-search"
           )
 
           for crate in "${CRATES[@]}"; do

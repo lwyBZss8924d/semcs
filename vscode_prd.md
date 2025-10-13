@@ -1,11 +1,11 @@
 Product Requirements Document (PRD)
-Product: ck for VS Code / Cursor
+Product: cc for VS Code / Cursor
 Version: v1.0
 Author: Mike (Beacon Bay)
 Date: October 2025
 1. Overview
-ck is a hybrid semantic + BM25 code search engine with blazing-fast delta indexing and optional MCP server mode.
-The VS Code / Cursor extension brings ck’s command-line power and semantic awareness into the editor itself — combining:
+cc is a hybrid semantic + BM25 code search engine with blazing-fast delta indexing and optional MCP server mode.
+The VS Code / Cursor extension brings cc’s command-line power and semantic awareness into the editor itself — combining:
 TUI-style search interaction (fast keyboard UX, dense visual layout)
 Rich semantic results (ranked by meaning, not just text)
 Tight integration with code navigation and context (jump, peek, reindex)
@@ -14,8 +14,8 @@ It replaces the need to alt-tab to the terminal or separate UIs. Developers can 
 Goals
 Create a fast, tactile in-editor search experience that feels like a TUI but fits VS Code’s sidebar paradigm.
 Provide two integration modes:
-CLI Mode: spawn the local ck binary (ck --hybrid "query").
-MCP Mode: connect to a running MCP server (ck --serve) for structured results, pagination, and streaming.
+CLI Mode: spawn the local cc binary (cc --hybrid "query").
+MCP Mode: connect to a running MCP server (cc --serve) for structured results, pagination, and streaming.
 Support inline navigation (open file + jump to line/col).
 Provide visual cues for index health and mode.
 Expose command palette actions (Search, Search Selection, Reindex).
@@ -30,7 +30,7 @@ No multi-repo federation beyond the workspace root.
 Primary User:
 Professional developer who prefers local tools over SaaS.
 Works in large codebases with complex naming, needing both keyword and meaning search.
-Already comfortable with rg, fzf, or ck CLI.
+Already comfortable with rg, fzf, or cc CLI.
 Secondary Users:
 Cursor users who want an MCP-native experience for local or offline search.
 OSS maintainers who want to quickly explore unfamiliar repos.
@@ -38,11 +38,11 @@ Core Use Cases:
 “Find by meaning”
 Developer types: “http server startup” → sees function calls like start_listener() or spawn_server().
 “Search selection”
-Highlights a function → runs ck semantic_search for similar patterns.
+Highlights a function → runs cc semantic_search for similar patterns.
 “TUI-like browsing”
 Arrows navigate results, Enter jumps to code, Esc focuses query input.
 “Instant reindex”
-Runs ck reindex without leaving the editor; shows progress/status.
+Runs cc reindex without leaving the editor; shows progress/status.
 “Mode switch”
 Quickly toggle between semantic, hybrid, and regex searches.
 “Cursor integration”
@@ -62,10 +62,10 @@ Toggle for showing raw CLI output (for power users)
 4.2 Keyboard Interaction
 Action	Keybinding	Description
 Focus search bar	Ctrl+Shift+;	Opens sidebar and focuses query input
-Search selection	Ctrl+Shift+'	Runs ck search on selected text
+Search selection	Ctrl+Shift+'	Runs cc search on selected text
 Navigate results	↑ / ↓	Move selection
 Open selected result	Enter	Jump to file+line
-Reindex	Command Palette (ck: Reindex)	Rebuilds index
+Reindex	Command Palette (cc: Reindex)	Rebuilds index
 4.3 Result Display
 Results show filename, line number, and snippet.
 Clicking a result:
@@ -79,22 +79,22 @@ Feels like a modern TUI: keyboard-centric, dense information, quick transitions.
 5. Functional Requirements
 5.1 Integration Modes
 Mode	Mechanism	Description
-CLI	Spawns ck binary with flags	Uses stdout/stderr to parse results
-MCP	Starts or connects to ck --serve	Uses JSON-RPC to call hybrid_search, semantic_search, index_status, etc.
+CLI	Spawns cc binary with flags	Uses stdout/stderr to parse results
+MCP	Starts or connects to cc --serve	Uses JSON-RPC to call hybrid_search, semantic_search, index_status, etc.
 5.2 Commands
-ck.search — Open sidebar and focus query input.
-ck.searchSelection — Search current selection semantically.
-ck.reindex — Trigger reindexing.
-(Optional v1.1) ck.peekResults — Open “peek” view of matches inline.
+cc.search — Open sidebar and focus query input.
+cc.searchSelection — Search current selection semantically.
+cc.reindex — Trigger reindexing.
+(Optional v1.1) cc.peekResults — Open “peek” view of matches inline.
 5.3 Config Options
 Setting	Type	Default	Description
-ck.mode	string	cli	CLI or MCP mode
-ck.cliPath	string	ck	Path to binary
-ck.mcp.command	string	ck	MCP command
-ck.mcp.args	array	[\"--serve\"]	Arguments for MCP server
-ck.index.root	string	${workspaceFolder}	Root folder for indexing
-ck.hybrid	boolean	true	Use hybrid search
-ck.pageSize	number	50	Number of results per page
+cc.mode	string	cli	CLI or MCP mode
+cc.cliPath	string	cc	Path to binary
+cc.mcp.command	string	cc	MCP command
+cc.mcp.args	array	[\"--serve\"]	Arguments for MCP server
+cc.index.root	string	${workspaceFolder}	Root folder for indexing
+cc.hybrid	boolean	true	Use hybrid search
+cc.pageSize	number	50	Number of results per page
 6. Technical Requirements
 6.1 Language & Framework
 Language: TypeScript
@@ -118,7 +118,7 @@ Streaming output	Show results as they’re emitted	High
 Index health indicator	Call index_status periodically	High
 Peek results	Inline “peek view” for matches	Medium
 History + Re-run	Save last 10 queries	Medium
-Workspace multi-root	Handle multiple ck roots	Medium
+Workspace multi-root	Handle multiple cc roots	Medium
 Result filters	File type / repo / path regex	Medium
 Syntax highlighting	Render snippets with code coloration	Low
 MCP discovery	Auto-detect running MCP server	Low
@@ -126,7 +126,7 @@ MCP discovery	Auto-detect running MCP server	Low
 Metric	Goal
 Median search latency (local)	<500ms
 Search results relevance satisfaction (user survey)	>80% positive
-Adoption rate among existing ck users	50% of CLI users install extension
+Adoption rate among existing cc users	50% of CLI users install extension
 Cursor users connecting via MCP	≥25% of extension installs
 Crash or hang rate	<1% of sessions
 9. Release Plan
@@ -149,14 +149,14 @@ Tool	Comparison
 ripgrep / fzf	Fast keyword search, no semantic depth.
 Sourcegraph / Cody	Semantic search via cloud, not local/offline.
 Cursor MCP search	Great integration but not local or user-controlled.
-ck (CLI)	Local, powerful, but CLI-only UX.
-ck VS Code Extension	Merges ck’s power with editor-native discoverability.
+cc (CLI)	Local, powerful, but CLI-only UX.
+cc VS Code Extension	Merges cc’s power with editor-native discoverability.
 11. Risks & Mitigation
 Risk	Mitigation
 MCP protocol changes	Keep versioned tool discovery & fallback to CLI mode.
-Parsing CLI output	Standardize --json output mode for ck.
+Parsing CLI output	Standardize --json output mode for cc.
 Large index performance	Paginate + stream results incrementally.
 VS Code API changes	Use stable WebviewViewProvider interface.
 12. Summary
-This extension aims to bring ck’s semantic, hybrid, and regex power to the developer’s fingertips — directly inside the editor — with zero setup friction.
-It’s fast, local, and pairs beautifully with ck’s philosophy: search code the way you think about it, not the way it’s written.
+This extension aims to bring cc’s semantic, hybrid, and regex power to the developer’s fingertips — directly inside the editor — with zero setup friction.
+It’s fast, local, and pairs beautifully with cc’s philosophy: search code the way you think about it, not the way it’s written.

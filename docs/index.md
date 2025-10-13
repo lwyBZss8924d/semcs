@@ -4,13 +4,13 @@ title: Home
 nav_order: 1
 ---
 
-# ck
+# cc
 
 **Semantic code search.** Find code by what it does, not just what it says.
 
 ```bash
-cargo install ck-search
-ck --sem "error handling" src/
+cargo install cc-search
+cc --sem "error handling" src/
 ```
 
 Ask for "error handling" and find try/catch blocks, Result types, panic handlers—even when those exact words aren't there.
@@ -28,9 +28,9 @@ Ask for "error handling" and find try/catch blocks, Result types, panic handlers
 </div>
 
 <div class="comparison-item highlight">
-<h3>🧠 Semantic search (ck)</h3>
+<h3>🧠 Semantic search (cc)</h3>
 <p>Understand concepts</p>
-<pre><code>ck --sem "error handling" src/</code></pre>
+<pre><code>cc --sem "error handling" src/</code></pre>
 <p><strong>Finds:</strong> try/catch, Result types, panic handling, error returns, validation—regardless of exact wording</p>
 </div>
 </div>
@@ -41,13 +41,13 @@ Ask for "error handling" and find try/catch blocks, Result types, panic handlers
 
 ```bash
 # Search by meaning
-ck --sem "retry logic" src/
+cc --sem "retry logic" src/
 
 # Interactive mode
-ck --tui .
+cc --tui .
 
 # For AI tools
-ck --serve
+cc --serve
 ```
 
 **One minute to install.** Choose your path below.
@@ -62,7 +62,7 @@ ck --serve
 <div class="divio-icon">🎓</div>
 <h3><a href="tutorials/">Tutorials</a></h3>
 <p><strong>Learning-oriented</strong> • Step-by-step lessons</p>
-<p>Perfect for newcomers. Follow these tutorials to get productive with ck quickly.</p>
+<p>Perfect for newcomers. Follow these tutorials to get productive with cc quickly.</p>
 <div class="divio-links">
 <a href="tutorials/quick-start.html">Quick Start (5 min)</a>
 <a href="tutorials/first-tui-session.html">Interactive TUI</a>
@@ -98,7 +98,7 @@ ck --serve
 <div class="divio-icon">💡</div>
 <h3><a href="explanation/">Explanation</a></h3>
 <p><strong>Understanding-oriented</strong> • Conceptual deep-dives</p>
-<p>Background, design decisions, and how ck works under the hood.</p>
+<p>Background, design decisions, and how cc works under the hood.</p>
 <div class="divio-links">
 <a href="explanation/semantic-search.html">How Semantic Search Works</a>
 <a href="explanation/search-modes.html">Search Modes Compared</a>
@@ -115,7 +115,7 @@ ck --serve
 <div class="ai-integration">
 <div class="ai-card">
 <h3>🤖 For Humans Using AI Tools</h3>
-<p>Connect ck to Claude Desktop, Cursor, and other AI coding assistants via MCP.</p>
+<p>Connect cc to Claude Desktop, Cursor, and other AI coding assistants via MCP.</p>
 <div class="ai-links">
 <a href="ai-integration/mcp-quickstart.html">MCP Quick Start</a>
 <a href="reference/mcp-api.html">MCP API Reference</a>

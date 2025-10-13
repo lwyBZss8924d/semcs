@@ -1,13 +1,13 @@
-# ck (seek) - Usage Examples
+# cc (seek) - Usage Examples
 
-This guide walks through practical examples of ck's capabilities, from basic grep replacement to advanced semantic search.
+This guide walks through practical examples of cc's capabilities, from basic grep replacement to advanced semantic search.
 
 ## Quick Setup
 
-First, create a test project to explore ck's features:
+First, create a test project to explore cc's features:
 
 ```bash
-mkdir ck-demo && cd ck-demo
+mkdir cc-demo && cd cc-demo
 
 # Create sample files
 cat > auth.rs << EOF
@@ -102,26 +102,26 @@ EOF
 
 ## 1. Basic Grep-Style Search (No Index Required)
 
-ck works as a drop-in grep replacement:
+cc works as a drop-in grep replacement:
 
 ```bash
 # Find all mentions of "error"
-ck "error" .
+cc "error" .
 
 # Case-insensitive search for TODO items
-ck -i "todo" .
+cc -i "todo" .
 
 # Show line numbers
-ck -n "authentication" .
+cc -n "authentication" .
 
 # Match whole words only
-ck -w "error" .
+cc -w "error" .
 
 # Fixed string search (no regex)
-ck -F "AuthError::InvalidCredentials" .
+cc -F "AuthError::InvalidCredentials" .
 
 # Show context around matches
-ck -C 2 "authenticate" .
+cc -C 2 "authenticate" .
 ```
 
 ## 2. Create Search Index
@@ -130,13 +130,13 @@ Before using semantic or lexical search, create an index:
 
 ```bash
 # Index current directory
-ck index .
+cc index .
 
 # Check what was indexed
-ck status .
+cc status .
 
 # Detailed index statistics
-ck status . --verbose
+cc status . --verbose
 ```
 
 ## 3. Semantic Search - Find Similar Code
@@ -145,31 +145,31 @@ Semantic search understands meaning and finds conceptually related code:
 
 ```bash
 # Find all authentication-related code
-ck --sem "user authentication" .
+cc --sem "user authentication" .
 
 # Find error handling patterns
-ck --sem "error handling" .
+cc --sem "error handling" .
 
 # Find database operations
-ck --sem "database connection" .
+cc --sem "database connection" .
 
 # Find login functionality
-ck --sem "user login" .
+cc --sem "user login" .
 
 # Limit to top 5 most relevant results
-ck --sem "authentication" . --topk 5
+cc --sem "authentication" . --topk 5
 
 # Filter by similarity score threshold (0.0-1.0)
-ck --sem "authentication" . --threshold 0.7
+cc --sem "authentication" . --threshold 0.7
 
 # Show similarity scores in output
-ck --sem "error handling" . --scores
+cc --sem "error handling" . --scores
 
 # Combine threshold and score display
-ck --sem "database" . --threshold 0.6 --scores
+cc --sem "database" . --threshold 0.6 --scores
 
 # Hybrid search with RRF threshold and scores
-ck --hybrid "authentication" . --threshold 0.025 --scores
+cc --hybrid "authentication" . --threshold 0.025 --scores
 ```
 
 ### What Makes This Powerful?
@@ -184,13 +184,13 @@ Lexical search uses BM25 ranking for better phrase matching than regex:
 
 ```bash
 # Full-text search with relevance ranking
-ck --lex "authentication failed" .
+cc --lex "authentication failed" .
 
 # Better for multi-word phrases
-ck --lex "database connection error" .
+cc --lex "database connection error" .
 
 # Find documentation
-ck --lex "error handling components" .
+cc --lex "error handling components" .
 ```
 
 ## 5. Hybrid Search - Best of Both Worlds
@@ -199,16 +199,16 @@ Combines regex pattern matching with semantic understanding:
 
 ```bash
 # Find functions with "auth" that are semantically related to authentication
-ck --hybrid "auth" .
+cc --hybrid "auth" .
 
 # Pattern match + semantic relevance
-ck --hybrid "error" --topk 10 .
+cc --hybrid "error" --topk 10 .
 
 # Filter hybrid results by RRF score threshold  
-ck --hybrid "auth" --threshold 0.02 .
+cc --hybrid "auth" --threshold 0.02 .
 
 # Show scores for hybrid search (RRF scores ~0.01-0.05)
-ck --hybrid "error" --scores .
+cc --hybrid "error" --scores .
 ```
 
 ## 6. JSON Output for Tools/Scripts
@@ -217,13 +217,13 @@ Get structured output for integration with other tools:
 
 ```bash
 # JSON output with relevance scores
-ck --json --sem "authentication" .
+cc --json --sem "authentication" .
 
 # Pipe to jq for processing
-ck --json --sem "error" . | jq '.score'
+cc --json --sem "error" . | jq '.score'
 
 # Get top 3 results as JSON
-ck --json --topk 3 --lex "user login" .
+cc --json --topk 3 --lex "user login" .
 ```
 
 ## 7. Index Management
@@ -232,10 +232,10 @@ ck --json --topk 3 --lex "user login" .
 
 ```bash
 # Check index status
-ck status .
+cc status .
 
 # Detailed statistics
-ck status . --verbose
+cc status . --verbose
 ```
 
 ### Update Index After Changes
@@ -245,10 +245,10 @@ ck status . --verbose
 echo "// Added new auth method" >> auth.rs
 
 # Index automatically updates on search, or force update:
-ck index .
+cc index .
 
 # Add single file to index
-ck add auth.rs
+cc add auth.rs
 ```
 
 ### Clean Up Index
@@ -258,10 +258,10 @@ ck add auth.rs
 rm server.js
 
 # Clean up orphaned entries only
-ck clean . --orphans
+cc clean . --orphans
 
 # Remove entire index (will need to reindex for semantic search)
-ck clean .
+cc clean .
 ```
 
 ## 8. Advanced Examples
@@ -270,7 +270,7 @@ ck clean .
 
 ```bash
 # Semantic search finds diverse error handling approaches
-ck --sem "error handling" . --json | jq -r '.preview'
+cc --sem "error handling" . --json | jq -r '.preview'
 ```
 
 This finds:
@@ -285,16 +285,16 @@ This finds:
 echo "Searching for 'auth' with different methods:"
 
 echo "=== Regex (exact text matching) ==="
-ck "auth" .
+cc "auth" .
 
 echo "=== Lexical (BM25 ranking) ==="  
-ck --lex "auth" .
+cc --lex "auth" .
 
 echo "=== Semantic (conceptual similarity) ==="
-ck --sem "auth" .
+cc --sem "auth" .
 
 echo "=== Hybrid (regex + semantic) ==="
-ck --hybrid "auth" .
+cc --hybrid "auth" .
 ```
 
 ### Integration with Shell Scripts
@@ -304,11 +304,11 @@ ck --hybrid "auth" .
 # Find security-related TODOs
 
 echo "Security TODOs found:"
-ck --sem "security vulnerability" . --json | \
+cc --sem "security vulnerability" . --json | \
     jq -r '"\(.file):\(.span.line_start): \(.preview)"'
 
 echo -e "\nAuthentication issues:"
-ck --hybrid "auth.*TODO" . --json | \
+cc --hybrid "auth.*TODO" . --json | \
     jq -r '"\(.file): \(.preview)"'
 ```
 
@@ -316,7 +316,7 @@ ck --hybrid "auth.*TODO" . --json | \
 
 ### When to Use Each Mode
 
-- **Regex** (`ck "pattern"`): Exact text matching, grep replacement, no index needed
+- **Regex** (`cc "pattern"`): Exact text matching, grep replacement, no index needed
 - **Lexical** (`--lex`): Multi-word phrases, document search, ranked results
 - **Semantic** (`--sem`): Conceptual similarity, find related functionality, code exploration
 - **Hybrid** (`--hybrid`): When you want both exact matches and similar concepts
@@ -324,15 +324,15 @@ ck --hybrid "auth.*TODO" . --json | \
 ### Index Management
 
 - Index updates automatically during search (if >1 minute old)
-- Use `ck status` to monitor index size and health
-- Use `ck clean --orphans` after major file reorganization
-- Use `ck --switch-model <model>` to rebuild the index with a different embedding model
+- Use `cc status` to monitor index size and health
+- Use `cc clean --orphans` after major file reorganization
+- Use `cc --switch-model <model>` to rebuild the index with a different embedding model
 - Add `--force` if you need to rebuild even when the model already matches
-- Index persists in `.ck/` directory (add to `.gitignore`)
+- Index persists in `.cc/` directory (add to `.gitignore`)
 
 ### File Type Support
 
-ck indexes these file types:
+cc indexes these file types:
 - Code: `.rs`, `.py`, `.js`, `.ts`, `.go`, `.java`, `.c`, `.cpp`, `.rb`, `.php`, `.swift`, `.kt`
 - Docs: `.md`, `.txt`, `.rst`  
 - Config: `.json`, `.yaml`, `.toml`, `.xml`
@@ -344,23 +344,23 @@ ck indexes these file types:
 2. **Use `--topk`** to limit results when exploring large codebases  
 3. **Use `--threshold`** to filter low-relevance results (semantic/lexical: 0.6-0.8, hybrid RRF: 0.02-0.05)  
 4. **Use `--scores`** to see match quality and fine-tune your threshold
-5. **Combine with shell tools**: `ck --json --sem "query" | jq`
+5. **Combine with shell tools**: `cc --json --sem "query" | jq`
 6. **Index smaller directories** for faster semantic search
-7. **Use `ck status -v`** to monitor index growth over time
+7. **Use `cc status -v`** to monitor index growth over time
 
 ## Troubleshooting
 
 ```bash
 # No results from semantic search?
-ck status .                    # Check if index exists
-ck index . && ck --sem "query" # Create index first
+cc status .                    # Check if index exists
+cc index . && cc --sem "query" # Create index first
 
 # Index too large?
-ck status . --verbose         # Check size statistics  
-ck clean . --orphans          # Remove orphaned files
+cc status . --verbose         # Check size statistics  
+cc clean . --orphans          # Remove orphaned files
 
 # Stale results?
-ck index .                    # Force reindex
+cc index .                    # Force reindex
 ```
 
 Happy seeking! 🔍

@@ -1,0 +1,33 @@
+[package]
+name = "cc-engine"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Search engine implementation for cc semantic search"
+repository = "https://github.com/BeaconBay/cc"
+keywords = ["search", "engine", "semantic"]
+categories = ["algorithms"]
+
+[dependencies]
+cc-core = { version = "0.6.0", path = "../cc-core" }
+cc-index = { version = "0.6.0", path = "../cc-index" }
+cc-embed = { version = "0.6.0", path = "../cc-embed" }
+cc-ann = { version = "0.6.0", path = "../cc-ann" }
+cc-chunk = { version = "0.6.0", path = "../cc-chunk" }
+cc-models = { version = "0.6.0", path = "../cc-models" }
+serde_json = { workspace = true }
+
+anyhow = { workspace = true }
+serde = { workspace = true }
+regex = { workspace = true }
+tantivy = { workspace = true }
+tokio = { workspace = true }
+rayon = { workspace = true }
+walkdir = { workspace = true }
+tracing = { workspace = true }
+globset = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.8"

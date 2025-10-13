@@ -1,0 +1,158 @@
+{
+  "name": "cc-search",
+  "displayName": "cc - Semantic Code Search",
+  "description": "Hybrid semantic + keyword code search powered by cc",
+  "version": "0.1.0",
+  "publisher": "beacon-bay",
+  "license": "Apache-2.0 OR MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/beacon-biosignals/cc.git",
+    "directory": "cc-vscode"
+  },
+  "engines": {
+    "vscode": "^1.93.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "search",
+    "semantic",
+    "code search",
+    "cc",
+    "grep"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cc.search",
+        "title": "cc: Search",
+        "icon": "$(search)"
+      },
+      {
+        "command": "cc.searchSelection",
+        "title": "cc: Search Selection",
+        "icon": "$(find-selection)"
+      },
+      {
+        "command": "cc.reindex",
+        "title": "cc: Reindex",
+        "icon": "$(refresh)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "cc-search-container",
+          "title": "cc Search",
+          "icon": "resources/cc-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "cc-search-container": [
+        {
+          "type": "webview",
+          "id": "cc.searchView",
+          "name": "Search"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "cc.search",
+        "key": "ctrl+shift+;",
+        "mac": "cmd+shift+;"
+      },
+      {
+        "command": "cc.searchSelection",
+        "key": "ctrl+shift+'",
+        "mac": "cmd+shift+'"
+      }
+    ],
+    "configuration": {
+      "title": "cc Search",
+      "properties": {
+        "cc.mode": {
+          "type": "string",
+          "enum": ["cli", "mcp"],
+          "default": "cli",
+          "description": "Integration mode: CLI (spawn binary) or MCP (connect to server)"
+        },
+        "cc.cliPath": {
+          "type": "string",
+          "default": "cc",
+          "description": "Path to cc binary"
+        },
+        "cc.mcp.command": {
+          "type": "string",
+          "default": "cc",
+          "description": "MCP server command"
+        },
+        "cc.mcp.args": {
+          "type": "array",
+          "default": ["--serve"],
+          "description": "MCP server arguments"
+        },
+        "cc.index.root": {
+          "type": "string",
+          "default": "${workspaceFolder}",
+          "description": "Root folder for indexing"
+        },
+        "cc.defaultMode": {
+          "type": "string",
+          "enum": ["hybrid", "semantic", "regex"],
+          "default": "semantic",
+          "description": "Default search mode"
+        },
+        "cc.pageSize": {
+          "type": "number",
+          "default": 25,
+          "description": "Number of results to display at once"
+        },
+        "cc.threshold": {
+          "type": "number",
+          "default": 0.6,
+          "description": "Minimum relevance threshold for hybrid/semantic search (0.0-1.0)"
+        },
+        "cc.topK": {
+          "type": "number",
+          "default": 50,
+          "description": "Maximum number of results to fetch from cc (higher = more results but slower)"
+        },
+        "cc.contextLines": {
+          "type": "number",
+          "default": 4,
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Number of lines of context to show before and after each match (0-20)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.x",
+    "@types/vscode": "^1.93.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.0",
+    "@vscode/vsce": "^2.24.0"
+  },
+  "dependencies": {
+    "jsonrpc-lite": "^2.2.0"
+  }
+}

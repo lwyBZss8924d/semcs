@@ -1,18 +1,18 @@
-# ck TUI (Terminal User Interface)
+# cc TUI (Terminal User Interface)
 
-The ck TUI provides an interactive search interface with real-time results, multiple preview modes, and keyboard-driven navigation.
+The cc TUI provides an interactive search interface with real-time results, multiple preview modes, and keyboard-driven navigation.
 
 ## Quick Start
 
 ```bash
 # Launch TUI in current directory
-ck --tui
+cc --tui
 
 # Launch with initial query
-ck --tui "error handling"
+cc --tui "error handling"
 
 # Launch in specific directory
-ck --tui --path /path/to/code
+cc --tui --path /path/to/code
 ```
 
 ## Keyboard Shortcuts
@@ -165,8 +165,8 @@ src/main.rs • 23/145 files • 5/12 chunks
 ## Configuration
 
 TUI preferences are automatically saved to:
-- **Linux/macOS**: `~/.config/ck/tui.json`
-- **Windows**: `%APPDATA%\ck\tui.json`
+- **Linux/macOS**: `~/.config/cc/tui.json`
+- **Windows**: `%APPDATA%\cc\tui.json`
 
 Saved settings:
 - Last used search mode
@@ -200,32 +200,32 @@ The TUI maintains a history of your last 20 searches:
 ### No search results
 - Check search mode (Tab to cycle)
 - Try broader query terms
-- Verify files are indexed: `ck --status .`
+- Verify files are indexed: `cc --status .`
 
 ### Slow performance
 - First search builds index (one-time cost)
 - Large result sets: Add threshold with `--threshold 0.7`
-- Check index size: `du -sh .ck/`
+- Check index size: `du -sh .cc/`
 
 ## Examples
 
 ### Find authentication code
 ```bash
-ck --tui "authentication"
+cc --tui "authentication"
 # Press Tab to cycle to Regex mode
 # Type: "login|auth|credentials"
 ```
 
 ### Review error handling
 ```bash
-ck --tui "error handling"
+cc --tui "error handling"
 # Use Ctrl+Space to select multiple files
 # Press Enter to open all in editor
 ```
 
 ### Explore code structure
 ```bash
-ck --tui "database"
+cc --tui "database"
 # Press Ctrl+V to switch to Chunks mode
 # Press Ctrl+F for full-file view
 # Use PageDown to explore
@@ -233,7 +233,7 @@ ck --tui "database"
 
 ## Architecture
 
-The TUI is implemented in the `ck-tui` crate:
+The TUI is implemented in the `cc-tui` crate:
 - **app.rs** (988 lines): Main event loop and state management
 - **preview.rs** (658 lines): Preview rendering (heatmap, syntax, chunks)
 - **chunks.rs** (428 lines): Chunk display and metadata

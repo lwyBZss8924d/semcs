@@ -7,13 +7,13 @@ nav_order: 1
 
 # Setup MCP Server
 
-Connect ck to Claude Desktop and other AI tools using the Model Context Protocol (MCP).
+Connect cc to Claude Desktop and other AI tools using the Model Context Protocol (MCP).
 
 ## What is MCP?
 
 **Model Context Protocol (MCP)** is a standard protocol that allows AI agents to access external tools.
 
-ck implements MCP, giving AI agents the ability to:
+cc implements MCP, giving AI agents the ability to:
 - Search code semantically
 - Find patterns with regex
 - Combine semantic + keyword search (hybrid)
@@ -24,15 +24,15 @@ ck implements MCP, giving AI agents the ability to:
 
 ## Claude Desktop Setup
 
-### 1. Install ck
+### 1. Install cc
 
 ```bash
-cargo install ck-search
+cargo install cc-search
 ```
 
 Verify:
 ```bash
-ck --version
+cc --version
 ```
 
 ### 2. Configure Claude Desktop
@@ -45,8 +45,8 @@ Add:
 ```json
 {
   "mcpServers": {
-    "ck-search": {
-      "command": "ck",
+    "cc-search": {
+      "command": "cc",
       "args": ["--serve"]
     }
   }
@@ -67,7 +67,7 @@ In Claude Desktop:
 Search for error handling in ~/projects/myapp
 ```
 
-Claude will use ck's semantic search automatically!
+Claude will use cc's semantic search automatically!
 
 ---
 
@@ -81,8 +81,8 @@ Edit Cursor settings (Cmd/Ctrl+Shift+P → "Cursor Settings"):
 {
   "mcp": {
     "servers": {
-      "ck-search": {
-        "command": "ck",
+      "cc-search": {
+        "command": "cc",
         "args": ["--serve"]
       }
     }
@@ -97,8 +97,8 @@ Add to Windsurf MCP configuration:
 ```json
 {
   "mcpServers": {
-    "ck-search": {
-      "command": "ck",
+    "cc-search": {
+      "command": "cc",
       "args": ["--serve"]
     }
   }
@@ -107,11 +107,11 @@ Add to Windsurf MCP configuration:
 
 ### Custom MCP Client
 
-Any MCP-compatible client can connect to ck's MCP server:
+Any MCP-compatible client can connect to cc's MCP server:
 
 ```bash
 # Start server (runs on stdio)
-ck --serve
+cc --serve
 ```
 
 Server accepts JSON-RPC 2.0 messages on stdin and responds on stdout.
@@ -125,7 +125,7 @@ Test MCP server without an AI tool:
 ### Start Server
 
 ```bash
-ck --serve
+cc --serve
 ```
 
 Server runs on stdio, waiting for JSON-RPC messages.
@@ -134,12 +134,12 @@ Server runs on stdio, waiting for JSON-RPC messages.
 
 **Initialize:**
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | ck --serve
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | cc --serve
 ```
 
 **List tools:**
 ```bash
-printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n' | ck --serve
+printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n' | cc --serve
 ```
 
 ---
@@ -236,7 +236,7 @@ Force rebuild of semantic index.
 - `force` (optional) - Force reindex even if up-to-date
 
 **Use when:**
-- Files changed outside ck
+- Files changed outside cc
 - Index corruption
 - Major refactoring
 
@@ -287,14 +287,14 @@ Force rebuild of semantic index.
 
 **Check version:**
 ```bash
-ck --version
+cc --version
 ```
 
 Must be 0.5.0+.
 
 **Test server:**
 ```bash
-ck --serve --help
+cc --serve --help
 ```
 
 Should show MCP server options.
@@ -318,7 +318,7 @@ type %APPDATA%\Claude\claude_desktop_config.json
 
 **Test command-line first:**
 ```bash
-ck --sem "your query" /path/to/project
+cc --sem "your query" /path/to/project
 ```
 
 If CLI works but MCP doesn't:

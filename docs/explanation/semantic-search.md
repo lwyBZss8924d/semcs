@@ -17,7 +17,7 @@ nav_order: 1
 
 ---
 
-**Goal:** Understand the technology behind ck's semantic code search.
+**Goal:** Understand the technology behind cc's semantic code search.
 
 **You'll learn:**
 - How embeddings work
@@ -40,7 +40,7 @@ Query: "error handling"
 Finds: Lines containing "error" and "handling"
 ```
 
-**Semantic search (ck):**
+**Semantic search (cc):**
 ```
 Query: "error handling"
 Finds: try/catch blocks, Result types, match expressions, 
@@ -136,7 +136,7 @@ Vector: [0.23, -0.45, 0.67, 0.12, -0.89, ...] (768 dimensions)
 
 ### Local Models
 
-ck uses **local embedding models** that run entirely on your machine:
+cc uses **local embedding models** that run entirely on your machine:
 
 **Benefits:**
 - **Privacy:** Your code never leaves your system
@@ -174,7 +174,7 @@ All map to similar semantic vectors for "error handling" concepts.
 ### 1. Query Processing
 
 ```bash
-ck --sem "error handling" src/
+cc --sem "error handling" src/
 ```
 
 **Steps:**
@@ -353,7 +353,7 @@ Ranked Results
 
 ### vs Traditional Search
 
-| Aspect | Traditional (grep) | Semantic (ck) |
+| Aspect | Traditional (grep) | Semantic (cc) |
 |--------|-------------------|---------------|
 | **Speed** | Instant | ~200ms |
 | **Accuracy** | Exact match only | Conceptual match |
@@ -363,7 +363,7 @@ Ranked Results
 
 ### vs Cloud-based Semantic Search
 
-| Aspect | Cloud-based | ck (Local) |
+| Aspect | Cloud-based | cc (Local) |
 |--------|-------------|------------|
 | **Privacy** | Code sent to cloud | Code stays local |
 | **Speed** | Network dependent | Consistent |
@@ -435,7 +435,7 @@ Finds: try/catch (JavaScript), Result<T,E> (Rust),
 - Use hybrid search for precision
 
 **For performance:**
-- Exclude generated files with .ckignore
+- Exclude generated files with .ccignore
 - Search specific directories when possible
 - Use regex for exact pattern matching
 - Consider model size vs accuracy trade-offs
@@ -465,7 +465,7 @@ Finds: try/catch (JavaScript), Result<T,E> (Rust),
 
 ## Summary
 
-Semantic search represents a fundamental shift in how we find and understand code. By leveraging local embedding models and tree-sitter parsing, ck provides:
+Semantic search represents a fundamental shift in how we find and understand code. By leveraging local embedding models and tree-sitter parsing, cc provides:
 
 - **Conceptual search** that understands what code does
 - **Privacy-first** architecture with local processing

@@ -7,26 +7,26 @@ nav_order: 1
 
 # Quick Start
 
-Install ck and run your first semantic search in 5 minutes.
+Install cc and run your first semantic search in 5 minutes.
 
 ## What You'll Learn
 
-- Install ck from crates.io
+- Install cc from crates.io
 - Run semantic search to find code by meaning
 - Understand search results and relevance scores
 - Use traditional grep-style search
 
 ---
 
-## Install ck
+## Install cc
 
 ```bash
-cargo install ck-search
+cargo install cc-search
 ```
 
 Verify installation:
 ```bash
-ck --version
+cc --version
 ```
 
 If you don't have Rust installed, install it first:
@@ -42,7 +42,7 @@ Navigate to any codebase and run your first semantic search:
 
 ```bash
 cd ~/projects/your-repo
-ck --sem "error handling" src/
+cc --sem "error handling" src/
 ```
 
 This command:
@@ -90,32 +90,32 @@ Relevance scores:
 
 ```bash
 # Find authentication code
-ck --sem "user authentication" src/
+cc --sem "user authentication" src/
 
 # Find caching logic
-ck --sem "cache implementation" .
+cc --sem "cache implementation" .
 
 # Find async task spawning
-ck --sem "spawn async task" src/
+cc --sem "spawn async task" src/
 ```
 
-Notice: ck finds relevant code even without exact keyword matches!
+Notice: cc finds relevant code even without exact keyword matches!
 
 ---
 
 ## Traditional Grep Still Works
 
-ck is fully grep-compatible:
+cc is fully grep-compatible:
 
 ```bash
 # Find todos
-ck "TODO" src/
+cc "TODO" src/
 
 # Case-insensitive search
-ck -i "fixme" .
+cc -i "fixme" .
 
 # Show line numbers
-ck -n "fn main" src/
+cc -n "fn main" src/
 ```
 
 All your grep muscle memory works!
@@ -124,7 +124,7 @@ All your grep muscle memory works!
 
 ## How It Works
 
-1. **Automatic indexing:** ck analyzed your code and created semantic embeddings
+1. **Automatic indexing:** cc analyzed your code and created semantic embeddings
 2. **Semantic matching:** Found code by meaning, not just text matching
 3. **Ranked results:** Returned the most relevant matches first
 4. **Smart chunking:** Results show complete functions/classes, not just lines
@@ -150,13 +150,13 @@ export PATH="$HOME/.cargo/bin:$PATH"
 **No results:**
 ```bash
 # Check if index exists
-ls .ck/
+ls .cc/
 
 # Try regex search to verify files exist
-ck "fn " src/
+cc "fn " src/
 
 # Lower threshold for more results
-ck --sem "query" --threshold 0.5 src/
+cc --sem "query" --threshold 0.5 src/
 ```
 
 **Slow first search:**

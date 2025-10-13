@@ -9,7 +9,7 @@ has_children: true
 
 **Understanding-oriented • Conceptual deep-dives**
 
-Background, design decisions, and how ck works under the hood. Understand the "why" behind ck's design and behavior.
+Background, design decisions, and how cc works under the hood. Understand the "why" behind cc's design and behavior.
 
 <div class="explanation-grid">
 
@@ -38,7 +38,7 @@ Background, design decisions, and how ck works under the hood. Understand the "w
 <div class="explanation-card architecture">
 <div class="explanation-icon">🏗️</div>
 <h3><a href="architecture">Architecture Deep Dive</a></h3>
-<p>How ck's components work together: indexing, search, and result ranking systems.</p>
+<p>How cc's components work together: indexing, search, and result ranking systems.</p>
 <div class="explanation-topics">
 <span class="topic">Indexing</span>
 <span class="topic">Search</span>
@@ -83,7 +83,7 @@ Background, design decisions, and how ck works under the hood. Understand the "w
 
 ---
 
-## Understanding ck's Design
+## Understanding cc's Design
 
 <div class="design-principles">
 
@@ -91,7 +91,7 @@ Background, design decisions, and how ck works under the hood. Understand the "w
 <div class="principle-icon">🎯</div>
 <div class="principle-content">
 <h3>Concept-First Search</h3>
-<p>ck searches for <em>what code does</em>, not just what it says. This fundamental shift enables finding patterns across different implementations, languages, and coding styles.</p>
+<p>cc searches for <em>what code does</em>, not just what it says. This fundamental shift enables finding patterns across different implementations, languages, and coding styles.</p>
 </div>
 </div>
 

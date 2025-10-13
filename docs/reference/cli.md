@@ -7,32 +7,32 @@ nav_order: 1
 
 # CLI Reference
 
-Complete command-line interface documentation for ck.
+Complete command-line interface documentation for cc.
 
 ## Synopsis
 
 ```bash
-ck [OPTIONS] [PATTERN] [PATH...]
+cc [OPTIONS] [PATTERN] [PATH...]
 ```
 
-ck is a semantic code search tool that combines traditional regex search with AI-powered semantic search. It provides multiple search modes, interactive exploration, and grep-compatible output formats.
+cc is a semantic code search tool that combines traditional regex search with AI-powered semantic search. It provides multiple search modes, interactive exploration, and grep-compatible output formats.
 
 ## Search Modes
 
 ### Default (Regex Search)
 
 ```bash
-ck PATTERN [PATH]
+cc PATTERN [PATH]
 ```
 
 Traditional grep-style pattern matching using regular expressions. This is the default mode when no search mode flag is specified.
 
 **Examples:**
 ```bash
-ck "TODO" src/
-ck "fn test_\w+" tests/
-ck -i "fixme" .
-ck "error|warning" src/
+cc "TODO" src/
+cc "fn test_\w+" tests/
+cc -i "fixme" .
+cc "error|warning" src/
 ```
 
 **Related flags:**
@@ -43,7 +43,7 @@ ck "error|warning" src/
 ### Semantic Search
 
 ```bash
-ck --sem QUERY [PATH]
+cc --sem QUERY [PATH]
 ```
 
 Finds code by meaning using embeddings, not just exact text matches. Ideal for conceptual searches when you know what you're looking for but not the exact terminology used in the codebase.
@@ -63,19 +63,19 @@ Finds code by meaning using embeddings, not just exact text matches. Ideal for c
 
 **Examples:**
 ```bash
-ck --sem "error handling" src/
-ck --sem "user authentication" .
-ck --sem "auth" --threshold 0.8 .           # Higher precision
-ck --sem --topk 5 "authentication"          # Limit to top 5 results
-ck --sem "cache" --topk 20 src/             # More results
-ck --sem --show-scores "error" src/         # Show similarity scores
-ck --sem --rerank "query" .                 # Enable reranking
+cc --sem "error handling" src/
+cc --sem "user authentication" .
+cc --sem "auth" --threshold 0.8 .           # Higher precision
+cc --sem --topk 5 "authentication"          # Limit to top 5 results
+cc --sem "cache" --topk 20 src/             # More results
+cc --sem --show-scores "error" src/         # Show similarity scores
+cc --sem --rerank "query" .                 # Enable reranking
 ```
 
 ### Lexical Search
 
 ```bash
-ck --lex QUERY [PATH]
+cc --lex QUERY [PATH]
 ```
 
 BM25 full-text search with statistical ranking. Combines keyword matching with frequency-based relevance scoring. Automatically indexes before running.
@@ -86,15 +86,15 @@ BM25 full-text search with statistical ranking. Combines keyword matching with f
 
 **Examples:**
 ```bash
-ck --lex "user authentication" src/
-ck --lex "http client request" .
-ck --lex --threshold 0.7 "error" src/
+cc --lex "user authentication" src/
+cc --lex "http client request" .
+cc --lex --threshold 0.7 "error" src/
 ```
 
 ### Hybrid Search
 
 ```bash
-ck --hybrid QUERY [PATH]
+cc --hybrid QUERY [PATH]
 ```
 
 Combines regex pattern matching and semantic search using Reciprocal Rank Fusion (RRF). Best for queries that benefit from both keyword precision and semantic understanding.
@@ -105,11 +105,11 @@ Combines regex pattern matching and semantic search using Reciprocal Rank Fusion
 
 **Examples:**
 ```bash
-ck --hybrid "async function" .
-ck --hybrid "error" --topk 10 .
-ck --hybrid "bug" --threshold 0.02 .        # RRF score threshold
-ck --hybrid "timeout" src/
-ck --hybrid "retry" --threshold 0.7 .
+cc --hybrid "async function" .
+cc --hybrid "error" --topk 10 .
+cc --hybrid "bug" --threshold 0.02 .        # RRF score threshold
+cc --hybrid "timeout" src/
+cc --hybrid "retry" --threshold 0.7 .
 ```
 
 ## Result Filtering
@@ -125,8 +125,8 @@ Controls the maximum number of results returned. Applies to semantic, lexical, a
 
 **Examples:**
 ```bash
-ck --sem --topk 5 "authentication" src/
-ck --lex --limit 20 "error" .
+cc --sem --topk 5 "authentication" src/
+cc --lex --limit 20 "error" .
 ```
 
 ### Score Thresholds
@@ -143,9 +143,9 @@ Higher thresholds = fewer, more precise results. Lower thresholds = more results
 
 **Examples:**
 ```bash
-ck --sem --threshold 0.8 "query" .          # High precision
-ck --sem --threshold 0.3 "pattern" src/     # Broader search
-ck --hybrid --threshold 0.02 "bug" .        # RRF threshold
+cc --sem --threshold 0.8 "query" .          # High precision
+cc --sem --threshold 0.3 "pattern" src/     # Broader search
+cc --hybrid --threshold 0.02 "bug" .        # RRF threshold
 ```
 
 ### Show Scores
@@ -158,7 +158,7 @@ Includes relevance scores alongside search results. Useful for tuning thresholds
 
 **Example:**
 ```bash
-ck --sem --show-scores "error handling" src/
+cc --sem --show-scores "error handling" src/
 ```
 
 ## Output Formats
@@ -166,7 +166,7 @@ ck --sem --show-scores "error handling" src/
 ### Default (Human-Readable)
 
 ```bash
-ck --sem "error" src/
+cc --sem "error" src/
 ```
 
 Shows results in format: `file:line` with context snippets.
@@ -184,14 +184,14 @@ Structured output for programmatic processing and tool integration.
 
 **Examples:**
 ```bash
-ck --sem "auth" --jsonl src/ > results.jsonl
-ck --json "error" .
-ck --jsonl --no-snippet "TODO" src/
+cc --sem "auth" --jsonl src/ > results.jsonl
+cc --json "error" .
+cc --jsonl --no-snippet "TODO" src/
 ```
 
 ### Grep-Compatible Flags
 
-ck maintains compatibility with grep's most common flags:
+cc maintains compatibility with grep's most common flags:
 
 ```bash
 -n, --line-number          Show line numbers
@@ -210,12 +210,12 @@ ck maintains compatibility with grep's most common flags:
 
 **Examples:**
 ```bash
-ck -n "error" src/                    # Show line numbers
-ck -l "TODO" .                        # List files with TODOs
-ck -c "unwrap()" src/                 # Count unwrap() calls
-ck -i "fixme" .                       # Case-insensitive
-ck -l "TODO" . | wc -l                # Count files with TODOs
-ck -l "FIXME" . | xargs sed -i 's/FIXME/TODO/g'  # Pipe to xargs
+cc -n "error" src/                    # Show line numbers
+cc -l "TODO" .                        # List files with TODOs
+cc -c "unwrap()" src/                 # Count unwrap() calls
+cc -i "fixme" .                       # Case-insensitive
+cc -l "TODO" . | wc -l                # Count files with TODOs
+cc -l "FIXME" . | xargs sed -i 's/FIXME/TODO/g'  # Pipe to xargs
 ```
 
 ## Context Control
@@ -230,10 +230,10 @@ Control how much surrounding code is displayed with matches:
 
 **Examples:**
 ```bash
-ck -A 3 "error" src/                  # 3 lines after
-ck -B 2 "TODO" .                      # 2 lines before
-ck -C 5 "FIXME" src/                  # 5 lines before and after
-ck --context 2 "pattern" .            # Alias for -C 2
+cc -A 3 "error" src/                  # 3 lines after
+cc -B 2 "TODO" .                      # 2 lines before
+cc -C 5 "FIXME" src/                  # 5 lines before and after
+cc --context 2 "pattern" .            # Alias for -C 2
 ```
 
 ## File Filtering
@@ -245,19 +245,19 @@ ck --context 2 "pattern" .            # Alias for -C 2
 --exclude-dir DIR          Exclude directory
 --no-default-excludes      Disable default exclusions
 --no-ignore                Don't respect .gitignore
---no-ckignore              Don't respect .ckignore
+--no-ccignore              Don't respect .ccignore
 ```
 
 **Examples:**
 ```bash
-ck --exclude "*.test.js" "error" .
-ck --exclude-dir node_modules "TODO" .
-ck --no-default-excludes "pattern" .
+cc --exclude "*.test.js" "error" .
+cc --exclude-dir node_modules "TODO" .
+cc --no-default-excludes "pattern" .
 ```
 
-### .ckignore Files
+### .ccignore Files
 
-Create a `.ckignore` file in your project root (similar to `.gitignore`) to exclude files from search and indexing:
+Create a `.ccignore` file in your project root (similar to `.gitignore`) to exclude files from search and indexing:
 
 ```
 # Exclude by default
@@ -274,59 +274,59 @@ target/
 
 **Behavior:**
 - Respects `.gitignore` by default
-- `.ckignore` adds additional exclusions
+- `.ccignore` adds additional exclusions
 - Use `--no-ignore` to skip `.gitignore`
-- Use `--no-ckignore` to skip `.ckignore`
+- Use `--no-ccignore` to skip `.ccignore`
 
 ## Index Management
 
 ### Check Status
 
 ```bash
-ck --status [PATH]              Show index status
-ck --status-verbose [PATH]      Detailed index statistics
-ck --index-status [PATH]        Alias for --status
+cc --status [PATH]              Show index status
+cc --status-verbose [PATH]      Detailed index statistics
+cc --index-status [PATH]        Alias for --status
 ```
 
 Shows information about index state, number of files, chunks, and freshness.
 
 **Examples:**
 ```bash
-ck --status .
-ck --status-verbose src/
+cc --status .
+cc --status-verbose src/
 ```
 
 ### Index Operations
 
 ```bash
-ck --index [PATH]               Create or update index
-ck --reindex [PATH]             Force complete rebuild
-ck --clean [PATH]               Remove entire index
-ck --clean-orphans [PATH]       Clean orphaned files only
-ck --add FILE                   Add single file to index
+cc --index [PATH]               Create or update index
+cc --reindex [PATH]             Force complete rebuild
+cc --clean [PATH]               Remove entire index
+cc --clean-orphans [PATH]       Clean orphaned files only
+cc --add FILE                   Add single file to index
 ```
 
 **Examples:**
 ```bash
-ck --index .                    # Update index
-ck --reindex .                  # Force rebuild
-ck --clean .                    # Remove index
-ck --add src/main.rs            # Index single file
+cc --index .                    # Update index
+cc --reindex .                  # Force rebuild
+cc --clean .                    # Remove index
+cc --add src/main.rs            # Index single file
 ```
 
 ### File Inspection
 
 ```bash
-ck --inspect FILE               Show detailed file metadata
-ck --dump-chunks FILE           Visualize chunk boundaries
+cc --inspect FILE               Show detailed file metadata
+cc --dump-chunks FILE           Visualize chunk boundaries
 ```
 
 Debug and understand how files are indexed and chunked.
 
 **Examples:**
 ```bash
-ck --inspect src/main.rs
-ck --dump-chunks src/lib.rs
+cc --inspect src/main.rs
+cc --dump-chunks src/lib.rs
 ```
 
 ## Interactive Mode
@@ -334,7 +334,7 @@ ck --dump-chunks src/lib.rs
 ### TUI (Text User Interface)
 
 ```bash
-ck --tui [PATH]
+cc --tui [PATH]
 ```
 
 Launch an interactive search interface with:
@@ -350,9 +350,9 @@ Launch an interactive search interface with:
 
 **Examples:**
 ```bash
-ck --tui .
-ck --tui src/
-ck --tui --sem "auth" .                # Start with semantic query
+cc --tui .
+cc --tui src/
+cc --tui --sem "auth" .                # Start with semantic query
 ```
 
 **Keyboard shortcuts:**
@@ -367,7 +367,7 @@ ck --tui --sem "auth" .                # Start with semantic query
 ### Start MCP Server
 
 ```bash
-ck --serve
+cc --serve
 ```
 
 Start Model Context Protocol server for AI agent integration. Runs on stdio and provides these tools:
@@ -381,7 +381,7 @@ Start Model Context Protocol server for AI agent integration. Runs on stdio and 
 
 **Example:**
 ```bash
-ck --serve
+cc --serve
 ```
 
 See [MCP API Reference](mcp-api.html) for integration details.
@@ -405,10 +405,10 @@ Choose or change the embedding model used for semantic search:
 
 **Examples:**
 ```bash
-ck --sem "auth" --model large src/
-ck --model bge-small --sem "cache" .
-ck --switch-model jina-code .              # Switch model
-ck --switch-model jina-code --force .      # Force rebuild
+cc --sem "auth" --model large src/
+cc --model bge-small --sem "cache" .
+cc --switch-model jina-code .              # Switch model
+cc --switch-model jina-code --force .      # Force rebuild
 ```
 
 **Note:** Changing models requires reindexing to generate new embeddings.
@@ -426,8 +426,8 @@ Applies a second-stage reranking model to improve result quality for semantic se
 
 **Examples:**
 ```bash
-ck --sem --rerank "query" .
-ck --sem --rerank-model bge "authentication" src/
+cc --sem --rerank "query" .
+cc --sem --rerank-model bge "authentication" src/
 ```
 
 ### Full Section Extraction
@@ -440,7 +440,7 @@ Returns entire code sections (functions, classes, methods) instead of just match
 
 **Example:**
 ```bash
-ck --full-section "error" src/
+cc --full-section "error" src/
 ```
 
 ## Environment Variables
@@ -448,17 +448,17 @@ ck --full-section "error" src/
 ```bash
 EDITOR          Editor for TUI (default: $VISUAL or vi)
 VISUAL          Fallback editor for TUI
-CK_MODEL        Default embedding model
-CK_WORKERS      Worker threads for indexing
-CK_INDEX_PATH   Custom index location
+CC_MODEL        Default embedding model
+CC_WORKERS      Worker threads for indexing
+CC_INDEX_PATH   Custom index location
 ```
 
 **Examples:**
 ```bash
 export EDITOR=nvim
-export CK_MODEL=large
-export CK_WORKERS=4
-ck --tui .
+export CC_MODEL=large
+export CC_WORKERS=4
+cc --tui .
 ```
 
 ## Exit Codes
@@ -469,7 +469,7 @@ ck --tui .
 
 Use in scripts:
 ```bash
-if ck "TODO" src/; then
+if cc "TODO" src/; then
     echo "Found TODOs"
 else
     echo "No TODOs found"
@@ -482,83 +482,83 @@ fi
 
 ```bash
 # Quick code exploration
-ck --tui .
+cc --tui .
 
 # Find specific patterns
-ck --sem "authentication" src/
+cc --sem "authentication" src/
 
 # Search tests
-ck "fn test_" tests/
+cc "fn test_" tests/
 
 # Find todos and fixmes
-ck "TODO|FIXME" .
+cc "TODO|FIXME" .
 
 # Find error handling
-ck --sem "error handling" --threshold 0.7 src/
+cc --sem "error handling" --threshold 0.7 src/
 
 # Search with context
-ck -C 3 "panic!" src/
+cc -C 3 "panic!" src/
 ```
 
 ### CI/CD Integration
 
 ```bash
 # Security scan
-ck --sem "security vulnerability" --threshold 0.8 src/ > security.txt
+cc --sem "security vulnerability" --threshold 0.8 src/ > security.txt
 
 # Performance analysis
-ck --sem "performance bottleneck" --jsonl src/ > perf.jsonl
+cc --sem "performance bottleneck" --jsonl src/ > perf.jsonl
 
 # Code quality checks
-ck "TODO|FIXME|HACK" --context 2 src/ > review.txt
+cc "TODO|FIXME|HACK" --context 2 src/ > review.txt
 
 # Count unsafe code blocks
-ck -c "unsafe" src/
+cc -c "unsafe" src/
 ```
 
 ### Export and Processing
 
 ```bash
 # Export results to JSON
-ck --sem "auth" --jsonl src/ > results.jsonl
+cc --sem "auth" --jsonl src/ > results.jsonl
 
 # Count matches per file
-ck -l "TODO" . | wc -l
+cc -l "TODO" . | wc -l
 
 # Find and replace across files
-ck -l "FIXME" . | xargs sed -i 's/FIXME/TODO/g'
+cc -l "FIXME" . | xargs sed -i 's/FIXME/TODO/g'
 
 # Pipe to other tools
-ck --sem "cache" --jsonl . | jq '.[] | .file'
+cc --sem "cache" --jsonl . | jq '.[] | .file'
 ```
 
 ### Threshold Tuning
 
 ```bash
 # Too many results? Increase threshold
-ck --sem "test" --threshold 0.8 tests/
+cc --sem "test" --threshold 0.8 tests/
 
 # Too few results? Lower threshold
-ck --sem "cache" --threshold 0.3 src/
+cc --sem "cache" --threshold 0.3 src/
 
 # Find exact threshold sweet spot
-ck --sem --show-scores "pattern" . | less
+cc --sem --show-scores "pattern" . | less
 ```
 
 ### Advanced Searches
 
 ```bash
 # Combine semantic search with file filtering
-ck --sem "database query" --exclude "*.test.rs" src/
+cc --sem "database query" --exclude "*.test.rs" src/
 
 # Hybrid search with context
-ck --hybrid "async" -C 5 src/
+cc --hybrid "async" -C 5 src/
 
 # Full function extraction
-ck --full-section --sem "authentication" src/
+cc --full-section --sem "authentication" src/
 
 # Search with reranking
-ck --sem --rerank --topk 10 "error handling" src/
+cc --sem --rerank --topk 10 "error handling" src/
 ```
 
 ## Troubleshooting
@@ -570,53 +570,53 @@ ck --sem --rerank --topk 10 "error handling" src/
 export PATH="$HOME/.cargo/bin:$PATH"
 
 # Or reinstall
-cargo install ck
+cargo install cc
 ```
 
 ### No results found
 
 ```bash
 # Check if pattern works with plain regex first
-ck "fn " src/
+cc "fn " src/
 
 # Lower threshold for semantic search
-ck --sem "pattern" --threshold 0.3 src/
+cc --sem "pattern" --threshold 0.3 src/
 
 # Check index status
-ck --status .
+cc --status .
 
 # Rebuild index
-ck --reindex .
+cc --reindex .
 ```
 
 ### Memory issues
 
 ```bash
 # Reduce worker threads
-export CK_WORKERS=2
+export CC_WORKERS=2
 
 # Clean and rebuild index
-ck --clean .
-ck --index .
+cc --clean .
+cc --index .
 ```
 
 ### Slow searches
 
 ```bash
 # Use faster model
-ck --sem "query" --model bge-small src/
+cc --sem "query" --model bge-small src/
 
 # Reduce result count
-ck --sem --topk 10 "query" .
+cc --sem --topk 10 "query" .
 
 # Check index status
-ck --status-verbose .
+cc --status-verbose .
 ```
 
 ## See Also
 
 - [TUI Reference](tui.html) - Interactive interface guide
-- [Configuration](configuration.html) - Configuration options and .ckignore
+- [Configuration](configuration.html) - Configuration options and .ccignore
 - [MCP API](mcp-api.html) - MCP server API reference
 - [Search Modes](../explanation/search-modes.html) - When to use each search mode
-- [Architecture](../explanation/architecture.html) - How ck works internally
+- [Architecture](../explanation/architecture.html) - How cc works internally
