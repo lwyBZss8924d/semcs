@@ -1,4 +1,6 @@
-# ck - Semantic Code Search
+# cc - Semantic Code Retriever for Claude & Codex
+
+forked from [BeaconBay/ck](https://github.com/BeaconBay/ck)
 
 **ck (seek)** finds code by meaning, not just keywords. It's grep that understands what you're looking for — search for "error handling" and find try/catch blocks, error returns, and exception handling code even when those exact words aren't present.
 
