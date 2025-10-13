@@ -17,7 +17,7 @@ nav_order: 4
 
 ---
 
-**Goal:** Set up ck with your favorite code editor for seamless semantic search.
+**Goal:** Set up cc with your favorite code editor for seamless semantic search.
 
 **You'll learn:**
 - VS Code integration
@@ -35,13 +35,13 @@ nav_order: 4
 **Quick search:**
 1. Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS)
 2. Type "Terminal: Create New Terminal"
-3. Run ck commands directly
+3. Run cc commands directly
 
 **Example workflow:**
 ```bash
 # In VS Code terminal
-ck --tui .
-ck --sem "error handling" src/
+cc --tui .
+cc --sem "error handling" src/
 ```
 
 ### Method 2: Tasks Integration
@@ -53,9 +53,9 @@ Create `.vscode/tasks.json`:
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "ck: Semantic Search",
+      "label": "cc: Semantic Search",
       "type": "shell",
-      "command": "ck",
+      "command": "cc",
       "args": ["--tui", "${workspaceFolder}"],
       "group": "build",
       "presentation": {
@@ -66,9 +66,9 @@ Create `.vscode/tasks.json`:
       }
     },
     {
-      "label": "ck: Search Current File",
+      "label": "cc: Search Current File",
       "type": "shell",
-      "command": "ck",
+      "command": "cc",
       "args": ["--sem", "${input:searchQuery}", "${fileDirname}"],
       "group": "build"
     }
@@ -87,7 +87,7 @@ Create `.vscode/tasks.json`:
 **Usage:**
 1. Press `Ctrl+Shift+P`
 2. Type "Tasks: Run Task"
-3. Select "ck: Semantic Search"
+3. Select "cc: Semantic Search"
 
 ### Method 3: Extension (Future)
 
@@ -106,13 +106,13 @@ Create `.vscode/tasks.json`:
 **Command mode:**
 ```vim
 " Search current directory
-:!ck --tui .
+:!cc --tui .
 
 " Search with query
-:!ck --sem "error handling" .
+:!cc --sem "error handling" .
 
 " Search current file's directory
-:!ck --sem "pattern" %:p:h
+:!cc --sem "pattern" %:p:h
 ```
 
 ### Custom Commands
@@ -120,28 +120,28 @@ Create `.vscode/tasks.json`:
 Add to `.vimrc` or `init.vim`:
 
 ```vim
-" ck semantic search commands
-command! -nargs=1 CkSem :!ck --sem "<args>" .
-command! -nargs=1 CkRegex :!ck "<args>" .
-command! CkTui :!ck --tui .
+" cc semantic search commands
+command! -nargs=1 CcSem :!cc --sem "<args>" .
+command! -nargs=1 CcRegex :!cc "<args>" .
+command! CcTui :!cc --tui .
 
 " Search current file's directory
-command! -nargs=1 CkSemFile :!ck --sem "<args>" %:p:h
+command! -nargs=1 CcSemFile :!cc --sem "<args>" %:p:h
 ```
 
 **Usage:**
 ```vim
-:CkSem "error handling"
-:CkRegex "TODO"
-:CkTui
+:CcSem "error handling"
+:CcRegex "TODO"
+:CcTui
 ```
 
 ### Advanced Vim Integration
 
 **With fzf.vim:**
 ```vim
-function! CkSemanticSearch(query)
-  let results = system('ck --sem "' . a:query . '" --jsonl .')
+function! CcSemanticSearch(query)
+  let results = system('cc --sem "' . a:query . '" --jsonl .')
   let files = []
   for line in split(results, '\n')
     if line != ''
@@ -152,7 +152,7 @@ function! CkSemanticSearch(query)
   call fzf#run(fzf#wrap({'source': files}))
 endfunction
 
-command! -nargs=1 CkSemFzf call CkSemanticSearch(<q-args>)
+command! -nargs=1 CcSemFzf call CcSemanticSearch(<q-args>)
 ```
 
 ### Neovim with Lua
@@ -160,11 +160,11 @@ command! -nargs=1 CkSemFzf call CkSemanticSearch(<q-args>)
 **For Neovim users:**
 
 ```lua
--- ~/.config/nvim/lua/ck.lua
+-- ~/.config/nvim/lua/cc.lua
 local M = {}
 
 function M.semantic_search(query)
-  local cmd = string.format('ck --sem "%s" .', query)
+  local cmd = string.format('cc --sem "%s" .', query)
   vim.fn.jobstart(cmd, {
     on_stdout = function(_, data)
       -- Process results
@@ -178,17 +178,17 @@ function M.semantic_search(query)
 end
 
 function M.tui()
-  vim.fn.jobstart('ck --tui .', {
+  vim.fn.jobstart('cc --tui .', {
     detach = true
   })
 end
 
 -- Commands
-vim.api.nvim_create_user_command('CkSem', function(opts)
+vim.api.nvim_create_user_command('CcSem', function(opts)
   M.semantic_search(opts.args)
 end, { nargs = 1 })
 
-vim.api.nvim_create_user_command('CkTui', M.tui, {})
+vim.api.nvim_create_user_command('CcTui', M.tui, {})
 
 return M
 ```
@@ -201,43 +201,43 @@ return M
 
 **M-x shell integration:**
 ```elisp
-;; ck.el - ck integration for Emacs
-(defun ck-semantic-search (query)
-  "Run ck semantic search with QUERY."
+;; cc.el - cc integration for Emacs
+(defun cc-semantic-search (query)
+  "Run cc semantic search with QUERY."
   (interactive "sSearch query: ")
   (let ((default-directory (project-root (project-current))))
-    (shell-command (format "ck --sem '%s' ." query))))
+    (shell-command (format "cc --sem '%s' ." query))))
 
-(defun ck-tui ()
-  "Launch ck TUI."
+(defun cc-tui ()
+  "Launch cc TUI."
   (interactive)
   (let ((default-directory (project-root (project-current))))
-    (async-shell-command "ck --tui .")))
+    (async-shell-command "cc --tui .")))
 
-(defun ck-regex-search (pattern)
-  "Run ck regex search with PATTERN."
+(defun cc-regex-search (pattern)
+  "Run cc regex search with PATTERN."
   (interactive "sRegex pattern: ")
   (let ((default-directory (project-root (project-current))))
-    (shell-command (format "ck '%s' ." pattern))))
+    (shell-command (format "cc '%s' ." pattern))))
 
 ;; Key bindings
-(global-set-key (kbd "C-c c s") 'ck-semantic-search)
-(global-set-key (kbd "C-c c t") 'ck-tui)
-(global-set-key (kbd "C-c c r") 'ck-regex-search)
+(global-set-key (kbd "C-c c s") 'cc-semantic-search)
+(global-set-key (kbd "C-c c t") 'cc-tui)
+(global-set-key (kbd "C-c c r") 'cc-regex-search)
 ```
 
 ### Advanced Emacs Integration
 
 **With helm:**
 ```elisp
-(defun ck-helm-semantic-search ()
-  "Helm interface for ck semantic search."
+(defun cc-helm-semantic-search ()
+  "Helm interface for cc semantic search."
   (interactive)
-  (helm :sources (helm-build-sync-source "ck semantic search"
+  (helm :sources (helm-build-sync-source "cc semantic search"
                    :candidates (lambda ()
                                  (let ((query (helm-read-string "Search: ")))
                                    (split-string (shell-command-to-string
-                                                  (format "ck --sem '%s' ." query))
+                                                  (format "cc --sem '%s' ." query))
                                                  "\n" t)))
                    :action (lambda (candidate)
                              (find-file (car (split-string candidate ":")))))))
@@ -249,10 +249,10 @@ return M
 
 ### Sublime Text
 
-**Build system** (save as `ck.sublime-build`):
+**Build system** (save as `cc.sublime-build`):
 ```json
 {
-  "cmd": ["ck", "--tui", "$file_path"],
+  "cmd": ["cc", "--tui", "$file_path"],
   "selector": "source",
   "shell": true
 }
@@ -265,8 +265,8 @@ return M
 // In your Atom package
 const { exec } = require('child_process');
 
-function ckSemanticSearch(query) {
-  exec(`ck --sem "${query}" .`, (error, stdout, stderr) => {
+function ccSemanticSearch(query) {
+  exec(`cc --sem "${query}" .`, (error, stdout, stderr) => {
     if (error) {
       console.error(`Error: ${error}`);
       return;
@@ -281,8 +281,8 @@ function ckSemanticSearch(query) {
 **External tool configuration:**
 1. Go to Settings → Tools → External Tools
 2. Add new tool:
-   - **Name:** ck Semantic Search
-   - **Program:** ck
+   - **Name:** cc Semantic Search
+   - **Program:** cc
    - **Arguments:** `--sem $Prompt$ .`
    - **Working directory:** `$ProjectFileDir$`
 
@@ -291,8 +291,8 @@ function ckSemanticSearch(query) {
 **Commands in `config.toml`:**
 ```toml
 [keys.normal]
-"<space>c" = ":sh ck --tui ."
-"<space>s" = ":sh ck --sem"
+"<space>c" = ":sh cc --tui ."
+"<space>s" = ":sh cc --sem"
 ```
 
 ---
@@ -307,9 +307,9 @@ function ckSemanticSearch(query) {
 # .git/hooks/pre-commit
 
 # Search for TODOs in staged files
-if ck "TODO" --glob "*.rs" --files-with-matches . | grep -q .; then
+if cc "TODO" --glob "*.rs" --files-with-matches . | grep -q .; then
   echo "Warning: TODOs found in staged files"
-  ck "TODO" --glob "*.rs" .
+  cc "TODO" --glob "*.rs" .
 fi
 ```
 
@@ -321,16 +321,16 @@ fi
 
 case "$1" in
   "auth")
-    ck --sem "authentication" src/
+    cc --sem "authentication" src/
     ;;
   "error")
-    ck --sem "error handling" src/
+    cc --sem "error handling" src/
     ;;
   "test")
-    ck "fn test_" tests/
+    cc "fn test_" tests/
     ;;
   "tui")
-    ck --tui .
+    cc --tui .
     ;;
   *)
     echo "Usage: $0 {auth|error|test|tui}"
@@ -349,16 +349,16 @@ chmod +x scripts/search.sh
 
 **Add to `.bashrc` or `.zshrc`:**
 ```bash
-# ck aliases
-alias cks='ck --sem'
-alias ckt='ck --tui'
-alias ckr='ck'
-alias ckh='ck --hybrid'
+# cc aliases
+alias ccs='cc --sem'
+alias cct='cc --tui'
+alias ccr='cc'
+alias cch='cc --hybrid'
 
 # Project-specific searches
-alias ckauth='ck --sem "authentication" src/'
-alias ckerror='ck --sem "error handling" src/'
-alias cktest='ck "fn test_" tests/'
+alias ccauth='cc --sem "authentication" src/'
+alias ccerror='cc --sem "error handling" src/'
+alias cctest='cc "fn test_" tests/'
 ```
 
 ---
@@ -369,7 +369,7 @@ alias cktest='ck "fn test_" tests/'
 
 **Integrated terminal:**
 - Use `Ctrl+`` to toggle terminal
-- Split terminal for multiple ck sessions
+- Split terminal for multiple cc sessions
 - Use terminal tabs for different searches
 
 **Tasks integration:**
@@ -392,8 +392,8 @@ alias cktest='ck "fn test_" tests/'
 **Custom mappings:**
 ```vim
 " Search word under cursor
-nnoremap <leader>cs :CkSem <C-R><C-W><CR>
-nnoremap <leader>cr :CkRegex <C-R><C-W><CR>
+nnoremap <leader>cs :CcSem <C-R><C-W><CR>
+nnoremap <leader>cr :CcRegex <C-R><C-W><CR>
 ```
 
 ### Emacs Tips
@@ -415,14 +415,14 @@ nnoremap <leader>cr :CkRegex <C-R><C-W><CR>
 export PATH="$HOME/.cargo/bin:$PATH"
 ```
 
-**Editor can't find ck:**
-- Ensure ck is in PATH
-- Restart editor after installing ck
+**Editor can't find cc:**
+- Ensure cc is in PATH
+- Restart editor after installing cc
 - Check editor's PATH configuration
 
 **Slow performance:**
 - Use specific directories instead of `.`
-- Exclude large directories with .ckignore
+- Exclude large directories with .ccignore
 - Use regex search for exact patterns
 
 ### Editor-specific Issues
@@ -457,7 +457,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 **Performance considerations:**
 - Search specific directories when possible
-- Use .ckignore to exclude irrelevant files
+- Use .ccignore to exclude irrelevant files
 - Consider indexing time for large repos
 
 ### Editor-specific Best Practices

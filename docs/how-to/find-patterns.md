@@ -35,13 +35,13 @@ nav_order: 3
 
 ```bash
 # Semantic search for authentication
-ck --sem "user authentication" src/
+cc --sem "user authentication" src/
 
 # Find login functions
-ck --sem "login process" src/
+cc --sem "login process" src/
 
 # Find password handling
-ck --sem "password validation" src/
+cc --sem "password validation" src/
 ```
 
 **What you'll find:**
@@ -55,13 +55,13 @@ ck --sem "password validation" src/
 
 ```bash
 # Find permission checks
-ck --sem "authorization check" src/
+cc --sem "authorization check" src/
 
 # Find role-based access
-ck --sem "role permission" src/
+cc --sem "role permission" src/
 
 # Find middleware for auth
-ck --sem "authentication middleware" src/
+cc --sem "authentication middleware" src/
 ```
 
 ---
@@ -72,39 +72,39 @@ ck --sem "authentication middleware" src/
 
 ```bash
 # General error handling
-ck --sem "error handling" src/
+cc --sem "error handling" src/
 
 # Exception handling
-ck --sem "exception management" src/
+cc --sem "exception management" src/
 
 # Error logging
-ck --sem "error logging" src/
+cc --sem "error logging" src/
 ```
 
 ### Find Specific Error Types
 
 ```bash
 # Network errors
-ck --sem "network error handling" src/
+cc --sem "network error handling" src/
 
 # Validation errors
-ck --sem "validation error" src/
+cc --sem "validation error" src/
 
 # Database errors
-ck --sem "database error" src/
+cc --sem "database error" src/
 ```
 
 ### Find Error Recovery
 
 ```bash
 # Retry logic
-ck --sem "retry mechanism" src/
+cc --sem "retry mechanism" src/
 
 # Fallback handling
-ck --sem "fallback strategy" src/
+cc --sem "fallback strategy" src/
 
 # Circuit breaker
-ck --sem "circuit breaker" src/
+cc --sem "circuit breaker" src/
 ```
 
 ---
@@ -115,26 +115,26 @@ ck --sem "circuit breaker" src/
 
 ```bash
 # Config file loading
-ck --sem "configuration loading" src/
+cc --sem "configuration loading" src/
 
 # Environment variables
-ck --sem "environment configuration" src/
+cc --sem "environment configuration" src/
 
 # Settings management
-ck --sem "settings management" src/
+cc --sem "settings management" src/
 ```
 
 ### Find Configuration Validation
 
 ```bash
 # Config validation
-ck --sem "configuration validation" src/
+cc --sem "configuration validation" src/
 
 # Default values
-ck --sem "default configuration" src/
+cc --sem "default configuration" src/
 
 # Config schema
-ck --sem "configuration schema" src/
+cc --sem "configuration schema" src/
 ```
 
 ---
@@ -145,26 +145,26 @@ ck --sem "configuration schema" src/
 
 ```bash
 # SQL queries
-ck --sem "database query" src/
+cc --sem "database query" src/
 
 # ORM operations
-ck --sem "database operations" src/
+cc --sem "database operations" src/
 
 # Connection management
-ck --sem "database connection" src/
+cc --sem "database connection" src/
 ```
 
 ### Find Database Migrations
 
 ```bash
 # Migration scripts
-ck --sem "database migration" src/
+cc --sem "database migration" src/
 
 # Schema changes
-ck --sem "schema migration" src/
+cc --sem "schema migration" src/
 
 # Version management
-ck --sem "database version" src/
+cc --sem "database version" src/
 ```
 
 ---
@@ -175,26 +175,26 @@ ck --sem "database version" src/
 
 ```bash
 # REST API endpoints
-ck --sem "REST endpoint" src/
+cc --sem "REST endpoint" src/
 
 # HTTP handlers
-ck --sem "HTTP handler" src/
+cc --sem "HTTP handler" src/
 
 # Route definitions
-ck --sem "route definition" src/
+cc --sem "route definition" src/
 ```
 
 ### Find API Documentation
 
 ```bash
 # API documentation
-ck --sem "API documentation" src/
+cc --sem "API documentation" src/
 
 # OpenAPI specs
-ck --sem "OpenAPI specification" src/
+cc --sem "OpenAPI specification" src/
 
 # Swagger documentation
-ck --sem "swagger documentation" src/
+cc --sem "swagger documentation" src/
 ```
 
 ---
@@ -205,26 +205,26 @@ ck --sem "swagger documentation" src/
 
 ```bash
 # Test functions (regex)
-ck "fn test_" tests/
+cc "fn test_" tests/
 
 # Unit tests
-ck --sem "unit test" tests/
+cc --sem "unit test" tests/
 
 # Integration tests
-ck --sem "integration test" tests/
+cc --sem "integration test" tests/
 ```
 
 ### Find Test Setup
 
 ```bash
 # Test setup
-ck --sem "test setup" tests/
+cc --sem "test setup" tests/
 
 # Mock objects
-ck --sem "mock object" tests/
+cc --sem "mock object" tests/
 
 # Test fixtures
-ck --sem "test fixture" tests/
+cc --sem "test fixture" tests/
 ```
 
 ---
@@ -235,26 +235,26 @@ ck --sem "test fixture" tests/
 
 ```bash
 # Caching implementation
-ck --sem "cache implementation" src/
+cc --sem "cache implementation" src/
 
 # Cache invalidation
-ck --sem "cache invalidation" src/
+cc --sem "cache invalidation" src/
 
 # Memory caching
-ck --sem "memory cache" src/
+cc --sem "memory cache" src/
 ```
 
 ### Find Optimization Code
 
 ```bash
 # Performance optimization
-ck --sem "performance optimization" src/
+cc --sem "performance optimization" src/
 
 # Lazy loading
-ck --sem "lazy loading" src/
+cc --sem "lazy loading" src/
 
 # Connection pooling
-ck --sem "connection pooling" src/
+cc --sem "connection pooling" src/
 ```
 
 ---
@@ -265,26 +265,26 @@ ck --sem "connection pooling" src/
 
 ```bash
 # Input validation
-ck --sem "input validation" src/
+cc --sem "input validation" src/
 
 # SQL injection prevention
-ck --sem "SQL injection" src/
+cc --sem "SQL injection" src/
 
 # XSS prevention
-ck --sem "XSS prevention" src/
+cc --sem "XSS prevention" src/
 ```
 
 ### Find Encryption Code
 
 ```bash
 # Encryption/decryption
-ck --sem "encryption" src/
+cc --sem "encryption" src/
 
 # Hashing functions
-ck --sem "hashing" src/
+cc --sem "hashing" src/
 
 # Key management
-ck --sem "key management" src/
+cc --sem "key management" src/
 ```
 
 ---
@@ -295,25 +295,25 @@ ck --sem "key management" src/
 
 ```bash
 # Logging implementation
-ck --sem "logging" src/
+cc --sem "logging" src/
 
 # Structured logging
-ck --sem "structured logging" src/
+cc --sem "structured logging" src/
 
 # Log levels
-ck --sem "log level" src/
+cc --sem "log level" src/
 ```
 
 ### Find Debug Code
 
 ```bash
 # Debug statements
-ck "console.log" src/
-ck "println!" src/
-ck "print(" src/
+cc "console.log" src/
+cc "println!" src/
+cc "print(" src/
 
 # Debug flags
-ck --sem "debug mode" src/
+cc --sem "debug mode" src/
 ```
 
 ---
@@ -324,26 +324,26 @@ ck --sem "debug mode" src/
 
 ```bash
 # Async functions
-ck --sem "async function" src/
+cc --sem "async function" src/
 
 # Promise handling
-ck --sem "promise handling" src/
+cc --sem "promise handling" src/
 
 # Future handling
-ck --sem "future handling" src/
+cc --sem "future handling" src/
 ```
 
 ### Find Concurrency Patterns
 
 ```bash
 # Threading
-ck --sem "threading" src/
+cc --sem "threading" src/
 
 # Parallel processing
-ck --sem "parallel processing" src/
+cc --sem "parallel processing" src/
 
 # Lock mechanisms
-ck --sem "lock mechanism" src/
+cc --sem "lock mechanism" src/
 ```
 
 ---
@@ -354,30 +354,30 @@ ck --sem "lock mechanism" src/
 
 ```bash
 # Find async test functions
-ck --hybrid "async" --sem "test function" tests/
+cc --hybrid "async" --sem "test function" tests/
 
 # Find error handling with specific patterns
-ck --hybrid "try" --sem "error handling" src/
+cc --hybrid "try" --sem "error handling" src/
 ```
 
 ### Using Thresholds for Precision
 
 ```bash
 # High precision search
-ck --sem "authentication" --threshold 0.8 src/
+cc --sem "authentication" --threshold 0.8 src/
 
 # Broader search
-ck --sem "error" --threshold 0.5 src/
+cc --sem "error" --threshold 0.5 src/
 ```
 
 ### Searching Specific File Types
 
 ```bash
 # Only Rust files
-ck --sem "error handling" --glob "*.rs" src/
+cc --sem "error handling" --glob "*.rs" src/
 
 # Only test files
-ck --sem "test setup" --glob "*test*" .
+cc --sem "test setup" --glob "*test*" .
 ```
 
 ---
@@ -388,39 +388,39 @@ ck --sem "test setup" --glob "*test*" .
 
 ```bash
 # Find todos and fixmes
-ck "TODO|FIXME|HACK" src/
+cc "TODO|FIXME|HACK" src/
 
 # Find error handling gaps
-ck --sem "error handling" --threshold 0.7 src/
+cc --sem "error handling" --threshold 0.7 src/
 
 # Find security issues
-ck --sem "input validation" src/
+cc --sem "input validation" src/
 ```
 
 ### Refactoring Preparation
 
 ```bash
 # Find duplicate patterns
-ck --sem "similar implementation" src/
+cc --sem "similar implementation" src/
 
 # Find deprecated code
-ck "deprecated" src/
+cc "deprecated" src/
 
 # Find hardcoded values
-ck --sem "hardcoded configuration" src/
+cc --sem "hardcoded configuration" src/
 ```
 
 ### Learning a New Codebase
 
 ```bash
 # Find main entry points
-ck --sem "main entry point" src/
+cc --sem "main entry point" src/
 
 # Find core business logic
-ck --sem "business logic" src/
+cc --sem "business logic" src/
 
 # Find data models
-ck --sem "data model" src/
+cc --sem "data model" src/
 ```
 
 ---

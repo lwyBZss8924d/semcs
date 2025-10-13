@@ -8,7 +8,7 @@ nav_order: 2
 # Agent Workflows
 {: .no_toc }
 
-Practical workflows showing how AI agents use ck to solve common development tasks.
+Practical workflows showing how AI agents use cc to solve common development tasks.
 
 ## Table of contents
 {: .no_toc .text-delta }
@@ -20,7 +20,7 @@ Practical workflows showing how AI agents use ck to solve common development tas
 
 ## Introduction
 
-This guide provides task-oriented workflows for AI agents using ck through the MCP server. Each workflow demonstrates how to combine semantic search, regex search, and hybrid search to solve real development challenges.
+This guide provides task-oriented workflows for AI agents using cc through the MCP server. Each workflow demonstrates how to combine semantic search, regex search, and hybrid search to solve real development challenges.
 
 **What you'll learn:**
 - How to explore unfamiliar codebases efficiently
@@ -30,7 +30,7 @@ This guide provides task-oriented workflows for AI agents using ck through the M
 - How to generate documentation from code
 
 **Prerequisites:**
-- ck MCP server running and connected to your AI tool
+- cc MCP server running and connected to your AI tool
 - Indexed codebase (see [Setup MCP Server](setup-mcp-server.html))
 
 ---

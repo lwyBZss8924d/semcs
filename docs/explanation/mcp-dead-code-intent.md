@@ -2,7 +2,7 @@
 
 This document explains the purpose of code marked with `#[allow(dead_code)]` in the MCP implementation. These are not obsolete remnants but planned infrastructure for future features.
 
-## Session Management (`ck-cli/src/mcp/session.rs`)
+## Session Management (`cc-cli/src/mcp/session.rs`)
 
 ### SearchSession Fields
 
@@ -82,10 +82,10 @@ These features are intentionally left as dead code because:
 
 ## Related Files
 
-- `ck-cli/src/mcp/session.rs`: Core session management with dead code
-- `ck-cli/src/mcp_server.rs`: Will eventually use session statistics
-- Future: `ck-cli/src/mcp/monitor.rs` (not yet created) will use stats
-- Future: `ck-cli/src/mcp/cleanup.rs` (not yet created) will run cleanup tasks
+- `cc-cli/src/mcp/session.rs`: Core session management with dead code
+- `cc-cli/src/mcp_server.rs`: Will eventually use session statistics
+- Future: `cc-cli/src/mcp/monitor.rs` (not yet created) will use stats
+- Future: `cc-cli/src/mcp/cleanup.rs` (not yet created) will run cleanup tasks
 
 ## Activation Checklist
 

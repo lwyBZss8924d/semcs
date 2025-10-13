@@ -17,7 +17,7 @@ nav_order: 2
 
 ---
 
-**Goal:** Master ck's interactive search interface in 10 minutes.
+**Goal:** Master cc's interactive search interface in 10 minutes.
 
 **You'll learn:**
 - Launch and navigate the TUI
@@ -33,12 +33,12 @@ nav_order: 2
 
 ```bash
 cd ~/projects/your-repo
-ck --tui .
+cc --tui .
 ```
 
 **You'll see:**
 ```
-┌─ ck Search ──────────────────────────────┐
+┌─ cc Search ──────────────────────────────┐
 │ Query: _                    [Semantic ●] │
 ├──────────────────────────────────────────┤
 │ No results yet. Start typing...          │
@@ -63,7 +63,7 @@ ck --tui .
 
 **You'll see:**
 ```
-┌─ ck Search ──────────────────────────────┐
+┌─ cc Search ──────────────────────────────┐
 │ Query: error handling       [Semantic ●] │
 ├──────────────────────────────────────────┤
 │ Results (23)                              │

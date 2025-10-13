@@ -435,6 +435,186 @@ dependencies = [
 ]
 
 [[package]]
+name = "cc-ann"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "cc-core",
+ "serde",
+ "tempfile",
+]
+
+[[package]]
+name = "cc-chunk"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "cc-core",
+ "cc-embed",
+ "hf-hub 0.3.2",
+ "serde",
+ "tokenizers 0.22.0",
+ "tracing",
+ "tree-sitter",
+ "tree-sitter-c-sharp",
+ "tree-sitter-go",
+ "tree-sitter-haskell",
+ "tree-sitter-python",
+ "tree-sitter-ruby",
+ "tree-sitter-rust",
+ "tree-sitter-typescript",
+ "tree-sitter-zig",
+]
+
+[[package]]
+name = "cc-core"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "blake3",
+ "regex",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cc-embed"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "cc-core",
+ "fastembed",
+ "serde",
+ "tokio",
+]
+
+[[package]]
+name = "cc-engine"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "cc-ann",
+ "cc-chunk",
+ "cc-core",
+ "cc-embed",
+ "cc-index",
+ "cc-models",
+ "globset",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_json",
+ "tantivy",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "walkdir",
+]
+
+[[package]]
+name = "cc-index"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "blake3",
+ "cc-chunk",
+ "cc-core",
+ "cc-embed",
+ "cc-models",
+ "ctrlc",
+ "ignore",
+ "memmap2",
+ "pdf-extract",
+ "rayon",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "walkdir",
+]
+
+[[package]]
+name = "cc-models"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "cc-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "cc-search"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "cc-ann",
+ "cc-chunk",
+ "cc-core",
+ "cc-embed",
+ "cc-engine",
+ "cc-index",
+ "cc-models",
+ "cc-tui",
+ "chrono",
+ "clap",
+ "console",
+ "crossterm",
+ "dirs 5.0.1",
+ "glob",
+ "globset",
+ "indicatif",
+ "openssl",
+ "owo-colors",
+ "ratatui",
+ "regex",
+ "rmcp",
+ "rmcp-macros",
+ "schemars",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "sha2",
+ "shlex",
+ "syntect",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "walkdir",
+]
+
+[[package]]
+name = "cc-tui"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "cc-chunk",
+ "cc-core",
+ "cc-embed",
+ "cc-engine",
+ "cc-index",
+ "crossterm",
+ "dirs 5.0.1",
+ "ratatui",
+ "serde",
+ "serde_json",
+ "shlex",
+ "syntect",
+ "tokio",
+]
+
+[[package]]
 name = "census"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -490,186 +670,6 @@ checksum = "773f3b9af64447d2ce9850330c473515014aa235e6a783b02db81ff39e4a3dad"
 dependencies = [
  "crypto-common",
  "inout",
-]
-
-[[package]]
-name = "ck-ann"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "bincode",
- "ck-core",
- "serde",
- "tempfile",
-]
-
-[[package]]
-name = "ck-chunk"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "ck-core",
- "ck-embed",
- "hf-hub 0.3.2",
- "serde",
- "tokenizers 0.22.0",
- "tracing",
- "tree-sitter",
- "tree-sitter-c-sharp",
- "tree-sitter-go",
- "tree-sitter-haskell",
- "tree-sitter-python",
- "tree-sitter-ruby",
- "tree-sitter-rust",
- "tree-sitter-typescript",
- "tree-sitter-zig",
-]
-
-[[package]]
-name = "ck-core"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "bincode",
- "blake3",
- "regex",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "ck-embed"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "ck-core",
- "fastembed",
- "serde",
- "tokio",
-]
-
-[[package]]
-name = "ck-engine"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "ck-ann",
- "ck-chunk",
- "ck-core",
- "ck-embed",
- "ck-index",
- "ck-models",
- "globset",
- "rayon",
- "regex",
- "serde",
- "serde_json",
- "tantivy",
- "tempfile",
- "tokio",
- "tracing",
- "walkdir",
-]
-
-[[package]]
-name = "ck-index"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "bincode",
- "blake3",
- "ck-chunk",
- "ck-core",
- "ck-embed",
- "ck-models",
- "ctrlc",
- "ignore",
- "memmap2",
- "pdf-extract",
- "rayon",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tracing",
- "walkdir",
-]
-
-[[package]]
-name = "ck-models"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "ck-core",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "ck-search"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "chrono",
- "ck-ann",
- "ck-chunk",
- "ck-core",
- "ck-embed",
- "ck-engine",
- "ck-index",
- "ck-models",
- "ck-tui",
- "clap",
- "console",
- "crossterm",
- "dirs 5.0.1",
- "glob",
- "globset",
- "indicatif",
- "openssl",
- "owo-colors",
- "ratatui",
- "regex",
- "rmcp",
- "rmcp-macros",
- "schemars",
- "serde",
- "serde_json",
- "serial_test",
- "sha2",
- "shlex",
- "syntect",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tokio-util",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "walkdir",
-]
-
-[[package]]
-name = "ck-tui"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "ck-chunk",
- "ck-core",
- "ck-embed",
- "ck-engine",
- "ck-index",
- "crossterm",
- "dirs 5.0.1",
- "ratatui",
- "serde",
- "serde_json",
- "shlex",
- "syntect",
- "tokio",
 ]
 
 [[package]]

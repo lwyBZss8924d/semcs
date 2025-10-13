@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Full Section Demo - Python code examples for ck semantic search
-This file demonstrates various Python patterns for testing ck's search capabilities
+Full Section Demo - Python code examples for cc semantic search
+This file demonstrates various Python patterns for testing cc's search capabilities
 """
 
 import json

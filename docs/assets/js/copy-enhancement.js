@@ -1,4 +1,4 @@
-// Enhanced code copy functionality for ck documentation
+// Enhanced code copy functionality for cc documentation
 (function() {
   'use strict';
 

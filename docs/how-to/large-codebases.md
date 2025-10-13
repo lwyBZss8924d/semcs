@@ -17,7 +17,7 @@ nav_order: 5
 
 ---
 
-**Goal:** Optimize ck for repositories with 100k+ files and maintain fast search performance.
+**Goal:** Optimize cc for repositories with 100k+ files and maintain fast search performance.
 
 **You'll learn:**
 - Performance optimization strategies
@@ -51,9 +51,9 @@ nav_order: 5
 
 ## Optimization Strategies
 
-### 1. File Filtering with .ckignore
+### 1. File Filtering with .ccignore
 
-Create a `.ckignore` file in your repository root:
+Create a `.ccignore` file in your repository root:
 
 ```bash
 # Exclude build artifacts
@@ -102,9 +102,9 @@ Focus on the languages that matter most:
 
 ```bash
 # Only index specific languages
-ck --sem "error handling" --glob "*.rs" src/
-ck --sem "authentication" --glob "*.{js,ts}" src/
-ck --sem "database" --glob "*.{py,js,go}" src/
+cc --sem "error handling" --glob "*.rs" src/
+cc --sem "authentication" --glob "*.{js,ts}" src/
+cc --sem "database" --glob "*.{py,js,go}" src/
 ```
 
 ### 3. Directory-Specific Search
@@ -113,13 +113,13 @@ Search in specific directories to reduce scope:
 
 ```bash
 # Search only source code
-ck --sem "pattern" src/
+cc --sem "pattern" src/
 
 # Search only tests
-ck --sem "test" tests/
+cc --sem "test" tests/
 
 # Search only documentation
-ck --sem "API" docs/
+cc --sem "API" docs/
 ```
 
 ---
@@ -128,10 +128,10 @@ ck --sem "API" docs/
 
 ### Understanding Index Storage
 
-Indexes are stored in `.ck/` directory:
+Indexes are stored in `.cc/` directory:
 
 ```
-.ck/
+.cc/
 ├── index.bin          # Main search index
 ├── embeddings.bin     # Semantic embeddings
 ├── metadata.json      # Index metadata
@@ -145,7 +145,7 @@ Indexes are stored in `.ck/` directory:
 
 **Check index size:**
 ```bash
-du -sh .ck/
+du -sh .cc/
 ```
 
 **Typical index sizes:**
@@ -158,14 +158,14 @@ du -sh .ck/
 
 When to reindex:
 - After major refactoring
-- When files changed outside ck
-- After updating .ckignore
+- When files changed outside cc
+- After updating .ccignore
 - When index seems corrupted
 
 ```bash
 # Force full reindex
-rm -rf .ck/
-ck --sem "test" .  # This will rebuild the index
+rm -rf .cc/
+cc --sem "test" .  # This will rebuild the index
 ```
 
 ---
@@ -176,13 +176,13 @@ ck --sem "test" .  # This will rebuild the index
 
 ```bash
 # Limit worker threads (default: CPU cores)
-export CK_WORKERS=4
+export CC_WORKERS=4
 
 # Adjust chunk size for embeddings
-export CK_CHUNK_SIZE=512
+export CC_CHUNK_SIZE=512
 
 # Set memory limit
-export CK_MEMORY_LIMIT=2GB
+export CC_MEMORY_LIMIT=2GB
 ```
 
 ### System Requirements
@@ -210,13 +210,13 @@ export CK_MEMORY_LIMIT=2GB
 
 ```bash
 # Fast exact search
-ck "fn test_" tests/
+cc "fn test_" tests/
 
 # Balanced keyword + semantic
-ck --hybrid "authentication" src/
+cc --hybrid "authentication" src/
 
 # Concept discovery
-ck --sem "error handling" src/
+cc --sem "error handling" src/
 ```
 
 ### 2. Optimize Query Specificity
@@ -225,30 +225,30 @@ ck --sem "error handling" src/
 
 ```bash
 # Good: Specific and focused
-ck --sem "JWT token validation" src/auth/
+cc --sem "JWT token validation" src/auth/
 
 # Less optimal: Too broad
-ck --sem "auth" .
+cc --sem "auth" .
 ```
 
 ### 3. Use Thresholds Effectively
 
 ```bash
 # High precision, fewer results
-ck --sem "pattern" --threshold 0.8 src/
+cc --sem "pattern" --threshold 0.8 src/
 
 # Broader search, more results
-ck --sem "pattern" --threshold 0.5 src/
+cc --sem "pattern" --threshold 0.5 src/
 ```
 
 ### 4. Limit Result Count
 
 ```bash
 # Limit to top 10 results
-ck --sem "pattern" --topk 10 src/
+cc --sem "pattern" --topk 10 src/
 
 # Default is 100, max is 1000
-ck --sem "pattern" --topk 50 src/
+cc --sem "pattern" --topk 50 src/
 ```
 
 ---
@@ -261,13 +261,13 @@ ck --sem "pattern" --topk 50 src/
 
 ```bash
 # Search specific project
-ck --sem "pattern" apps/frontend/src/
+cc --sem "pattern" apps/frontend/src/
 
 # Search shared libraries
-ck --sem "pattern" libs/shared/src/
+cc --sem "pattern" libs/shared/src/
 
 # Search across all projects
-ck --sem "pattern" .
+cc --sem "pattern" .
 ```
 
 ### Distributed Development
@@ -276,7 +276,7 @@ ck --sem "pattern" .
 
 ```bash
 # Share index (advanced)
-# Copy .ck/ directory to team members
+# Copy .cc/ directory to team members
 # Note: Indexes are machine-specific, sharing not recommended
 
 # Better: Each developer builds their own index
@@ -289,8 +289,8 @@ ck --sem "pattern" .
 
 ```bash
 # In CI pipeline
-ck --sem "security" --threshold 0.8 src/ > security_scan.txt
-ck --sem "performance" --threshold 0.7 src/ > performance_scan.txt
+cc --sem "security" --threshold 0.8 src/ > security_scan.txt
+cc --sem "performance" --threshold 0.7 src/ > performance_scan.txt
 ```
 
 ---
@@ -301,10 +301,10 @@ ck --sem "performance" --threshold 0.7 src/ > performance_scan.txt
 
 ```bash
 # Check if index exists
-ls -la .ck/
+ls -la .cc/
 
 # Check index metadata
-cat .ck/metadata.json
+cat .cc/metadata.json
 ```
 
 ### Performance Monitoring
@@ -312,10 +312,10 @@ cat .ck/metadata.json
 **Track search performance:**
 ```bash
 # Time your searches
-time ck --sem "pattern" src/
+time cc --sem "pattern" src/
 
 # Monitor memory usage
-top -p $(pgrep ck)
+top -p $(pgrep cc)
 ```
 
 ### Common Issues and Solutions
@@ -326,15 +326,15 @@ top -p $(pgrep ck)
 
 **Issue: High memory usage**
 - **Cause:** Large index in memory
-- **Solution:** Reduce CK_WORKERS, optimize .ckignore
+- **Solution:** Reduce CC_WORKERS, optimize .ccignore
 
 **Issue: Disk space full**
 - **Cause:** Large index files
-- **Solution:** Clean up .ckignore, remove old indexes
+- **Solution:** Clean up .ccignore, remove old indexes
 
 **Issue: Search returns no results**
-- **Cause:** Files excluded by .ckignore
-- **Solution:** Check .ckignore rules, use --debug flag
+- **Cause:** Files excluded by .ccignore
+- **Solution:** Check .ccignore rules, use --debug flag
 
 ---
 
@@ -344,13 +344,13 @@ top -p $(pgrep ck)
 
 ```bash
 # Use multiple cores for indexing
-export CK_WORKERS=8
-ck --sem "test" .  # Will use 8 threads
+export CC_WORKERS=8
+cc --sem "test" .  # Will use 8 threads
 ```
 
 ### Incremental Updates
 
-ck automatically updates indexes when files change:
+cc automatically updates indexes when files change:
 - **File modified:** Index updated incrementally
 - **File added:** Added to index
 - **File deleted:** Removed from index
@@ -362,7 +362,7 @@ For very large files, consider splitting:
 
 ```bash
 # Search in specific file ranges
-ck --sem "pattern" --glob "*.rs" src/ | head -100
+cc --sem "pattern" --glob "*.rs" src/ | head -100
 ```
 
 ---
@@ -373,26 +373,26 @@ ck --sem "pattern" --glob "*.rs" src/ | head -100
 
 ```bash
 # Weekly: Check index size
-du -sh .ck/
+du -sh .cc/
 
 # Monthly: Clean up old indexes
-find . -name ".ck" -type d -mtime +30 -exec rm -rf {} \;
+find . -name ".cc" -type d -mtime +30 -exec rm -rf {} \;
 
 # As needed: Reindex after major changes
-rm -rf .ck/ && ck --sem "test" .
+rm -rf .cc/ && cc --sem "test" .
 ```
 
 ### 2. Team Coordination
 
-- **Share .ckignore** via version control
+- **Share .ccignore** via version control
 - **Document search strategies** for common patterns
-- **Set up CI/CD** with ck for automated analysis
+- **Set up CI/CD** with cc for automated analysis
 
 ### 3. Performance Monitoring
 
 - **Track search times** for common queries
 - **Monitor index sizes** across different repos
-- **Optimize .ckignore** based on usage patterns
+- **Optimize .ccignore** based on usage patterns
 
 ---
 
@@ -403,10 +403,10 @@ rm -rf .ck/ && ck --sem "test" .
 **Problem: Index building takes forever**
 ```bash
 # Check what's being indexed
-ck --sem "test" --debug .
+cc --sem "test" --debug .
 
-# Optimize .ckignore
-# Reduce CK_WORKERS if memory constrained
+# Optimize .ccignore
+# Reduce CC_WORKERS if memory constrained
 ```
 
 **Problem: Search is slow**
@@ -419,10 +419,10 @@ ck --sem "test" --debug .
 
 **Problem: Out of memory**
 ```bash
-# Reduce CK_WORKERS
-export CK_WORKERS=2
+# Reduce CC_WORKERS
+export CC_WORKERS=2
 
-# Optimize .ckignore to exclude large files
+# Optimize .ccignore to exclude large files
 # Consider searching smaller directories
 ```
 

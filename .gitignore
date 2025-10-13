@@ -2,9 +2,9 @@
 target/
 **/*.rs.bk
 
-# ck index files
-.ck/
-.ckignore
+# cc index files
+.cc/
+.ccignore
 # IDE
 .vscode/
 .idea/

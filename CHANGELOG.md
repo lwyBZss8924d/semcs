@@ -29,9 +29,9 @@ All notable changes to this project will be documented in this file.
 - **SearchResults Enhancement**: Added `closest_below_threshold` field for improved UX
 - **Comprehensive Testing**: 7 new MCP integration tests covering pagination, validation, and edge cases
 - **Line Ending Support**: `split_lines_with_endings()` tracks exact byte lengths per line
-- **TUI Refactoring**: Extracted TUI functionality into dedicated `ck-tui` crate (3,084 lines)
+- **TUI Refactoring**: Extracted TUI functionality into dedicated `cc-tui` crate (3,084 lines)
 - **Modular Architecture**: Clean separation of TUI components with public API
-- **Config Persistence**: TUI preferences saved to `~/.config/ck/tui.json`
+- **Config Persistence**: TUI preferences saved to `~/.config/cc/tui.json`
 
 ### Breaking Changes
 - **Span Construction**: Use `Span::new()` for validated construction instead of struct literals (backward compatible via `Span::new_unchecked()`)
@@ -39,20 +39,20 @@ All notable changes to this project will be documented in this file.
 ## [0.5.3] - 2025-09-29
 
 ### Added
-- **`.ckignore` file support**: Automatic creation of `.ckignore` file with sensible defaults for persistent exclusion patterns
+- **`.ccignore` file support**: Automatic creation of `.ccignore` file with sensible defaults for persistent exclusion patterns
 - **Media file exclusions**: Images (png, jpg, gif, svg, etc.), videos (mp4, avi, mov, etc.), and audio files (mp3, wav, flac, etc.) excluded by default
 - **Config file exclusions**: JSON and YAML files excluded from indexing by default to reduce noise in search results
-- **`--no-ckignore` flag**: Option to bypass `.ckignore` patterns when needed
+- **`--no-ccignore` flag**: Option to bypass `.ccignore` patterns when needed
 - **Persistent patterns**: Exclusion patterns persist across searches without needing command-line flags each time
 
 ### Fixed
-- **Exclusion pattern persistence** (issue #67): Patterns now persist in `.ckignore` instead of requiring `--exclude` flags on every search
+- **Exclusion pattern persistence** (issue #67): Patterns now persist in `.ccignore` instead of requiring `--exclude` flags on every search
 - **Media file indexing** (issue #66): Images, videos, and other binary files no longer indexed by default
 - **Config file noise** (issue #27): JSON/YAML config files excluded to focus search on actual code
 
 ### Technical
-- **Additive pattern merging**: `.gitignore` + `.ckignore` + CLI + defaults all merge together (not mutually exclusive)
-- **Auto-creation on first index**: `.ckignore` created automatically at repository root during first indexing
+- **Additive pattern merging**: `.gitignore` + `.ccignore` + CLI + defaults all merge together (not mutually exclusive)
+- **Auto-creation on first index**: `.ccignore` created automatically at repository root during first indexing
 - **Glob pattern syntax**: Uses same pattern syntax as `.gitignore` for familiarity
 - **Comprehensive test coverage**: 4 new tests covering creation, parsing, and exclusion logic
 
@@ -74,7 +74,7 @@ All notable changes to this project will be documented in this file.
 ### Technical
 - **Atomic file operations**: Uses `tempfile::NamedTempFile` for cross-platform atomic writes with proper sync guarantees
 - **Model registry integration**: Centralized model management with alias support and dimension tracking
-- **Enhanced error messages**: User-friendly error messages with exact commands to resolve issues (e.g., "run `ck --clean .` then rebuild")
+- **Enhanced error messages**: User-friendly error messages with exact commands to resolve issues (e.g., "run `cc --clean .` then rebuild")
 - **Legacy code cleanup**: Removed 338 lines of unused ANN semantic search implementation
 - **Interrupt handling**: Proper Ctrl+C handling during indexing with graceful cleanup
 
@@ -121,7 +121,7 @@ All notable changes to this project will be documented in this file.
 - **Model compatibility checking**: Index operations now validate model compatibility and provide clear error messages for mismatches
 
 ### Technical
-- **Model registry system**: New `ck-models` crate with centralized model configuration and limits
+- **Model registry system**: New `cc-models` crate with centralized model configuration and limits
 - **Index manifest enhancement**: Added `embedding_model` and `embedding_dimensions` fields to track model used for indexing
 - **Backward compatibility**: Existing indexes without model metadata continue to work with default BGE model
 - **Architecture fix**: Corrected design where model selection was incorrectly a search-time option instead of index-time configuration
@@ -184,7 +184,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **Enhanced model caching documentation**: Updated README with comprehensive information about embedding model cache locations
-- **Platform-specific cache paths**: Documented cache directories for Linux/macOS (`~/.cache/ck/models/`), Windows (`%LOCALAPPDATA%\ck\cache\models\`), and fallback locations
+- **Platform-specific cache paths**: Documented cache directories for Linux/macOS (`~/.cache/cc/models/`), Windows (`%LOCALAPPDATA%\cc\cache\models\`), and fallback locations
 - **Model download transparency**: Clear documentation of where fastembed stores ONNX models when downloaded during indexing
 
 ### Fixed
@@ -279,7 +279,7 @@ All notable changes to this project will be documented in this file.
 ## [0.1.0] - Initial Release
 
 ### Added
-- Initial version of ck project with core functionality
+- Initial version of cc project with core functionality
 - Drop-in grep compatibility with semantic search capabilities
 - Basic regex, semantic, lexical, and hybrid search modes
 - JSON output format for agent-friendly integration

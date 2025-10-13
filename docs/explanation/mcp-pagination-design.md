@@ -1,6 +1,6 @@
 # MCP Pagination Design
 
-This document outlines the design for adding first-class pagination and size controls to ck's MCP search tools to avoid large token responses.
+This document outlines the design for adding first-class pagination and size controls to cc's MCP search tools to avoid large token responses.
 
 ## Phase 0: Design & Request/Response Shapes
 
@@ -89,7 +89,7 @@ Cursors are base64-encoded JSON containing:
 
 ### Session Management
 
-- **Location**: `ck-cli/src/mcp/session.rs`
+- **Location**: `cc-cli/src/mcp/session.rs`
 - **Session Storage**: In-memory HashMap with UUID keys
 - **TTL**: 5 minutes from last access
 - **Max Sessions**: 100 per server instance
@@ -121,7 +121,7 @@ pub struct SearchSession {
 ### Search Flow Changes
 
 1. **First Request** (no cursor):
-   - Execute full search via `ck_engine`
+   - Execute full search via `cc_engine`
    - Create session and cache results
    - Return first page with `next_cursor`
 
@@ -140,9 +140,9 @@ pub struct SearchSession {
 
 ### Compatibility Strategy
 
-- **CLI Path**: Unchanged, uses existing `ck_engine::search_enhanced_with_indexing_progress`
+- **CLI Path**: Unchanged, uses existing `cc_engine::search_enhanced_with_indexing_progress`
 - **MCP Path**: Uses new session-based pagination layer
-- **Shared Code**: Core search functionality remains in `ck_engine`
+- **Shared Code**: Core search functionality remains in `cc_engine`
 - **Feature Gates**: Session code behind `#[cfg(feature = "mcp")]`
 
 ### Default Differences

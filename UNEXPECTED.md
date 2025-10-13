@@ -1,6 +1,6 @@
-# Unexpected Behaviors in ck
+# Unexpected Behaviors in cc
 
-This file tracks instances where ck behaves unexpectedly during testing or usage.
+This file tracks instances where cc behaves unexpectedly during testing or usage.
 
 ## Format
 
@@ -14,7 +14,7 @@ This file tracks instances where ck behaves unexpectedly during testing or usage
 
 ## Issues Found
 
-**Command:** `ck ""`
+**Command:** `cc ""`
 **Expected:** Error message or no results
 **Actual:** Massive output with every empty line in the codebase being matched
 **Date:** 2025-09-13
@@ -23,16 +23,16 @@ This file tracks instances where ck behaves unexpectedly during testing or usage
 
 ---
 
-**Command:** `ck --add /tmp/test.txt`
+**Command:** `cc --add /tmp/test.txt`
 **Expected:** Add file to index or meaningful error
-**Actual:** Error: "No file specified. Usage: ck --add <file>"
+**Actual:** Error: "No file specified. Usage: cc --add <file>"
 **Date:** 2025-09-13
 **Status:** Open
 **Notes:** The error message is incorrect - a file was specified. Seems like argument parsing issue.
 
 ---
 
-**Command:** `ck --sem "🎉🦀✨"`
+**Command:** `cc --sem "🎉🦀✨"`
 **Expected:** No results or error about emoji patterns
 **Actual:** Returns seemingly random code results
 **Date:** 2025-09-13
@@ -43,7 +43,7 @@ This file tracks instances where ck behaves unexpectedly during testing or usage
 
 ## Instructions
 
-When you encounter unexpected behavior while using ck:
+When you encounter unexpected behavior while using cc:
 
 1. Note the exact command you ran
 2. Describe what you expected to happen

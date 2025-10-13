@@ -1,12 +1,12 @@
-# PRD + Engineering Plan: **ck — Semantic Grep by Embedding**
+# PRD + Engineering Plan: **cc — Semantic Grep by Embedding**
 
 ---
 
 ## Overview
 
-**ck (seek)** is a Rust-based drop-in replacement for `grep`, extended with semantic and vector search capabilities. It fingerprints files, stores span embeddings, and allows both regex and semantic queries over text/code.
+**cc (seek)** is a Rust-based drop-in replacement for `grep`, extended with semantic and vector search capabilities. It fingerprints files, stores span embeddings, and allows both regex and semantic queries over text/code.
 
-Just as **uv** modernized `pip`, **ck** modernizes `grep`: fast, lightweight, agent-friendly, and extensible.
+Just as **uv** modernized `pip`, **cc** modernizes `grep`: fast, lightweight, agent-friendly, and extensible.
 
 ---
 
@@ -18,7 +18,7 @@ Just as **uv** modernized `pip`, **ck** modernizes `grep`: fast, lightweight, ag
 * **Code-Aware Chunking**: Default span segmentation + language-aware chunkers (Python → TypeScript → others).
 * **Rust-First Implementation**: High performance, portable, no runtime deps.
 * **Modular & Extensible**: Pluggable ANN index backends, embedders, and chunkers.
-* **Self-contained**: Sidecar `.ck/` directory at repo root, fully removable, reproducible, idempotent.
+* **Self-contained**: Sidecar `.cc/` directory at repo root, fully removable, reproducible, idempotent.
 
 ---
 
@@ -32,7 +32,7 @@ Just as **uv** modernized `pip`, **ck** modernizes `grep`: fast, lightweight, ag
 
 ## Target Users
 
-* **LLM Agents** — primary consumers, via JSON. Use `ck` to “see” code semantically.
+* **LLM Agents** — primary consumers, via JSON. Use `cc` to “see” code semantically.
 * **Developers** — command-line users who need grep-like familiarity with semantic upgrades.
 
 ---
@@ -51,15 +51,15 @@ Just as **uv** modernized `pip`, **ck** modernizes `grep`: fast, lightweight, ag
 
 ### 2. Span Fingerprinting & Indexing
 
-* Sidecar `.ck/` at repo root, mirrors repo layout (`foo.rs` → `.ck/foo.rs.ck`).
+* Sidecar `.cc/` at repo root, mirrors repo layout (`foo.rs` → `.cc/foo.rs.cc`).
 * **File-level hashing** (blake3 or sha256).
 * Lifecycle:
 
-  * `ck --index path/` → build/update incrementally (only rebuild files whose hash changed).
-  * `ck --reindex` → force index update before searching.
-  * `ck --clean` → wipe sidecar fully (safe to rebuild).
+  * `cc --index path/` → build/update incrementally (only rebuild files whose hash changed).
+  * `cc --reindex` → force index update before searching.
+  * `cc --clean` → wipe sidecar fully (safe to rebuild).
   * Smart incremental updates: hash-based change detection for fast re-indexing.
-* **CI Guidance**: Recommend **regen per build**; `.ck/` is a cache artifact, not checked into VCS.
+* **CI Guidance**: Recommend **regen per build**; `.cc/` is a cache artifact, not checked into VCS.
 * **Concurrency**: atomic replace via `.tmp` + rename, file-level granularity.
 
 ### 3. Code-Aware Chunking
@@ -84,9 +84,9 @@ Just as **uv** modernized `pip`, **ck** modernizes `grep`: fast, lightweight, ag
 * CLI examples:
 
   ```bash
-  ck --sem "retry with exponential backoff" src/     # Uses defaults: top 10, threshold ≥0.6
-  ck --regex "httpClient" src/
-  ck --hybrid --limit 20 "connection pool"          # --limit is alias for --topk
+  cc --sem "retry with exponential backoff" src/     # Uses defaults: top 10, threshold ≥0.6
+  cc --regex "httpClient" src/
+  cc --hybrid --limit 20 "connection pool"          # --limit is alias for --topk
   ```
 
 ### 5. Agent-Friendly Output
@@ -149,18 +149,18 @@ pub trait AnnIndex {
 }
 ```
 
-* Incremental add/update supported (`ck add file.rs`).
+* Incremental add/update supported (`cc add file.rs`).
 * ANN backend chosen at build (hnsw default, faiss optional).
-* Model registry (`models.toml`) + per-project config (`ck.toml`).
+* Model registry (`models.toml`) + per-project config (`cc.toml`).
 
 ---
 
 ## User Stories
 
-* As an agent, I can `ck --json "find exponential backoff logic"` and get structured spans I can edit or extend.
-* As a dev, I can run `ck -n "httpClient" src/` and see identical results to grep.
-* As a dev, I can run `ck --sem "database connection pool"` and discover functions not matching literal keywords.
-* As a system, I can update `.ck` indexes incrementally after a file changes.
+* As an agent, I can `cc --json "find exponential backoff logic"` and get structured spans I can edit or extend.
+* As a dev, I can run `cc -n "httpClient" src/` and see identical results to grep.
+* As a dev, I can run `cc --sem "database connection pool"` and discover functions not matching literal keywords.
+* As a system, I can update `.cc` indexes incrementally after a file changes.
 
 ---
 
@@ -187,7 +187,7 @@ pub trait AnnIndex {
 * ✅ **Agent usability:** JSON mode works out-of-box for Claude/GPT.
 * ✅ **Performance:** sub-500ms queries, lightweight indexes.
 * ✅ **Extensibility:** new chunker < 500 LOC; new embedder < 200 LOC.
-* ✅ **Index hygiene:** `ck clean && ck index` → reproducible results.
+* ✅ **Index hygiene:** `cc clean && cc index` → reproducible results.
 * ✅ **Production readiness:** Comprehensive testing, installation scripts, proper exclusions.
 * ✅ **Code-aware features:** `--full-section` flag for complete semantic units.
 
@@ -196,15 +196,15 @@ pub trait AnnIndex {
 ## Cargo Workspace Layout
 
 ```
-ck/
-├── ck-cli/       # end-user binary
-├── ck-core/      # shared core logic
-├── ck-index/     # index builder (sidecars, hashes)
-├── ck-search/    # query engine (BM25 + ANN + RRF fusion)
-├── ck-chunk/     # span segmentation + tree-sitter
-├── ck-embed/     # embedders (fastembed, Candle, API)
-├── ck-ann/       # ANN backends (HNSW, FAISS)
-└── ck-models/    # model registry + config
+cc/
+├── cc-cli/       # end-user binary
+├── cc-core/      # shared core logic
+├── cc-index/     # index builder (sidecars, hashes)
+├── cc-search/    # query engine (BM25 + ANN + RRF fusion)
+├── cc-chunk/     # span segmentation + tree-sitter
+├── cc-embed/     # embedders (fastembed, Candle, API)
+├── cc-ann/       # ANN backends (HNSW, FAISS)
+└── cc-models/    # model registry + config
 ```
 
 ---
@@ -216,21 +216,21 @@ ck/
 * ✅ Workspace scaffolding.
 * ✅ Regex-focused CLI with grep parity for core flags (`-n`, `-C/-A/-B`, `-R`, `-i`, `-F`, `-w`, `--no-filename`, `-H`).
 * ✅ Deterministic output ordering and grep-like exit codes.
-* ✅ `.ck/` sidecar spec defined (file-level hash).
+* ✅ `.cc/` sidecar spec defined (file-level hash).
 * ✅ Comprehensive test suite (40+ tests) validates grep parity.
 
 ### **M1 — Lexical Search** ✅ COMPLETED
 
 * ✅ Tantivy BM25 integration.
-* ✅ CLI: `ck --lex query`.
-* ✅ Respects `recursive` flag consistently and reuses nearest existing `.ck` index by walking up from the search path.
+* ✅ CLI: `cc --lex query`.
+* ✅ Respects `recursive` flag consistently and reuses nearest existing `.cc` index by walking up from the search path.
 
 ### **M2 — Semantic Embeddings** ✅ COMPLETED
 
 * ✅ Fastembed integration (feature-gated, dummy fallback for CI).
 * ✅ Basic ANN backend (SimpleIndex with cosine similarity).
-* ✅ CLI: `ck --sem query`.
-* ✅ Respects `recursive` flag consistently and reuses nearest existing `.ck` index by walking up from the search path.
+* ✅ CLI: `cc --sem query`.
+* ✅ Respects `recursive` flag consistently and reuses nearest existing `.cc` index by walking up from the search path.
 * ⚠️ Note: Uses basic brute-force search, not HNSW (optimization needed for large codebases).
 
 ### **M3 — Hybrid Search** ✅ COMPLETED
@@ -257,14 +257,14 @@ ck/
 
 ### **M6 — Extensibility & Cleanup** ✅ COMPLETED
 
-* ✅ `ck --clean` + robust lifecycle.
+* ✅ `cc --clean` + robust lifecycle.
 * ✅ Index management (`--status`, `--add`, `--clean-orphans`).
 * ✅ Smart exclusion patterns (build artifacts, virtual environments).
 * ✅ File listing flags (`-l`/`-L` for grep compatibility).
 * ✅ Incremental indexing with hash-based change detection.
 * ✅ Enhanced UX with intelligent defaults and informational output.
 * 🚧 FAISS + Candle optional backends (deferred).
-* 🚧 Model registry + per-project `ck.toml` (deferred).
+* 🚧 Model registry + per-project `cc.toml` (deferred).
 
 ---
 
@@ -273,7 +273,7 @@ ck/
 * ✅ Simple ANN index implemented (HNSW/FAISS deferred for performance optimization).
 * ✅ fastembed integration (feature-gated for CI compatibility).
 * ✅ JSON schema versioning (`--json` flag).
-* ✅ Sidecar `.ck/` is cache-only, not committed to VCS.
+* ✅ Sidecar `.cc/` is cache-only, not committed to VCS.
 * ✅ Hybrid fusion via Reciprocal Rank Fusion (RRF).
 * ✅ File-level hash indexing; reindex on-demand with `--reindex`.
 * ✅ Exclusion patterns with comprehensive defaults (`.git`, `node_modules`, `.venv`, `__pycache__`, etc.).
@@ -311,7 +311,7 @@ ck/
 
 ### 🎯 **Future Considerations** (Post v1.0)
 1. **Performance Optimization**: HNSW or FAISS backends for very large codebases
-2. **Configuration System**: Support `.ck/config.toml` for per-project settings  
+2. **Configuration System**: Support `.cc/config.toml` for per-project settings  
 3. **Language Expansion**: Add Rust, Go, Java tree-sitter support based on demand
 4. **Package Distribution**: Homebrew, cargo install, apt packages for easier installation
 5. **Advanced Features**: Multi-language semantic understanding, IDE integrations
@@ -320,8 +320,8 @@ ck/
 
 ## Branding
 
-**ck — seek code, semantically.**
+**cc — seek code, semantically.**
 c = see, k = seek.
-Unix-y minimalism; short, verb-friendly: "just ck it."
+Unix-y minimalism; short, verb-friendly: "just cc it."
 
 ---

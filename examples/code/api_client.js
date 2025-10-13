@@ -1,5 +1,5 @@
 /**
- * API Client for demonstrating ck semantic search capabilities
+ * API Client for demonstrating cc semantic search capabilities
  * This file contains various patterns for HTTP requests, error handling, and authentication
  */
 
@@ -115,7 +115,7 @@ class ApiClient {
         return new Promise((resolve, reject) => {
             const headers = {
                 'Content-Type': 'application/json',
-                'User-Agent': 'ck-demo-client/1.0',
+                'User-Agent': 'cc-demo-client/1.0',
                 ...customHeaders
             };
 

@@ -1,4 +1,4 @@
-// Example Rust web server for demonstrating ck search capabilities
+// Example Rust web server for demonstrating cc search capabilities
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;

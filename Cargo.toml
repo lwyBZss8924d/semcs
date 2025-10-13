@@ -1,15 +1,15 @@
 [workspace]
 resolver = "2"
 members = [
-    "ck-cli",
-    "ck-core",
-    "ck-index",
-    "ck-engine",
-    "ck-chunk",
-    "ck-embed",
-    "ck-ann",
-    "ck-models",
-    "ck-tui",
+    "cc-cli",
+    "cc-core",
+    "cc-index",
+    "cc-engine",
+    "cc-chunk",
+    "cc-embed",
+    "cc-ann",
+    "cc-models",
+    "cc-tui",
 ]
 
 [workspace.package]
@@ -17,7 +17,7 @@ version = "0.6.0"
 edition = "2024"
 authors = ["Mike Renwick"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/BeaconBay/ck"
+repository = "https://github.com/BeaconBay/cc"
 rust-version = "1.88.0"
 
 

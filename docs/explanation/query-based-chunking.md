@@ -1,6 +1,6 @@
 # Query-Based Chunking Overview
 
-`ck-chunk` now drives language-aware chunk boundaries through Tree-sitter queries instead of handwritten matchers. Each language opts in by providing `queries/<language>/tags.scm` with captures that describe the constructs we care about (functions, struct/enum definitions, modules, etc.).
+`cc-chunk` now drives language-aware chunk boundaries through Tree-sitter queries instead of handwritten matchers. Each language opts in by providing `queries/<language>/tags.scm` with captures that describe the constructs we care about (functions, struct/enum definitions, modules, etc.).
 
 ## Capture Conventions
 
@@ -12,7 +12,7 @@
   - `module`, `impl`, `mod`, `namespace` → `ChunkType::Module`
 - Non-matching captures are ignored by the refinement pipeline.
 
-See `ck-chunk/queries/rust/tags.scm` for an example.
+See `cc-chunk/queries/rust/tags.scm` for an example.
 
 ### Current Query Coverage
 
@@ -29,7 +29,7 @@ See `ck-chunk/queries/rust/tags.scm` for an example.
 
 ## Runtime Overrides
 
-Embedded queries can be overridden without recompiling by setting `CK_CHUNK_QUERY_DIR` to a directory containing `<language>/tags.scm`. The loader falls back to the compiled queries when no override is present.
+Embedded queries can be overridden without recompiling by setting `CC_CHUNK_QUERY_DIR` to a directory containing `<language>/tags.scm`. The loader falls back to the compiled queries when no override is present.
 
 ## Chunk Metadata
 

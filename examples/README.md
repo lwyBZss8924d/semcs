@@ -1,12 +1,12 @@
-# ck Examples
+# cc Examples
 
-This folder demonstrates practical use cases for `ck` (semantic grep) with real code examples.
+This folder demonstrates practical use cases for `cc` (semantic grep) with real code examples.
 
 ## Quick Start
 
 1. **Index the examples first** (required for semantic/lexical/hybrid search):
    ```bash
-   ck --index examples/
+   cc --index examples/
    ```
 
 2. **Try the quick demo**:
@@ -34,19 +34,19 @@ Classic grep-style pattern matching:
 
 ```bash
 # Basic text search
-ck "error" examples/
+cc "error" examples/
 
 # Case-insensitive search  
-ck -i "database" examples/
+cc -i "database" examples/
 
 # Whole word matching
-ck -w "class" examples/
+cc -w "class" examples/
 
 # Fixed string (no regex)
-ck -F "def __init__" examples/
+cc -F "def __init__" examples/
 
 # With line numbers and context
-ck -n -C 2 "error" examples/
+cc -n -C 2 "error" examples/
 ```
 
 ### 2. **Semantic Search** (Finds conceptually similar code)
@@ -54,19 +54,19 @@ Understands meaning, not just text matches:
 
 ```bash
 # Find error handling patterns (try/catch, exception handling, etc.)
-ck --sem "error handling" examples/
+cc --sem "error handling" examples/
 
 # Find database-related code
-ck --sem "database connection" text_samples/
+cc --sem "database connection" text_samples/
 
 # Find authentication logic
-ck --sem "user authentication" examples/
+cc --sem "user authentication" examples/
 
 # Limit results and show scores
-ck --sem --limit 5 --scores "data processing" examples/
+cc --sem --limit 5 --scores "data processing" examples/
 
 # Higher precision filtering
-ck --sem --threshold 0.8 "function" examples/
+cc --sem --threshold 0.8 "function" examples/
 ```
 
 ### 3. **Lexical Search** (BM25 full-text search with ranking)
@@ -74,10 +74,10 @@ Better than regex for phrase matching:
 
 ```bash
 # Full-text search with relevance ranking
-ck --lex "user authentication" examples/
+cc --lex "user authentication" examples/
 
 # Multi-word phrases
-ck --lex "error handling patterns" examples/
+cc --lex "error handling patterns" examples/
 ```
 
 ### 4. **Hybrid Search** (Best of both worlds)
@@ -85,13 +85,13 @@ Combines regex precision with semantic understanding:
 
 ```bash
 # Most comprehensive search
-ck --hybrid "async function" examples/
+cc --hybrid "async function" examples/
 
 # Find specific patterns with semantic context
-ck --hybrid "database" --limit 10 examples/
+cc --hybrid "database" --limit 10 examples/
 
 # Show relevance scores
-ck --hybrid "error" --scores examples/
+cc --hybrid "error" --scores examples/
 ```
 
 ## Advanced Features
@@ -101,10 +101,10 @@ Get complete code blocks instead of just matching lines:
 
 ```bash
 # Return entire functions/classes containing matches
-ck --sem --full-section "error handling" examples/
+cc --sem --full-section "error handling" examples/
 
 # Works with all search modes
-ck --hybrid --full-section "database" examples/
+cc --hybrid --full-section "database" examples/
 ```
 
 ### JSON Output
@@ -112,21 +112,21 @@ Machine-readable results for scripts and tools:
 
 ```bash
 # JSON output for integration
-ck --json --sem "error handling" examples/
+cc --json --sem "error handling" examples/
 
 # Pipe to jq for processing
-ck --json --sem "database" examples/ | jq '.preview'
+cc --json --sem "database" examples/ | jq '.preview'
 ```
 
 ### Context and Formatting
 ```bash
 # Show surrounding lines
-ck -A 3 -B 1 "class" examples/    # 3 after, 1 before
-ck -C 2 "def" examples/           # 2 lines of context
+cc -A 3 -B 1 "class" examples/    # 3 after, 1 before
+cc -C 2 "def" examples/           # 2 lines of context
 
 # File listing modes
-ck -l "error" examples/           # List files with matches
-ck -L "nonexistent" examples/     # List files without matches
+cc -l "error" examples/           # List files with matches
+cc -L "nonexistent" examples/     # List files without matches
 ```
 
 ## Practical Use Cases
@@ -134,44 +134,44 @@ ck -L "nonexistent" examples/     # List files without matches
 ### 1. **Code Review**
 ```bash
 # Find potential security issues
-ck --sem "sql injection" examples/
-ck --sem "password storage" examples/
+cc --sem "sql injection" examples/
+cc --sem "password storage" examples/
 
 # Find error handling patterns
-ck --sem "exception handling" examples/
+cc --sem "exception handling" examples/
 ```
 
 ### 2. **Code Exploration** 
 ```bash
 # Understand new codebase
-ck --sem "main entry point" examples/
-ck --sem "configuration setup" examples/
+cc --sem "main entry point" examples/
+cc --sem "configuration setup" examples/
 
 # Find similar implementations
-ck --sem "data validation" examples/
+cc --sem "data validation" examples/
 ```
 
 ### 3. **Refactoring**
 ```bash
 # Find deprecated patterns
-ck --hybrid "old api" examples/
+cc --hybrid "old api" examples/
 
 # Locate specific implementations
-ck --sem "async operations" examples/
+cc --sem "async operations" examples/
 ```
 
 ### 4. **Documentation**
 ```bash
 # Find examples of usage
-ck --sem "example usage" examples/
+cc --sem "example usage" examples/
 
 # Locate API patterns
-ck --sem "rest api" examples/
+cc --sem "rest api" examples/
 ```
 
 ## Performance Tips
 
-- **Index once, search many times**: Use `ck --index` before semantic searches
+- **Index once, search many times**: Use `cc --index` before semantic searches
 - **Use appropriate search modes**: 
   - Regex for exact patterns
   - Semantic for concept-based searches  
@@ -181,19 +181,19 @@ ck --sem "rest api" examples/
 
 ## Try It Yourself
 
-Run these commands to see `ck` in action:
+Run these commands to see `cc` in action:
 
 ```bash
 # Index the examples
-ck --index examples/
+cc --index examples/
 
 # Compare different search modes on the same query
 echo "=== Regex ==="
-ck "error" examples/
+cc "error" examples/
 echo "=== Semantic ==="  
-ck --sem "error" examples/
+cc --sem "error" examples/
 echo "=== Hybrid ==="
-ck --hybrid "error" examples/
+cc --hybrid "error" examples/
 ```
 
 Notice how each mode finds different but relevant results!

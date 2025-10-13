@@ -11,7 +11,7 @@ The TUI (Text User Interface) provides a beautiful, interactive search experienc
 
 ## Overview
 
-The TUI mode transforms `ck` into a visual, interactive search tool that provides:
+The TUI mode transforms `cc` into a visual, interactive search tool that provides:
 - **Live search results** as you type
 - **Multiple preview modes** for understanding code context
 - **Semantic, regex, and hybrid search** modes switchable with a keypress
@@ -32,30 +32,30 @@ The TUI is designed for:
 
 ```bash
 # Start interactive search in current directory
-ck --tui .
+cc --tui .
 
 # Start in a specific directory
-ck --tui src/
+cc --tui src/
 ```
 
 ### Launch with Initial Query
 
 ```bash
 # Start with semantic search
-ck --tui --sem "error handling" src/
+cc --tui --sem "error handling" src/
 
 # Start with regex pattern
-ck --tui --regex "fn \w+_test" .
+cc --tui --regex "fn \w+_test" .
 
 # Start with hybrid search
-ck --tui --hybrid "timeout" .
+cc --tui --hybrid "timeout" .
 ```
 
 ### Launch Behavior
 
 - First search in a directory creates an index (~1-2 seconds for medium repos)
 - Subsequent searches are instant (uses cached index)
-- TUI respects `.gitignore` and `.ckignore` files
+- TUI respects `.gitignore` and `.ccignore` files
 - Defaults to semantic search mode
 
 ---
@@ -448,7 +448,7 @@ impl Config {
 **Goal:** Locate and open a function for editing
 
 **Steps:**
-1. Launch TUI: `ck --tui src/`
+1. Launch TUI: `cc --tui src/`
 2. Press `s` to ensure semantic mode
 3. Type query: "parse configuration file"
 4. Press `Enter` to search
@@ -468,7 +468,7 @@ impl Config {
 **Goal:** Learn how errors are handled across the codebase
 
 **Steps:**
-1. Search: `ck --tui --sem "error handling" .`
+1. Search: `cc --tui --sem "error handling" .`
 2. Review initial results
 3. Press `m` for heatmap mode
 4. See which specific lines handle errors
@@ -489,7 +489,7 @@ impl Config {
 **Goal:** Find all TODO comments and understand surrounding code
 
 **Steps:**
-1. Launch TUI: `ck --tui .`
+1. Launch TUI: `cc --tui .`
 2. Press `r` for regex mode
 3. Type pattern: `TODO|FIXME|XXX`
 4. Press `Enter` to search
@@ -509,7 +509,7 @@ impl Config {
 **Goal:** See different ways a pattern is implemented
 
 **Steps:**
-1. Search: `ck --tui --sem "caching strategy" .`
+1. Search: `cc --tui --sem "caching strategy" .`
 2. Press `m` for heatmap mode
 3. Note files with highest scores
 4. Navigate through top results
@@ -529,7 +529,7 @@ impl Config {
 **Goal:** Understand how a specific pattern is used
 
 **Steps:**
-1. Search broad concept: `ck --tui --sem "database queries" .`
+1. Search broad concept: `cc --tui --sem "database queries" .`
 2. Review results in chunks mode
 3. Switch to heatmap to see key lines
 4. For interesting results, press `f` for full context
@@ -550,7 +550,7 @@ impl Config {
 **Goal:** Track down a bug across multiple files
 
 **Steps:**
-1. Search: `ck --tui --sem "authentication token validation" src/`
+1. Search: `cc --tui --sem "authentication token validation" src/`
 2. Navigate results
 3. Use `y` to copy path of suspicious files
 4. Press `Enter` to open first file
@@ -597,10 +597,10 @@ export TERM=screen-256color  # tmux 256 color support
 
 ```bash
 # Custom theme (if supported in future versions)
-export CK_THEME=dark
+export CC_THEME=dark
 
 # Clipboard integration (usually automatic)
-export CK_CLIPBOARD=enabled
+export CC_CLIPBOARD=enabled
 ```
 
 ---
@@ -628,19 +628,19 @@ The TUI adapts to your terminal's color scheme:
 
 ---
 
-### .ckignore Configuration
+### .ccignore Configuration
 
-The TUI respects `.ckignore` files for excluding directories and files from search:
+The TUI respects `.ccignore` files for excluding directories and files from search:
 
 ```bash
-# Example .ckignore
+# Example .ccignore
 node_modules/
 target/
 *.log
 .git/
 ```
 
-Place `.ckignore` in your project root or search directory. See [Configuration Reference](configuration.html) for full details.
+Place `.ccignore` in your project root or search directory. See [Configuration Reference](configuration.html) for full details.
 
 ---
 
@@ -679,8 +679,8 @@ Place `.ckignore` in your project root or search directory. See [Configuration R
 
 **Index management:**
 1. **Index once, search many**: First search creates index (~1-2 sec for medium repos)
-2. **Reindex when needed**: Delete `.ck/` directory to rebuild index
-3. **Exclude large dirs**: Use `.ckignore` for `node_modules`, `target`, etc.
+2. **Reindex when needed**: Delete `.cc/` directory to rebuild index
+3. **Exclude large dirs**: Use `.ccignore` for `node_modules`, `target`, etc.
 
 **Search optimization:**
 1. **Use regex for exact matches**: Faster than semantic for simple string searches
@@ -693,7 +693,7 @@ Place `.ckignore` in your project root or search directory. See [Configuration R
 3. **Heatmap mode**: Moderate performance, great for skimming
 
 **Large codebase tips:**
-- Use `.ckignore` aggressively to exclude irrelevant directories
+- Use `.ccignore` aggressively to exclude irrelevant directories
 - Search specific subdirectories instead of entire repo
 - Use hybrid mode to combine keyword filtering with semantic ranking
 - Consider regex mode for simple searches (no indexing required)
@@ -776,7 +776,7 @@ echo $TERM
 # Should output: xterm-256color, screen-256color, etc.
 
 # Try explicit TERM setting
-TERM=xterm-256color ck --tui .
+TERM=xterm-256color cc --tui .
 
 # Verify terminal supports TUI
 tput colors
@@ -792,7 +792,7 @@ tput colors
 - Terminal doesn't support required features
 
 **Workarounds:**
-- Use CLI mode instead: `ck --sem "query" .`
+- Use CLI mode instead: `cc --sem "query" .`
 - Upgrade terminal emulator
 - Use local terminal instead of SSH
 
@@ -809,7 +809,7 @@ tput colors
 1. Switch to chunks or heatmap mode (press `m`)
 2. Use regex mode for very large files
 3. Narrow search scope to smaller directories
-4. Exclude large files with `.ckignore`
+4. Exclude large files with `.ccignore`
 
 **Why it happens:**
 - Very large files (>10MB) are slow to render
@@ -832,14 +832,14 @@ tput colors
 #    Ensure you're in the right mode (semantic/regex/hybrid)
 
 # 2. Verify index exists
-ls .ck/
+ls .cc/
 # Should show index files; if not, first search creates it
 
 # 3. Try regex mode to confirm file exists
 # Press 'r' then search for a known string
 
-# 4. Check .gitignore/.ckignore
-cat .gitignore .ckignore
+# 4. Check .gitignore/.ccignore
+cat .gitignore .ccignore
 # Look for patterns that might exclude your target files
 
 # 5. Verify file is text (not binary)
@@ -849,7 +849,7 @@ file path/to/target.txt
 
 **Common causes:**
 - Wrong search mode (semantic vs regex)
-- File excluded by `.gitignore` or `.ckignore`
+- File excluded by `.gitignore` or `.ccignore`
 - Binary file (TUI only searches text)
 - Typo in search query
 - File outside search directory
@@ -898,13 +898,13 @@ file path/to/target.txt
 
 ```bash
 # Delete index to force rebuild
-rm -rf .ck/
+rm -rf .cc/
 
 # Re-run search (will rebuild index)
-ck --tui .
+cc --tui .
 
 # Or use CLI to force reindex
-ck --reindex .
+cc --reindex .
 ```
 
 **When to reindex:**
@@ -966,18 +966,18 @@ where clip
 
 ```bash
 # 1. Exclude large directories
-echo "node_modules/" >> .ckignore
-echo "target/" >> .ckignore
-echo ".git/" >> .ckignore
+echo "node_modules/" >> .ccignore
+echo "target/" >> .ccignore
+echo ".git/" >> .ccignore
 
 # 2. Search specific subdirectories
-ck --tui src/           # Instead of .
+cc --tui src/           # Instead of .
 
 # 3. Use regex for simple searches
 # Press 'r' for regex mode (no indexing)
 
 # 4. Check index size
-du -sh .ck/
+du -sh .cc/
 # Very large indexes indicate too much is indexed
 ```
 
@@ -1036,19 +1036,19 @@ du -sh .ck/
 
 ```bash
 # How is logging done?
-ck --tui --sem "logging"
+cc --tui --sem "logging"
 
 # How are configs loaded?
-ck --tui --sem "configuration loading"
+cc --tui --sem "configuration loading"
 
 # How are errors handled?
-ck --tui --sem "error handling patterns"
+cc --tui --sem "error handling patterns"
 
 # How are tests structured?
-ck --tui --sem "test fixtures and setup"
+cc --tui --sem "test fixtures and setup"
 
 # How is state managed?
-ck --tui --sem "state management"
+cc --tui --sem "state management"
 ```
 
 **Learning workflow:**
@@ -1086,7 +1086,7 @@ ck --tui --sem "state management"
 **Related Documentation:**
 - [Search Modes Reference](search-modes.html) - Deep dive into semantic/regex/hybrid
 - [CLI Reference](cli-reference.html) - All command-line options
-- [Configuration Reference](configuration.html) - Settings and .ckignore files
+- [Configuration Reference](configuration.html) - Settings and .ccignore files
 - [Advanced Usage](advanced-usage.html) - Index management and tuning
 
 **Tutorials:**

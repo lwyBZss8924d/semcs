@@ -1,4 +1,4 @@
-title: ck
+title: cc
 description: Semantic code search for humans and AI agents
 remote_theme: just-the-docs/just-the-docs
 
@@ -18,8 +18,8 @@ search:
 
 # Aux links (top-right)
 aux_links:
-  GitHub: "https://github.com/BeaconBay/ck"
-  "crates.io": "https://crates.io/crates/ck-search"
+  GitHub: "https://github.com/BeaconBay/cc"
+  "crates.io": "https://crates.io/crates/cc-search"
 
 # Back to top link
 back_to_top: true
@@ -29,7 +29,7 @@ back_to_top_text: "Back to top"
 footer_content: "Copyright &copy; 2024 BeaconBay. Apache-2.0 and MIT licenses."
 
 # Color scheme - custom
-color_scheme: ck
+color_scheme: cc
 
 # Code copy button
 enable_copy_code_button: true

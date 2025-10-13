@@ -38,7 +38,7 @@ Practical guides for specific tasks and common workflows. Each guide solves a pa
 <div class="how-to-card">
 <div class="how-to-category">🔧 Integration</div>
 <h3><a href="editor-integration">Editor Integration</a></h3>
-<p>Set up ck with VS Code, Vim, Neovim, Emacs, and other editors.</p>
+<p>Set up cc with VS Code, Vim, Neovim, Emacs, and other editors.</p>
 <div class="how-to-tags">
 <span class="tag">vscode</span>
 <span class="tag">vim</span>
@@ -49,9 +49,9 @@ Practical guides for specific tasks and common workflows. Each guide solves a pa
 <div class="how-to-card">
 <div class="how-to-category">⚙️ Configuration</div>
 <h3><a href="configuration">Customize File Filtering</a></h3>
-<p>Use .ckignore files and exclusion patterns to control what gets indexed.</p>
+<p>Use .ccignore files and exclusion patterns to control what gets indexed.</p>
 <div class="how-to-tags">
-<span class="tag">.ckignore</span>
+<span class="tag">.ccignore</span>
 <span class="tag">filtering</span>
 <span class="tag">exclusions</span>
 </div>
@@ -60,7 +60,7 @@ Practical guides for specific tasks and common workflows. Each guide solves a pa
 <div class="how-to-card">
 <div class="how-to-category">🤖 AI Integration</div>
 <h3><a href="setup-mcp-server">Setup MCP Server</a></h3>
-<p>Connect ck to Claude Desktop, Cursor, and other AI coding assistants using MCP.</p>
+<p>Connect cc to Claude Desktop, Cursor, and other AI coding assistants using MCP.</p>
 <div class="how-to-tags">
 <span class="tag">mcp</span>
 <span class="tag">claude</span>
@@ -71,7 +71,7 @@ Practical guides for specific tasks and common workflows. Each guide solves a pa
 <div class="how-to-card">
 <div class="how-to-category">🤖 Agent Workflows</div>
 <h3><a href="agent-workflows">Agent Workflows</a></h3>
-<p>Real-world examples of AI agents using ck for code review, refactoring, and exploration.</p>
+<p>Real-world examples of AI agents using cc for code review, refactoring, and exploration.</p>
 <div class="how-to-tags">
 <span class="tag">agents</span>
 <span class="tag">workflows</span>

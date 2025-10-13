@@ -1,43 +1,43 @@
 # cc - Semantic Code Retriever for Claude & Codex
 
-forked from [BeaconBay/ck](https://github.com/BeaconBay/ck)
+forked from [BeaconBay/cc](https://github.com/BeaconBay/cc)
 
-**ck (seek)** finds code by meaning, not just keywords. It's grep that understands what you're looking for — search for "error handling" and find try/catch blocks, error returns, and exception handling code even when those exact words aren't present.
+**cc (seek)** finds code by meaning, not just keywords. It's grep that understands what you're looking for — search for "error handling" and find try/catch blocks, error returns, and exception handling code even when those exact words aren't present.
 
 ## 🚀 Quick Start
 
 ```bash
 # Install from crates.io
-cargo install ck-search
+cargo install cc-search
 
-# Just search — ck builds and updates indexes automatically
-ck --sem "error handling" src/
-ck --sem "authentication logic" src/
-ck --sem "database connection pooling" src/
+# Just search — cc builds and updates indexes automatically
+cc --sem "error handling" src/
+cc --sem "authentication logic" src/
+cc --sem "database connection pooling" src/
 
 # Traditional grep-compatible search still works
-ck -n "TODO" *.rs
-ck -R "TODO|FIXME" .
+cc -n "TODO" *.rs
+cc -R "TODO|FIXME" .
 
 # Combine both: semantic relevance + keyword filtering
-ck --hybrid "connection timeout" src/
+cc --hybrid "connection timeout" src/
 ```
 
 ## ✨ Headline Features
 
 ### 🤖 **AI Agent Integration (MCP Server)**
-Connect ck directly to Claude Desktop, Cursor, or any MCP-compatible AI client for seamless code search integration:
+Connect cc directly to Claude Desktop, Cursor, or any MCP-compatible AI client for seamless code search integration:
 
 ```bash
 # Start MCP server for AI agent integration
-ck --serve
+cc --serve
 ```
 
 **Claude Desktop Setup:**
 
 ```bash
 # Install via Claude Code CLI (recommended)
-claude mcp add ck-search -s user -- ck --serve
+claude mcp add cc-search -s user -- cc --serve
 
 # Note: You may need to restart Claude Code after installation
 # Verify installation with:
@@ -48,8 +48,8 @@ claude mcp list  # or use /mcp in Claude Code
 ```json
 {
   "mcpServers": {
-    "ck": {
-      "command": "ck",
+    "cc": {
+      "command": "cc",
       "args": ["--serve"],
       "cwd": "/path/to/your/codebase"
     }
@@ -57,7 +57,7 @@ claude mcp list  # or use /mcp in Claude Code
 }
 ```
 
-**Tool Permissions:** When prompted by Claude Code, approve permissions for ck-search tools (semantic_search, regex_search, hybrid_search, etc.)
+**Tool Permissions:** When prompted by Claude Code, approve permissions for cc-search tools (semantic_search, regex_search, hybrid_search, etc.)
 
 **Available MCP Tools:**
 - `semantic_search` - Find code by meaning using embeddings
@@ -74,10 +74,10 @@ Launch an interactive search interface with real-time results and multiple previ
 
 ```bash
 # Start TUI for current directory
-ck --tui
+cc --tui
 
 # Start with initial query
-ck --tui "error handling"
+cc --tui "error handling"
 ```
 
 **Features:**
@@ -88,7 +88,7 @@ ck --tui "error handling"
 - **Search History**: Navigate with `Ctrl+Up/Down`
 - **Editor Integration**: Opens files in `$EDITOR` with line numbers (Vim, VS Code, Cursor, etc.)
 - **Progress Tracking**: Live indexing progress with file and chunk counts
-- **Config Persistence**: Preferences saved to `~/.config/ck/tui.json`
+- **Config Persistence**: Preferences saved to `~/.config/cc/tui.json`
 
 See [TUI.md](TUI.md) for keyboard shortcuts and detailed usage.
 
@@ -97,48 +97,48 @@ Find code by concept, not keywords. Understands synonyms, related terms, and con
 
 ```bash
 # These find related code even without exact keywords:
-ck --sem "retry logic"           # finds backoff, circuit breakers
-ck --sem "user authentication"   # finds login, auth, credentials
-ck --sem "data validation"       # finds sanitization, type checking
+cc --sem "retry logic"           # finds backoff, circuit breakers
+cc --sem "user authentication"   # finds login, auth, credentials
+cc --sem "data validation"       # finds sanitization, type checking
 
 # Get complete functions/classes containing matches
-ck --sem --full-section "error handling"  # returns entire functions
+cc --sem --full-section "error handling"  # returns entire functions
 ```
 
 ### ⚡ **Drop-in grep Compatibility**
 All your muscle memory works. Same flags, same behavior, same output format:
 
 ```bash
-ck -i "warning" *.log              # Case-insensitive
-ck -n -A 3 -B 1 "error" src/       # Line numbers + context
-ck -l "error" src/                  # List files with matches only
-ck -L "TODO" src/                   # List files without matches
-ck -R --exclude "*.test.js" "bug"  # Recursive with exclusions
+cc -i "warning" *.log              # Case-insensitive
+cc -n -A 3 -B 1 "error" src/       # Line numbers + context
+cc -l "error" src/                  # List files with matches only
+cc -L "TODO" src/                   # List files without matches
+cc -R --exclude "*.test.js" "bug"  # Recursive with exclusions
 ```
 
 ### 🎯 **Hybrid Search**
 Combine keyword precision with semantic understanding using Reciprocal Rank Fusion:
 
 ```bash
-ck --hybrid "async timeout" src/    # Best of both worlds
-ck --hybrid --scores "cache" src/   # Show relevance scores with color highlighting
-ck --hybrid --threshold 0.02 query  # Filter by minimum relevance
+cc --hybrid "async timeout" src/    # Best of both worlds
+cc --hybrid --scores "cache" src/   # Show relevance scores with color highlighting
+cc --hybrid --threshold 0.02 query  # Filter by minimum relevance
 ```
 
 ### ⚙️ **Automatic Delta Indexing**
 Semantic and hybrid searches transparently create and refresh their indexes before running. The first search builds what it needs; subsequent searches only touch files that changed.
 
 ### 📁 **Smart File Filtering**
-Automatically excludes cache directories, build artifacts, and respects `.gitignore` and `.ckignore` files:
+Automatically excludes cache directories, build artifacts, and respects `.gitignore` and `.ccignore` files:
 
 ```bash
-# ck respects multiple exclusion layers (all are additive):
-ck "pattern" .                           # Uses .gitignore + .ckignore + defaults
-ck --no-ignore "pattern" .               # Skip .gitignore (still uses .ckignore)
-ck --no-ckignore "pattern" .             # Skip .ckignore (still uses .gitignore)
-ck --exclude "dist" --exclude "logs" .   # Add custom exclusions
+# cc respects multiple exclusion layers (all are additive):
+cc "pattern" .                           # Uses .gitignore + .ccignore + defaults
+cc --no-ignore "pattern" .               # Skip .gitignore (still uses .ccignore)
+cc --no-ccignore "pattern" .             # Skip .ccignore (still uses .gitignore)
+cc --exclude "dist" --exclude "logs" .   # Add custom exclusions
 
-# .ckignore file (created automatically on first index):
+# .ccignore file (created automatically on first index):
 # - Excludes images, videos, audio, binaries, archives by default
 # - Excludes JSON/YAML config files (issue #27)
 # - Uses same syntax as .gitignore (glob patterns, ! for negation)
@@ -146,13 +146,13 @@ ck --exclude "dist" --exclude "logs" .   # Add custom exclusions
 # - Located at repository root, editable for custom patterns
 
 # Exclusion patterns use .gitignore syntax:
-ck --exclude "node_modules" .            # Exclude directory and all contents
-ck --exclude "*.test.js" .                # Exclude files matching pattern
-ck --exclude "build/" --exclude "*.log" . # Multiple exclusions
+cc --exclude "node_modules" .            # Exclude directory and all contents
+cc --exclude "*.test.js" .                # Exclude files matching pattern
+cc --exclude "build/" --exclude "*.log" . # Multiple exclusions
 # Note: Patterns are relative to the search root
 ```
 
-**Why .ckignore?** While `.gitignore` handles version control exclusions, many files that *should* be in your repo aren't ideal for semantic search. Config files (`package.json`, `tsconfig.json`), images, videos, and data files add noise to search results and slow down indexing. `.ckignore` lets you focus semantic search on actual code while keeping everything else in git. Think of it as "what should I search" vs "what should I commit".
+**Why .ccignore?** While `.gitignore` handles version control exclusions, many files that *should* be in your repo aren't ideal for semantic search. Config files (`package.json`, `tsconfig.json`), images, videos, and data files add noise to search results and slow down indexing. `.ccignore` lets you focus semantic search on actual code while keeping everything else in git. Think of it as "what should I search" vs "what should I commit".
 
 ## 🛠 Advanced Usage
 
@@ -183,12 +183,12 @@ Perfect structured output for LLMs, scripts, and automation:
 
 ```bash
 # JSONL format - one JSON object per line (recommended for agents)
-ck --jsonl --sem "error handling" src/
-ck --jsonl --no-snippet "function" .        # Metadata only
-ck --jsonl --topk 5 --threshold 0.7 "auth"  # High-confidence results
+cc --jsonl --sem "error handling" src/
+cc --jsonl --no-snippet "function" .        # Metadata only
+cc --jsonl --topk 5 --threshold 0.7 "auth"  # High-confidence results
 
 # Traditional JSON (single array)
-ck --json --sem "error handling" src/ | jq '.file'
+cc --json --sem "error handling" src/ | jq '.file'
 ```
 
 **Why JSONL for AI agents?**
@@ -201,18 +201,18 @@ ck --json --sem "error handling" src/ | jq '.file'
 
 ```bash
 # Threshold filtering
-ck --sem --threshold 0.7 "query"           # Only high-confidence matches
-ck --hybrid --threshold 0.01 "concept"     # Low-confidence (exploration)
+cc --sem --threshold 0.7 "query"           # Only high-confidence matches
+cc --hybrid --threshold 0.01 "concept"     # Low-confidence (exploration)
 
 # Limit results
-ck --sem --topk 5 "authentication patterns"
+cc --sem --topk 5 "authentication patterns"
 
 # Complete code sections
-ck --sem --full-section "database queries"  # Complete functions
-ck --full-section "class.*Error" src/       # Complete classes (works with regex too)
+cc --sem --full-section "database queries"  # Complete functions
+cc --full-section "class.*Error" src/       # Complete classes (works with regex too)
 
 # Relevance scoring
-ck --sem --scores "machine learning" docs/
+cc --sem --scores "machine learning" docs/
 # [0.847] ./ai_guide.txt: Machine learning introduction...
 # [0.732] ./statistics.txt: Statistical learning methods...
 ```
@@ -230,13 +230,13 @@ Choose the right embedding model for your needs:
 
 ```bash
 # Default: BGE-Small (fast, precise chunking)
-ck --index .
+cc --index .
 
 # Enhanced: Nomic V1.5 (8K context, optimal for large functions)
-ck --index --model nomic-v1.5 .
+cc --index --model nomic-v1.5 .
 
 # Code-specialized: Jina Code (optimized for programming languages)
-ck --index --model jina-code .
+cc --index --model jina-code .
 ```
 
 **Model Comparison:**
@@ -248,19 +248,19 @@ ck --index --model jina-code .
 
 ```bash
 # Check index status
-ck --status .
+cc --status .
 
 # Clean up and rebuild / switch models
-ck --clean .
-ck --switch-model nomic-v1.5 .
-ck --switch-model nomic-v1.5 --force .     # Force rebuild
+cc --clean .
+cc --switch-model nomic-v1.5 .
+cc --switch-model nomic-v1.5 --force .     # Force rebuild
 
 # Add single file to index
-ck --add new_file.rs
+cc --add new_file.rs
 
 # File inspection (analyze chunking and token usage)
-ck --inspect src/main.rs
-ck --inspect --model bge-small src/main.rs  # Test different models
+cc --inspect src/main.rs
+cc --inspect --model bge-small src/main.rs  # Test different models
 ```
 
 **Interrupting Operations:** Indexing can be safely interrupted with Ctrl+C. The partial index is saved, and the next operation will resume from where it stopped, only processing new or changed files.
@@ -281,30 +281,30 @@ ck --inspect --model bge-small src/main.rs  # Test different models
 
 **Smart Binary Detection:** Uses ripgrep-style content analysis, automatically indexing any text file while correctly excluding binary files.
 
-**Unsupported File Types:** Text files with unrecognized extensions (like `.org`, `.adoc`, etc.) are automatically indexed as plain text. ck detects text vs binary based on file contents, not extensions.
+**Unsupported File Types:** Text files with unrecognized extensions (like `.org`, `.adoc`, etc.) are automatically indexed as plain text. cc detects text vs binary based on file contents, not extensions.
 
 ## 🏗 Installation
 
 ### From crates.io
 ```bash
-cargo install ck-search
+cargo install cc-search
 ```
 
 ### From Source
 ```bash
-git clone https://github.com/BeaconBay/ck
-cd ck
-cargo install --path ck-cli
+git clone https://github.com/BeaconBay/cc
+cd cc
+cargo install --path cc-cli
 ```
 
 ### Package Managers
 ```bash
 # Currently available:
-cargo install ck-search    # ✅ Available now via crates.io
+cargo install cc-search    # ✅ Available now via crates.io
 
 # Coming soon:
-brew install ck-search     # 🚧 In development (use cargo for now)
-apt install ck-search      # 🚧 In development
+brew install cc-search     # 🚧 In development (use cargo for now)
+apt install cc-search      # 🚧 In development
 ```
 
 ## 💡 Examples
@@ -312,50 +312,50 @@ apt install ck-search      # 🚧 In development
 ### Finding Code Patterns
 ```bash
 # Find authentication/authorization code
-ck --sem "user permissions" src/
-ck --sem "access control" src/
-ck --sem "login validation" src/
+cc --sem "user permissions" src/
+cc --sem "access control" src/
+cc --sem "login validation" src/
 
 # Find error handling strategies
-ck --sem "exception handling" src/
-ck --sem "error recovery" src/
-ck --sem "fallback mechanisms" src/
+cc --sem "exception handling" src/
+cc --sem "error recovery" src/
+cc --sem "fallback mechanisms" src/
 
 # Find performance-related code
-ck --sem "caching strategies" src/
-ck --sem "database optimization" src/
-ck --sem "memory management" src/
+cc --sem "caching strategies" src/
+cc --sem "database optimization" src/
+cc --sem "memory management" src/
 ```
 
 ### Team Workflows
 ```bash
 # Find related test files
-ck --sem "unit tests for authentication" tests/
-ck -l --sem "test" tests/           # List test files by semantic content
+cc --sem "unit tests for authentication" tests/
+cc -l --sem "test" tests/           # List test files by semantic content
 
 # Identify refactoring candidates
-ck --sem "duplicate logic" src/
-ck --sem "code complexity" src/
-ck -L "test" src/                   # Find source files without tests
+cc --sem "duplicate logic" src/
+cc --sem "code complexity" src/
+cc -L "test" src/                   # Find source files without tests
 
 # Security audit
-ck --hybrid "password|credential|secret" src/
-ck --sem "input validation" src/
+cc --hybrid "password|credential|secret" src/
+cc --sem "input validation" src/
 ```
 
 ### Integration Examples
 ```bash
 # Git hooks
-git diff --name-only | xargs ck --sem "TODO"
+git diff --name-only | xargs cc --sem "TODO"
 
 # CI/CD pipeline
-ck --json --sem "security vulnerability" . | security_scanner.py
+cc --json --sem "security vulnerability" . | security_scanner.py
 
 # Code review prep
-ck --hybrid --scores "performance" src/ > review_notes.txt
+cc --hybrid --scores "performance" src/ > review_notes.txt
 
 # Documentation generation
-ck --json --sem "public API" src/ | generate_docs.py
+cc --json --sem "public API" src/ | generate_docs.py
 ```
 
 ## ⚡ Performance
@@ -370,33 +370,33 @@ ck --json --sem "public API" src/ | generate_docs.py
 
 ## 🔧 Architecture
 
-ck uses a modular Rust workspace:
+cc uses a modular Rust workspace:
 
-- **`ck-cli`** - Command-line interface and MCP server
-- **`ck-tui`** - Interactive terminal user interface (ratatui-based)
-- **`ck-core`** - Shared types, configuration, and utilities
-- **`ck-engine`** - Search engine implementations (regex, semantic, hybrid)
-- **`ck-index`** - File indexing, hashing, and sidecar management
-- **`ck-embed`** - Text embedding providers (FastEmbed, API backends)
-- **`ck-ann`** - Approximate nearest neighbor search indices
-- **`ck-chunk`** - Text segmentation and language-aware parsing ([query-based chunking](docs/QUERY_BASED_CHUNKING.md))
-- **`ck-models`** - Model registry and configuration management
+- **`cc-cli`** - Command-line interface and MCP server
+- **`cc-tui`** - Interactive terminal user interface (ratatui-based)
+- **`cc-core`** - Shared types, configuration, and utilities
+- **`cc-engine`** - Search engine implementations (regex, semantic, hybrid)
+- **`cc-index`** - File indexing, hashing, and sidecar management
+- **`cc-embed`** - Text embedding providers (FastEmbed, API backends)
+- **`cc-ann`** - Approximate nearest neighbor search indices
+- **`cc-chunk`** - Text segmentation and language-aware parsing ([query-based chunking](docs/QUERY_BASED_CHUNKING.md))
+- **`cc-models`** - Model registry and configuration management
 
 ### Index Storage
 
-Indexes are stored in `.ck/` directories alongside your code:
+Indexes are stored in `.cc/` directories alongside your code:
 
 ```
 project/
 ├── src/
 ├── docs/
-└── .ck/           # Semantic index (can be safely deleted)
+└── .cc/           # Semantic index (can be safely deleted)
     ├── embeddings.json
     ├── ann_index.bin
     └── tantivy_index/
 ```
 
-The `.ck/` directory is a cache — safe to delete and rebuild anytime.
+The `.cc/` directory is a cache — safe to delete and rebuild anytime.
 
 ## 🧪 Testing
 
@@ -410,7 +410,7 @@ cargo hack test --each-feature --workspace
 
 ## 🤝 Contributing
 
-ck is actively developed and welcomes contributions:
+cc is actively developed and welcomes contributions:
 
 1. **Issues:** Report bugs, request features
 2. **Code:** Submit PRs for bug fixes, new features
@@ -419,12 +419,12 @@ ck is actively developed and welcomes contributions:
 
 ### Development Setup
 ```bash
-git clone https://github.com/BeaconBay/ck
-cd ck
+git clone https://github.com/BeaconBay/cc
+cd cc
 cargo build --workspace
 cargo test --workspace
-./target/debug/ck --index test_files/
-./target/debug/ck --sem "test query" test_files/
+./target/debug/cc --index test_files/
+./target/debug/cc --sem "test query" test_files/
 ```
 
 ### CI Requirements
@@ -459,7 +459,7 @@ The CI pipeline runs on Ubuntu, Windows, and macOS to ensure cross-platform comp
 - ✅ Clean stdout/stderr separation for reliable scripting
 - ✅ Incremental index updates with hash-based change detection
 - ✅ Token-aware chunking with HuggingFace tokenizers
-- ✅ Published to crates.io (`cargo install ck-search`)
+- ✅ Published to crates.io (`cargo install cc-search`)
 
 ### Next (v0.6+)
 - 🚧 Configuration file support
@@ -472,13 +472,13 @@ The CI pipeline runs on Ubuntu, Windows, and macOS to ensure cross-platform comp
 ## ❓ FAQ
 
 **Q: How is this different from grep/ripgrep/silver-searcher?**
-A: ck includes all the features of traditional search tools, but adds semantic understanding. Search for "error handling" and find relevant code even when those exact words aren't used.
+A: cc includes all the features of traditional search tools, but adds semantic understanding. Search for "error handling" and find relevant code even when those exact words aren't used.
 
 **Q: Does it work offline?**
 A: Yes, completely offline. The embedding model runs locally with no network calls.
 
 **Q: How big are the indexes?**
-A: Typically 1-3x the size of your source code. The `.ck/` directory can be safely deleted to reclaim space.
+A: Typically 1-3x the size of your source code. The `.cc/` directory can be safely deleted to reclaim space.
 
 **Q: Is it fast enough for large codebases?**
 A: Yes. The first semantic search builds the index automatically; after that only changed files are reprocessed, keeping searches sub-second even on large projects.
@@ -491,9 +491,9 @@ A: Everything runs locally. No code or queries are sent to external services. Th
 
 **Q: Where are the embedding models cached?**
 A: Models are cached in platform-specific directories:
-- Linux/macOS: `~/.cache/ck/models/`
-- Windows: `%LOCALAPPDATA%\ck\cache\models\`
-- Fallback: `.ck_models/models/` in current directory
+- Linux/macOS: `~/.cache/cc/models/`
+- Windows: `%LOCALAPPDATA%\cc\cache\models\`
+- Fallback: `.cc_models/models/` in current directory
 
 ## 📄 License
 
@@ -518,6 +518,6 @@ Inspired by the need for better code search tools in the age of AI-assisted deve
 **Start finding code by what it does, not what it says.**
 
 ```bash
-cargo install ck-search
-ck --sem "the code you're looking for"
+cargo install cc-search
+cc --sem "the code you're looking for"
 ```

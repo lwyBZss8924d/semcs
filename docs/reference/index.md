@@ -9,7 +9,7 @@ has_children: true
 
 **Information-oriented • Technical specifications**
 
-Complete API documentation and reference materials. Everything you need to know about ck's commands, APIs, and configuration options.
+Complete API documentation and reference materials. Everything you need to know about cc's commands, APIs, and configuration options.
 
 <div class="reference-grid">
 
@@ -91,19 +91,19 @@ Complete API documentation and reference materials. Everything you need to know 
 <h3>🔍 Search Commands</h3>
 <div class="command-list">
 <div class="command">
-<code>ck --sem "query" path/</code>
+<code>cc --sem "query" path/</code>
 <span class="command-desc">Semantic search</span>
 </div>
 <div class="command">
-<code>ck "pattern" path/</code>
+<code>cc "pattern" path/</code>
 <span class="command-desc">Regex search</span>
 </div>
 <div class="command">
-<code>ck --hybrid "query" path/</code>
+<code>cc --hybrid "query" path/</code>
 <span class="command-desc">Hybrid search</span>
 </div>
 <div class="command">
-<code>ck --tui path/</code>
+<code>cc --tui path/</code>
 <span class="command-desc">Interactive mode</span>
 </div>
 </div>
