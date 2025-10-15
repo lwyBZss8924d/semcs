@@ -1,43 +1,46 @@
-# cc - Semantic Code Retriever for Claude & Codex
+# cs (semcs) - Semantic Code Search for Claude & Codex
 
-forked from [BeaconBay/cc](https://github.com/BeaconBay/cc)
+semcs [sem-cs] - CODE SEARCH hybrid semantic retrieval and hybrid grep for Claude & Codex.
 
-**cc (seek)** finds code by meaning, not just keywords. It's grep that understands what you're looking for — search for "error handling" and find try/catch blocks, error returns, and exception handling code even when those exact words aren't present.
+forked from [BeaconBay/cs](https://github.com/BeaconBay/ck)
+
+**cs (semcs)** finds code by meaning, not just keywords. It's grep that understands what you're looking for — search for "error handling" and find try/catch blocks, error returns, and exception handling code even when those exact words aren't present.
 
 ## 🚀 Quick Start
 
-```bash
+```shell
 # Install from crates.io
 cargo install cc-search
 
 # Just search — cc builds and updates indexes automatically
-cc --sem "error handling" src/
-cc --sem "authentication logic" src/
-cc --sem "database connection pooling" src/
+cs --sem "error handling" src/
+cs --sem "authentication logic" src/
+cs --sem "database connection pooling" src/
 
 # Traditional grep-compatible search still works
-cc -n "TODO" *.rs
-cc -R "TODO|FIXME" .
+cs -n "TODO" *.rs
+cs -R "TODO|FIXME" .
 
 # Combine both: semantic relevance + keyword filtering
-cc --hybrid "connection timeout" src/
+cs --hybrid "connection timeout" src/
 ```
 
 ## ✨ Headline Features
 
 ### 🤖 **AI Agent Integration (MCP Server)**
-Connect cc directly to Claude Desktop, Cursor, or any MCP-compatible AI client for seamless code search integration:
 
-```bash
+Connect cs directly to Claude Desktop, Cursor, or any MCP-compatible AI client for seamless code search integration:
+
+```shell
 # Start MCP server for AI agent integration
-cc --serve
+cs --serve
 ```
 
 **Claude Desktop Setup:**
 
-```bash
+```shell
 # Install via Claude Code CLI (recommended)
-claude mcp add cc-search -s user -- cc --serve
+claude mcp add cs-search -s user -- cs --serve
 
 # Note: You may need to restart Claude Code after installation
 # Verify installation with:
@@ -45,11 +48,12 @@ claude mcp list  # or use /mcp in Claude Code
 ```
 
 **Manual Configuration (alternative):**
+
 ```json
 {
   "mcpServers": {
-    "cc": {
-      "command": "cc",
+    "cs": {
+      "command": "cs",
       "args": ["--serve"],
       "cwd": "/path/to/your/codebase"
     }
@@ -57,9 +61,10 @@ claude mcp list  # or use /mcp in Claude Code
 }
 ```
 
-**Tool Permissions:** When prompted by Claude Code, approve permissions for cc-search tools (semantic_search, regex_search, hybrid_search, etc.)
+**Tool Permissions:** When prompted by Claude Code, approve permissions for cs-search tools (semantic_search, regex_search, hybrid_search, etc.)
 
 **Available MCP Tools:**
+
 - `semantic_search` - Find code by meaning using embeddings
 - `regex_search` - Traditional grep-style pattern matching
 - `hybrid_search` - Combined semantic and keyword search
@@ -70,17 +75,19 @@ claude mcp list  # or use /mcp in Claude Code
 **Built-in Pagination:** Handles large result sets gracefully with page_size controls, cursors, and snippet length management.
 
 ### 🎨 **Interactive TUI (Terminal User Interface)**
+
 Launch an interactive search interface with real-time results and multiple preview modes:
 
-```bash
+```shell
 # Start TUI for current directory
-cc --tui
+cs --tui
 
 # Start with initial query
-cc --tui "error handling"
+cs --tui "error handling"
 ```
 
 **Features:**
+
 - **Multiple Search Modes**: Toggle between Semantic, Regex, and Hybrid search with `Tab`
 - **Preview Modes**: Switch between Heatmap, Syntax highlighting, and Chunk view with `Ctrl+V`
 - **View Options**: Toggle between snippet and full-file view with `Ctrl+F`
@@ -93,52 +100,57 @@ cc --tui "error handling"
 See [TUI.md](TUI.md) for keyboard shortcuts and detailed usage.
 
 ### 🔍 **Semantic Search**
+
 Find code by concept, not keywords. Understands synonyms, related terms, and conceptual similarity:
 
-```bash
+```shell
 # These find related code even without exact keywords:
-cc --sem "retry logic"           # finds backoff, circuit breakers
-cc --sem "user authentication"   # finds login, auth, credentials
-cc --sem "data validation"       # finds sanitization, type checking
+cs --sem "retry logic"           # finds backoff, circuit breakers
+cs --sem "user authentication"   # finds login, auth, credentials
+cs --sem "data validation"       # finds sanitization, type checking
 
 # Get complete functions/classes containing matches
-cc --sem --full-section "error handling"  # returns entire functions
+cs --sem --full-section "error handling"  # returns entire functions
 ```
 
 ### ⚡ **Drop-in grep Compatibility**
+
 All your muscle memory works. Same flags, same behavior, same output format:
 
-```bash
-cc -i "warning" *.log              # Case-insensitive
-cc -n -A 3 -B 1 "error" src/       # Line numbers + context
-cc -l "error" src/                  # List files with matches only
-cc -L "TODO" src/                   # List files without matches
+```shell
+cs -i "warning" *.log              # Case-insensitive
+cs -n -A 3 -B 1 "error" src/       # Line numbers + context
+cs -l "error" src/                  # List files with matches only
+cs -L "TODO" src/                   # List files without matches
 cc -R --exclude "*.test.js" "bug"  # Recursive with exclusions
 ```
 
 ### 🎯 **Hybrid Search**
+
 Combine keyword precision with semantic understanding using Reciprocal Rank Fusion:
 
-```bash
-cc --hybrid "async timeout" src/    # Best of both worlds
-cc --hybrid --scores "cache" src/   # Show relevance scores with color highlighting
-cc --hybrid --threshold 0.02 query  # Filter by minimum relevance
+```shell
+cs --hybrid "async timeout" src/    # Best of both worlds
+cs --hybrid --scores "cache" src/   # Show relevance scores with color highlighting
+cs --hybrid --threshold 0.02 query  # Filter by minimum relevance
 ```
 
 ### ⚙️ **Automatic Delta Indexing**
+
 Semantic and hybrid searches transparently create and refresh their indexes before running. The first search builds what it needs; subsequent searches only touch files that changed.
 
 ### 📁 **Smart File Filtering**
-Automatically excludes cache directories, build artifacts, and respects `.gitignore` and `.ccignore` files:
 
-```bash
-# cc respects multiple exclusion layers (all are additive):
-cc "pattern" .                           # Uses .gitignore + .ccignore + defaults
-cc --no-ignore "pattern" .               # Skip .gitignore (still uses .ccignore)
-cc --no-ccignore "pattern" .             # Skip .ccignore (still uses .gitignore)
-cc --exclude "dist" --exclude "logs" .   # Add custom exclusions
+Automatically excludes cache directories, build artifacts, and respects `.gitignore` and `.csignore` files:
 
-# .ccignore file (created automatically on first index):
+```shell
+# cs respects multiple exclusion layers (all are additive):
+cs "pattern" .                           # Uses .gitignore + .csignore + defaults
+cs --no-ignore "pattern" .               # Skip .gitignore (still uses .csignore)
+cs --no-csignore "pattern" .             # Skip .csignore (still uses .gitignore)
+cs --exclude "dist" --exclude "logs" .   # Add custom exclusions
+
+# .csignore file (created automatically on first index):
 # - Excludes images, videos, audio, binaries, archives by default
 # - Excludes JSON/YAML config files (issue #27)
 # - Uses same syntax as .gitignore (glob patterns, ! for negation)
@@ -146,19 +158,20 @@ cc --exclude "dist" --exclude "logs" .   # Add custom exclusions
 # - Located at repository root, editable for custom patterns
 
 # Exclusion patterns use .gitignore syntax:
-cc --exclude "node_modules" .            # Exclude directory and all contents
-cc --exclude "*.test.js" .                # Exclude files matching pattern
-cc --exclude "build/" --exclude "*.log" . # Multiple exclusions
+cs --exclude "node_modules" .            # Exclude directory and all contents
+cs --exclude "*.test.js" .                # Exclude files matching pattern
+cs --exclude "build/" --exclude "*.log" . # Multiple exclusions
 # Note: Patterns are relative to the search root
 ```
 
-**Why .ccignore?** While `.gitignore` handles version control exclusions, many files that *should* be in your repo aren't ideal for semantic search. Config files (`package.json`, `tsconfig.json`), images, videos, and data files add noise to search results and slow down indexing. `.ccignore` lets you focus semantic search on actual code while keeping everything else in git. Think of it as "what should I search" vs "what should I commit".
+**Why .csignore?** While `.gitignore` handles version control exclusions, many files that *should* be in your repo aren't ideal for semantic search. Config files (`package.json`, `tsconfig.json`), images, videos, and data files add noise to search results and slow down indexing. `.csignore` lets you focus semantic search on actual code while keeping everything else in git. Think of it as "what should I search" vs "what should I commit".
 
 ## 🛠 Advanced Usage
 
 ### AI Agent Integration
 
 #### MCP Server (Recommended)
+
 ```python
 # Example usage in AI agents
 response = await client.call_tool("semantic_search", {
@@ -179,19 +192,21 @@ if response["pagination"]["next_cursor"]:
 ```
 
 #### JSONL Output (Custom Workflows)
+
 Perfect structured output for LLMs, scripts, and automation:
 
-```bash
+```shell
 # JSONL format - one JSON object per line (recommended for agents)
-cc --jsonl --sem "error handling" src/
-cc --jsonl --no-snippet "function" .        # Metadata only
+cs --jsonl --sem "error handling" src/
+cs --jsonl --no-snippet "function" .        # Metadata only
 cc --jsonl --topk 5 --threshold 0.7 "auth"  # High-confidence results
 
 # Traditional JSON (single array)
-cc --json --sem "error handling" src/ | jq '.file'
+cs --json --sem "error handling" src/ | jq '.file'
 ```
 
 **Why JSONL for AI agents?**
+
 - ✅ **Streaming friendly**: Process results as they arrive
 - ✅ **Memory efficient**: Parse one result at a time
 - ✅ **Error resilient**: One malformed line doesn't break entire response
@@ -199,24 +214,23 @@ cc --json --sem "error handling" src/ | jq '.file'
 
 ### Search & Filter Options
 
-```bash
+```shell
 # Threshold filtering
-cc --sem --threshold 0.7 "query"           # Only high-confidence matches
-cc --hybrid --threshold 0.01 "concept"     # Low-confidence (exploration)
+cs --sem --threshold 0.7 "query"           # Only high-confidence matches
+cs --hybrid --threshold 0.01 "concept"     # Low-confidence (exploration)
 
 # Limit results
-cc --sem --topk 5 "authentication patterns"
+cs --sem --topk 5 "authentication patterns"
 
 # Complete code sections
-cc --sem --full-section "database queries"  # Complete functions
-cc --full-section "class.*Error" src/       # Complete classes (works with regex too)
+cs --sem --full-section "database queries"  # Complete functions
+cs --full-section "class.*Error" src/       # Complete classes (works with regex too)
 
 # Relevance scoring
-cc --sem --scores "machine learning" docs/
+cs --sem --scores "machine learning" docs/
 # [0.847] ./ai_guide.txt: Machine learning introduction...
 # [0.732] ./statistics.txt: Statistical learning methods...
 ```
-
 
 ### Language Coverage
 
@@ -228,38 +242,68 @@ cc --sem --scores "machine learning" docs/
 
 Choose the right embedding model for your needs:
 
-```bash
+```shell
 # Default: BGE-Small (fast, precise chunking)
-cc --index .
+cs --index .
 
 # Enhanced: Nomic V1.5 (8K context, optimal for large functions)
-cc --index --model nomic-v1.5 .
+cs --index --model nomic-v1.5 .
 
-# Code-specialized: Jina Code (optimized for programming languages)
-cc --index --model jina-code .
+# Code-specialized: Jina Code (local, optimized for programming languages)
+cs --index --model jina-code .
+
+# Jina AI API models (cloud-based, state-of-the-art code embeddings)
+export JINA_API_KEY="your_api_key"  # Get free key at https://jina.ai/?sui=apikey
+
+# Hybrid strategy (recommended): index with v4, query with code-1.5b
+cs --index --model jina-v4 .
+cs --sem --model jina-code-1.5b "your query"
+
+# Or index directly with code models
+cs --index --model jina-code-1.5b .
+cs --index --model jina-code-0.5b .  # Faster, good quality
 ```
 
 **Model Comparison:**
-- **`bge-small`** (default): 400-token chunks, fast indexing, good for most code
-- **`nomic-v1.5`**: 1024-token chunks with 8K model capacity, better for large functions
-- **`jina-code`**: 1024-token chunks with 8K model capacity, specialized for code understanding
+
+| Model | Type | Dimensions | Context | Best For |
+|-------|------|------------|---------|----------|
+| **`bge-small`** (default) | Local | 384 | 512 tokens | Fast indexing, most code |
+| **`nomic-v1.5`** | Local | 768 | 8K tokens | Large functions, better quality |
+| **`jina-code`** | Local | 768 | 8K tokens | Code-specialized, offline |
+| **`jina-v4`** | API | 1536 | 8K tokens | **Indexing** - handles large files |
+| **`jina-code-0.5b`** | API | 896 | 8K tokens | Fast cloud search |
+| **`jina-code-1.5b`** | API | 1536 | 8K tokens | **Querying** - code-specialized, NL2Code |
+
+**Jina AI API Models** require `JINA_API_KEY` environment variable. Benefits:
+
+- ✨ **No model downloads** - Zero setup, instant start
+- 🎯 **State-of-the-art quality** - Advanced code embeddings (0.5B - 3.8B parameters)
+- 🌐 **Cross-language search** - Excellent at finding similar code across languages
+- 🔍 **Natural language to code** - Superior understanding of intent ("find error handling")
+- ⚡ **Generous free tier** - 500 requests/min, 1M tokens/min
+- 🔥 **Hybrid strategy** - Index with v4 + query with code-1.5b (dimension-compatible)
+
+**Why Hybrid Works:** jina-v4 and jina-code-1.5b both output 1536 dimensions, enabling cross-model queries. The system automatically detects dimension compatibility. Index once with v4 (optimized for large files, 8K+ tokens), then query with code-1.5b (optimized for code understanding). Best of both worlds!
+
+See [examples/jina_api_usage.md](examples/jina_api_usage.md) for detailed Jina API documentation.
 
 ### Index Management
 
-```bash
+```shell
 # Check index status
-cc --status .
+cs --status .
 
 # Clean up and rebuild / switch models
-cc --clean .
-cc --switch-model nomic-v1.5 .
+cs --clean .
+cs --switch-model nomic-v1.5 .
 cc --switch-model nomic-v1.5 --force .     # Force rebuild
 
 # Add single file to index
-cc --add new_file.rs
+cs --add new_file.rs
 
 # File inspection (analyze chunking and token usage)
-cc --inspect src/main.rs
+cs --inspect src/main.rs
 cc --inspect --model bge-small src/main.rs  # Test different models
 ```
 
@@ -286,76 +330,82 @@ cc --inspect --model bge-small src/main.rs  # Test different models
 ## 🏗 Installation
 
 ### From crates.io
-```bash
-cargo install cc-search
+
+```shell
+cargo install cs-search
 ```
 
 ### From Source
-```bash
-git clone https://github.com/BeaconBay/cc
+
+```shell
+git clone https://github.com/lwyBZss8924d/semcs
 cd cc
-cargo install --path cc-cli
+cargo install --path cs-cli
 ```
 
 ### Package Managers
-```bash
+
+```shell
 # Currently available:
-cargo install cc-search    # ✅ Available now via crates.io
+cargo install semcs    # ✅ Available now via crates.io
 
 # Coming soon:
-brew install cc-search     # 🚧 In development (use cargo for now)
-apt install cc-search      # 🚧 In development
+brew install semcs     # 🚧 In development (use cargo for now)
+apt install semcs      # 🚧 In development
 ```
 
 ## 💡 Examples
 
 ### Finding Code Patterns
-```bash
+
+```shell
 # Find authentication/authorization code
-cc --sem "user permissions" src/
-cc --sem "access control" src/
-cc --sem "login validation" src/
+cs --sem "user permissions" src/
+cs --sem "access control" src/
+cs --sem "login validation" src/
 
 # Find error handling strategies
-cc --sem "exception handling" src/
-cc --sem "error recovery" src/
-cc --sem "fallback mechanisms" src/
+cs --sem "exception handling" src/
+cs --sem "error recovery" src/
+cs --sem "fallback mechanisms" src/
 
 # Find performance-related code
-cc --sem "caching strategies" src/
-cc --sem "database optimization" src/
-cc --sem "memory management" src/
+cs --sem "caching strategies" src/
+cs --sem "database optimization" src/
+cs --sem "memory management" src/
 ```
 
 ### Team Workflows
-```bash
+
+```shell
 # Find related test files
-cc --sem "unit tests for authentication" tests/
-cc -l --sem "test" tests/           # List test files by semantic content
+cs --sem "unit tests for authentication" tests/
+cs -l --sem "test" tests/           # List test files by semantic content
 
 # Identify refactoring candidates
-cc --sem "duplicate logic" src/
-cc --sem "code complexity" src/
-cc -L "test" src/                   # Find source files without tests
+cs --sem "duplicate logic" src/
+cs --sem "code complexity" src/
+cs -L "test" src/                   # Find source files without tests
 
 # Security audit
-cc --hybrid "password|credential|secret" src/
-cc --sem "input validation" src/
+cs --hybrid "password|credential|secret" src/
+cs --sem "input validation" src/
 ```
 
 ### Integration Examples
-```bash
+
+```shell
 # Git hooks
-git diff --name-only | xargs cc --sem "TODO"
+git diff --name-only | xargs cs --sem "TODO"
 
 # CI/CD pipeline
-cc --json --sem "security vulnerability" . | security_scanner.py
+cs --json --sem "security vulnerability" . | security_scanner.py
 
 # Code review prep
-cc --hybrid --scores "performance" src/ > review_notes.txt
+cs --hybrid --scores "performance" src/ > review_notes.txt
 
 # Documentation generation
-cc --json --sem "public API" src/ | generate_docs.py
+cs --json --sem "public API" src/ | generate_docs.py
 ```
 
 ## ⚡ Performance
@@ -370,37 +420,37 @@ cc --json --sem "public API" src/ | generate_docs.py
 
 ## 🔧 Architecture
 
-cc uses a modular Rust workspace:
+cs uses a modular Rust workspace:
 
-- **`cc-cli`** - Command-line interface and MCP server
-- **`cc-tui`** - Interactive terminal user interface (ratatui-based)
-- **`cc-core`** - Shared types, configuration, and utilities
-- **`cc-engine`** - Search engine implementations (regex, semantic, hybrid)
-- **`cc-index`** - File indexing, hashing, and sidecar management
-- **`cc-embed`** - Text embedding providers (FastEmbed, API backends)
-- **`cc-ann`** - Approximate nearest neighbor search indices
-- **`cc-chunk`** - Text segmentation and language-aware parsing ([query-based chunking](docs/QUERY_BASED_CHUNKING.md))
-- **`cc-models`** - Model registry and configuration management
+- **`cs-cli`** - Command-line interface and MCP server
+- **`cs-tui`** - Interactive terminal user interface (ratatui-based)
+- **`cs-core`** - Shared types, configuration, and utilities
+- **`cs-engine`** - Search engine implementations (regex, semantic, hybrid)
+- **`cs-index`** - File indexing, hashing, and sidecar management
+- **`cs-embed`** - Text embedding providers (FastEmbed, API backends)
+- **`cs-ann`** - Approximate nearest neighbor search indices
+- **`cs-chunk`** - Text segmentation and language-aware parsing ([query-based chunking](docs/QUERY_BASED_CHUNKING.md))
+- **`cs-models`** - Model registry and configuration management
 
 ### Index Storage
 
-Indexes are stored in `.cc/` directories alongside your code:
+Example: Indexes are stored in `.cs/` directories alongside your code:
 
-```
+```tree
 project/
 ├── src/
 ├── docs/
-└── .cc/           # Semantic index (can be safely deleted)
+└── .cs/           # Semantic index (can be safely deleted)
     ├── embeddings.json
     ├── ann_index.bin
     └── tantivy_index/
 ```
 
-The `.cc/` directory is a cache — safe to delete and rebuild anytime.
+The `.cs/` directory is a cache — safe to delete and rebuild anytime.
 
 ## 🧪 Testing
 
-```bash
+```shell
 # Run the full test suite
 cargo test --workspace
 
@@ -410,7 +460,7 @@ cargo hack test --each-feature --workspace
 
 ## 🤝 Contributing
 
-cc is actively developed and welcomes contributions:
+cs is actively developed and welcomes contributions:
 
 1. **Issues:** Report bugs, request features
 2. **Code:** Submit PRs for bug fixes, new features
@@ -418,19 +468,21 @@ cc is actively developed and welcomes contributions:
 4. **Testing:** Help test on different codebases and languages
 
 ### Development Setup
-```bash
-git clone https://github.com/BeaconBay/cc
-cd cc
+
+```shell
+git clone https://github.com/lwyBZss8924d/semcs
+cd semcs
 cargo build --workspace
 cargo test --workspace
-./target/debug/cc --index test_files/
-./target/debug/cc --sem "test query" test_files/
+./target/debug/cs --index test_files/
+./target/debug/cs --sem "test query" test_files/
 ```
 
 ### CI Requirements
+
 Before submitting a PR, ensure your code passes all CI checks:
 
-```bash
+```shell
 # Format code (required)
 cargo fmt --all
 
@@ -449,6 +501,7 @@ The CI pipeline runs on Ubuntu, Windows, and macOS to ensure cross-platform comp
 ## 🗺 Roadmap
 
 ### Current (v0.5+)
+
 - ✅ MCP (Model Context Protocol) server for AI agent integration
 - ✅ grep-compatible CLI with semantic search and file listing flags
 - ✅ FastEmbed integration with BGE models and enhanced model selection
@@ -462,23 +515,29 @@ The CI pipeline runs on Ubuntu, Windows, and macOS to ensure cross-platform comp
 - ✅ Published to crates.io (`cargo install cc-search`)
 
 ### Next (v0.6+)
-- 🚧 Configuration file support
-- 🚧 Package manager distributions (brew, apt)
+
+- ✅ [0.6.1] Jina API embeddings model support
+- ✅ [0.6.1] Jina API Reranker model support
+- ✅ [0.6.1] Configuration file & (cc config) command support
+- ✅ [0.6.1] AST search mode support
+- ✅ [0.6.1] Hybrid AST search mode support
+
+- 🚧 Package manager distributions (brew, npm, apt)
 - 🚧 Enhanced MCP tools (file writing, refactoring assistance)
 - 🚧 VS Code extension
 - 🚧 JetBrains plugin
-- 🚧 Additional language chunkers (Java, PHP, Swift)
+- 🚧 Additional more languages chunkers (Java, Swift, etc.)
 
 ## ❓ FAQ
 
 **Q: How is this different from grep/ripgrep/silver-searcher?**
-A: cc includes all the features of traditional search tools, but adds semantic understanding. Search for "error handling" and find relevant code even when those exact words aren't used.
+A: cs includes all the features of traditional search tools, but adds semantic understanding. Search for "error handling" and find relevant code even when those exact words aren't used.
 
 **Q: Does it work offline?**
 A: Yes, completely offline. The embedding model runs locally with no network calls.
 
 **Q: How big are the indexes?**
-A: Typically 1-3x the size of your source code. The `.cc/` directory can be safely deleted to reclaim space.
+A: Typically 1-3x the size of your source code. The `.cs/` directory can be safely deleted to reclaim space.
 
 **Q: Is it fast enough for large codebases?**
 A: Yes. The first semantic search builds the index automatically; after that only changed files are reprocessed, keeping searches sub-second even on large projects.
@@ -491,13 +550,15 @@ A: Everything runs locally. No code or queries are sent to external services. Th
 
 **Q: Where are the embedding models cached?**
 A: Models are cached in platform-specific directories:
-- Linux/macOS: `~/.cache/cc/models/`
-- Windows: `%LOCALAPPDATA%\cc\cache\models\`
-- Fallback: `.cc_models/models/` in current directory
+
+- Linux/macOS: `~/.cache/cs/models/`
+- Windows: `%LOCALAPPDATA%\cs\cache\models\`
+- Fallback: `.cs_models/models/` in current directory
 
 ## 📄 License
 
 Licensed under either of:
+
 - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
 - MIT License ([LICENSE-MIT](LICENSE-MIT))
 
@@ -506,10 +567,14 @@ at your option.
 ## 🙏 Credits
 
 Built with:
+
+- [ck](https://github.com/BeaconBay/ck) - Original `ck` version 0.5.3
 - [Rust](https://rust-lang.org) - Systems programming language
 - [FastEmbed](https://github.com/Anush008/fastembed-rs) - Fast text embeddings
 - [Tantivy](https://github.com/quickwit-oss/tantivy) - Full-text search engine
 - [clap](https://github.com/clap-rs/clap) - Command line argument parsing
+- [JinaAI](https://huggingface.co/jinaai) - Text embeddings and reranking models
+- [ast-grep](https://github.com/ast-grep/ast-grep) - AST structural search engine
 
 Inspired by the need for better code search tools in the age of AI-assisted development.
 
@@ -517,7 +582,7 @@ Inspired by the need for better code search tools in the age of AI-assisted deve
 
 **Start finding code by what it does, not what it says.**
 
-```bash
-cargo install cc-search
-cc --sem "the code you're looking for"
+```shell
+cargo install semcs-search
+cs --sem "the code you're looking for"
 ```
