@@ -10,6 +10,7 @@ nav_order: 5
 {: .no_toc }
 
 ## Table of contents
+
 {: .no_toc .text-delta }
 
 1. TOC
@@ -20,6 +21,7 @@ nav_order: 5
 **Goal:** Optimize cc for repositories with 100k+ files and maintain fast search performance.
 
 **You'll learn:**
+
 - Performance optimization strategies
 - Index management for large repos
 - Memory usage optimization
@@ -55,7 +57,7 @@ nav_order: 5
 
 Create a `.ccignore` file in your repository root:
 
-```bash
+```shell
 # Exclude build artifacts
 build/
 dist/
@@ -100,26 +102,26 @@ examples/data/
 
 Focus on the languages that matter most:
 
-```bash
+```shell
 # Only index specific languages
-cc --sem "error handling" --glob "*.rs" src/
-cc --sem "authentication" --glob "*.{js,ts}" src/
-cc --sem "database" --glob "*.{py,js,go}" src/
+cs --sem "error handling" --glob "*.rs" src/
+cs --sem "authentication" --glob "*.{js,ts}" src/
+cs --sem "database" --glob "*.{py,js,go}" src/
 ```
 
 ### 3. Directory-Specific Search
 
 Search in specific directories to reduce scope:
 
-```bash
+```shell
 # Search only source code
-cc --sem "pattern" src/
+cs --sem "pattern" src/
 
 # Search only tests
-cc --sem "test" tests/
+cs --sem "test" tests/
 
 # Search only documentation
-cc --sem "API" docs/
+cs --sem "API" docs/
 ```
 
 ---
@@ -128,10 +130,10 @@ cc --sem "API" docs/
 
 ### Understanding Index Storage
 
-Indexes are stored in `.cc/` directory:
+Indexes are stored in `.cs/` directory:
 
-```
-.cc/
+```tree
+.cs/
 ├── index.bin          # Main search index
 ├── embeddings.bin     # Semantic embeddings
 ├── metadata.json      # Index metadata
@@ -144,11 +146,13 @@ Indexes are stored in `.cc/` directory:
 ### Index Size Optimization
 
 **Check index size:**
-```bash
-du -sh .cc/
+
+```shell
+du -sh .cs/
 ```
 
 **Typical index sizes:**
+
 - **Small repo (1k files):** 10-50MB
 - **Medium repo (10k files):** 100-500MB  
 - **Large repo (100k files):** 1-5GB
@@ -157,15 +161,16 @@ du -sh .cc/
 ### Force Reindexing
 
 When to reindex:
+
 - After major refactoring
-- When files changed outside cc
+- When files changed outside cs
 - After updating .ccignore
 - When index seems corrupted
 
-```bash
+```shell
 # Force full reindex
-rm -rf .cc/
-cc --sem "test" .  # This will rebuild the index
+rm -rf .cs/
+cs --sem "test" .  # This will rebuild the index
 ```
 
 ---
@@ -174,25 +179,27 @@ cc --sem "test" .  # This will rebuild the index
 
 ### Environment Variables
 
-```bash
+```shell
 # Limit worker threads (default: CPU cores)
-export CC_WORKERS=4
+export CS_WORKERS=4
 
 # Adjust chunk size for embeddings
-export CC_CHUNK_SIZE=512
+export CS_CHUNK_SIZE=512
 
 # Set memory limit
-export CC_MEMORY_LIMIT=2GB
+export CS_MEMORY_LIMIT=2GB
 ```
 
 ### System Requirements
 
 **Minimum for large repos:**
+
 - **RAM:** 4GB available
 - **Disk:** 20GB free space
 - **CPU:** 4+ cores recommended
 
 **Recommended for very large repos:**
+
 - **RAM:** 8GB+ available
 - **Disk:** 100GB+ free space (SSD preferred)
 - **CPU:** 8+ cores
@@ -204,51 +211,52 @@ export CC_MEMORY_LIMIT=2GB
 ### 1. Use Appropriate Search Modes
 
 **For large repos, prefer:**
+
 - **Regex search** for exact patterns (fastest)
 - **Hybrid search** for keyword + semantic (balanced)
 - **Semantic search** for concept discovery (most accurate)
 
-```bash
+```shell
 # Fast exact search
-cc "fn test_" tests/
+cs --regex "fn test_" tests/
 
 # Balanced keyword + semantic
-cc --hybrid "authentication" src/
+cs --hybrid "authentication" src/
 
 # Concept discovery
-cc --sem "error handling" src/
+cs --sem "error handling" src/
 ```
 
 ### 2. Optimize Query Specificity
 
 **More specific queries = faster results:**
 
-```bash
+```shell
 # Good: Specific and focused
-cc --sem "JWT token validation" src/auth/
+cs --sem "JWT token validation" src/auth/
 
 # Less optimal: Too broad
-cc --sem "auth" .
+cs --sem "auth" .
 ```
 
 ### 3. Use Thresholds Effectively
 
-```bash
+```shell
 # High precision, fewer results
-cc --sem "pattern" --threshold 0.8 src/
+cs --sem "pattern" --threshold 0.8 src/
 
 # Broader search, more results
-cc --sem "pattern" --threshold 0.5 src/
+cs --sem "pattern" --threshold 0.5 src/
 ```
 
 ### 4. Limit Result Count
 
-```bash
+```shell
 # Limit to top 10 results
-cc --sem "pattern" --topk 10 src/
+cs --sem "pattern" --topk 10 src/
 
 # Default is 100, max is 1000
-cc --sem "pattern" --topk 50 src/
+cs --sem "pattern" --topk 50 src/
 ```
 
 ---
@@ -259,24 +267,24 @@ cc --sem "pattern" --topk 50 src/
 
 **For monorepos with multiple projects:**
 
-```bash
+```shell
 # Search specific project
-cc --sem "pattern" apps/frontend/src/
+cs --sem "pattern" apps/frontend/src/
 
 # Search shared libraries
-cc --sem "pattern" libs/shared/src/
+cs --sem "pattern" libs/shared/src/
 
 # Search across all projects
-cc --sem "pattern" .
+cs --sem "pattern" .
 ```
 
 ### Distributed Development
 
 **For teams working on large codebases:**
 
-```bash
+```shell
 # Share index (advanced)
-# Copy .cc/ directory to team members
+# Copy .cs/ directory to team members
 # Note: Indexes are machine-specific, sharing not recommended
 
 # Better: Each developer builds their own index
@@ -287,10 +295,10 @@ cc --sem "pattern" .
 
 **For automated workflows:**
 
-```bash
+```shell
 # In CI pipeline
-cc --sem "security" --threshold 0.8 src/ > security_scan.txt
-cc --sem "performance" --threshold 0.7 src/ > performance_scan.txt
+cs --sem "security" --threshold 0.8 src/ > security_scan.txt
+cs --sem "performance" --threshold 0.7 src/ > performance_scan.txt
 ```
 
 ---
@@ -299,40 +307,45 @@ cc --sem "performance" --threshold 0.7 src/ > performance_scan.txt
 
 ### Check Index Health
 
-```bash
+```shell
 # Check if index exists
-ls -la .cc/
+ls -la .cs/
 
 # Check index metadata
-cat .cc/metadata.json
+cat .cs/metadata.json
 ```
 
 ### Performance Monitoring
 
 **Track search performance:**
-```bash
+
+```shell
 # Time your searches
-time cc --sem "pattern" src/
+time cs --sem "pattern" src/
 
 # Monitor memory usage
-top -p $(pgrep cc)
+top -p $(pgrep cs)
 ```
 
 ### Common Issues and Solutions
 
 **Issue: Slow first search**
+
 - **Cause:** Index building
 - **Solution:** Normal behavior, subsequent searches are fast
 
 **Issue: High memory usage**
+
 - **Cause:** Large index in memory
-- **Solution:** Reduce CC_WORKERS, optimize .ccignore
+- **Solution:** Reduce CS_WORKERS, optimize .csignore
 
 **Issue: Disk space full**
+
 - **Cause:** Large index files
 - **Solution:** Clean up .ccignore, remove old indexes
 
 **Issue: Search returns no results**
+
 - **Cause:** Files excluded by .ccignore
 - **Solution:** Check .ccignore rules, use --debug flag
 
@@ -342,15 +355,16 @@ top -p $(pgrep cc)
 
 ### Parallel Indexing
 
-```bash
+```shell
 # Use multiple cores for indexing
-export CC_WORKERS=8
-cc --sem "test" .  # Will use 8 threads
+export CS_WORKERS=8
+cs --sem "test" .  # Will use 8 threads
 ```
 
 ### Incremental Updates
 
-cc automatically updates indexes when files change:
+cs automatically updates indexes when files change:
+
 - **File modified:** Index updated incrementally
 - **File added:** Added to index
 - **File deleted:** Removed from index
@@ -360,9 +374,9 @@ cc automatically updates indexes when files change:
 
 For very large files, consider splitting:
 
-```bash
+```shell
 # Search in specific file ranges
-cc --sem "pattern" --glob "*.rs" src/ | head -100
+cs --sem "pattern" --glob "*.rs" src/ | head -100
 ```
 
 ---
@@ -371,20 +385,20 @@ cc --sem "pattern" --glob "*.rs" src/ | head -100
 
 ### 1. Regular Maintenance
 
-```bash
+```shell
 # Weekly: Check index size
-du -sh .cc/
+du -sh .cs/
 
 # Monthly: Clean up old indexes
-find . -name ".cc" -type d -mtime +30 -exec rm -rf {} \;
+find . -name ".cs" -type d -mtime +30 -exec rm -rf {} \;
 
 # As needed: Reindex after major changes
-rm -rf .cc/ && cc --sem "test" .
+rm -rf .cs/ && cs --sem "test" .
 ```
 
 ### 2. Team Coordination
 
-- **Share .ccignore** via version control
+- **Share .csignore** via version control
 - **Document search strategies** for common patterns
 - **Set up CI/CD** with cc for automated analysis
 
@@ -392,7 +406,7 @@ rm -rf .cc/ && cc --sem "test" .
 
 - **Track search times** for common queries
 - **Monitor index sizes** across different repos
-- **Optimize .ccignore** based on usage patterns
+- **Optimize .csignore** based on usage patterns
 
 ---
 
@@ -401,16 +415,18 @@ rm -rf .cc/ && cc --sem "test" .
 ### Common Problems
 
 **Problem: Index building takes forever**
-```bash
-# Check what's being indexed
-cc --sem "test" --debug .
 
-# Optimize .ccignore
+```shell
+# Check what's being indexed
+cs --sem "test" --debug .
+
+# Optimize .csignore
 # Reduce CC_WORKERS if memory constrained
 ```
 
 **Problem: Search is slow**
-```bash
+
+```shell
 # Use more specific queries
 # Try regex instead of semantic
 # Reduce --topk value
@@ -418,11 +434,12 @@ cc --sem "test" --debug .
 ```
 
 **Problem: Out of memory**
-```bash
-# Reduce CC_WORKERS
-export CC_WORKERS=2
 
-# Optimize .ccignore to exclude large files
+```shell
+# Reduce CS_WORKERS
+export CS_WORKERS=2
+
+# Optimize .csignore to exclude large files
 # Consider searching smaller directories
 ```
 

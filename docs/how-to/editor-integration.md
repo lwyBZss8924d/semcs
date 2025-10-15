@@ -40,8 +40,8 @@ nav_order: 4
 **Example workflow:**
 ```bash
 # In VS Code terminal
-cc --tui .
-cc --sem "error handling" src/
+cs --tui .
+cs --sem "error handling" src/
 ```
 
 ### Method 2: Tasks Integration
@@ -208,7 +208,7 @@ return M
   (let ((default-directory (project-root (project-current))))
     (shell-command (format "cc --sem '%s' ." query))))
 
-(defun cc-tui ()
+(defun cs-tui ()
   "Launch cc TUI."
   (interactive)
   (let ((default-directory (project-root (project-current))))
@@ -222,7 +222,7 @@ return M
 
 ;; Key bindings
 (global-set-key (kbd "C-c c s") 'cc-semantic-search)
-(global-set-key (kbd "C-c c t") 'cc-tui)
+(global-set-key (kbd "C-c c t") 'cs-tui)
 (global-set-key (kbd "C-c c r") 'cc-regex-search)
 ```
 
@@ -266,7 +266,7 @@ return M
 const { exec } = require('child_process');
 
 function ccSemanticSearch(query) {
-  exec(`cc --sem "${query}" .`, (error, stdout, stderr) => {
+  exec(`cs --sem "${query}" .`, (error, stdout, stderr) => {
     if (error) {
       console.error(`Error: ${error}`);
       return;
@@ -282,7 +282,7 @@ function ccSemanticSearch(query) {
 1. Go to Settings → Tools → External Tools
 2. Add new tool:
    - **Name:** cc Semantic Search
-   - **Program:** cc
+   - **Program:** cs
    - **Arguments:** `--sem $Prompt$ .`
    - **Working directory:** `$ProjectFileDir$`
 
@@ -417,7 +417,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 **Editor can't find cc:**
 - Ensure cc is in PATH
-- Restart editor after installing cc
+- Restart editor after installing cs
 - Check editor's PATH configuration
 
 **Slow performance:**

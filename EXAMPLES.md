@@ -1,13 +1,13 @@
-# cc (seek) - Usage Examples
+# cs (semcs) - Usage Examples
 
-This guide walks through practical examples of cc's capabilities, from basic grep replacement to advanced semantic search.
+This guide walks through practical examples of cs's capabilities, from basic grep replacement to advanced semantic search.
 
 ## Quick Setup
 
-First, create a test project to explore cc's features:
+First, create a test project to explore cs's features:
 
-```bash
-mkdir cc-demo && cd cc-demo
+```shell
+mkdir cs-demo && cd cs-demo
 
 # Create sample files
 cat > auth.rs << EOF
@@ -102,74 +102,74 @@ EOF
 
 ## 1. Basic Grep-Style Search (No Index Required)
 
-cc works as a drop-in grep replacement:
+cs works as a drop-in grep replacement:
 
-```bash
+```shell
 # Find all mentions of "error"
-cc "error" .
+cs "error" .
 
 # Case-insensitive search for TODO items
-cc -i "todo" .
+cs -i "todo" .
 
 # Show line numbers
-cc -n "authentication" .
+cs -n "authentication" .
 
 # Match whole words only
-cc -w "error" .
+cs -w "error" .
 
 # Fixed string search (no regex)
-cc -F "AuthError::InvalidCredentials" .
+cs -F "AuthError::InvalidCredentials" .
 
 # Show context around matches
-cc -C 2 "authenticate" .
+cs -C 2 "authenticate" .
 ```
 
 ## 2. Create Search Index
 
 Before using semantic or lexical search, create an index:
 
-```bash
+```shell
 # Index current directory
-cc index .
+cs index .
 
 # Check what was indexed
-cc status .
+cs status .
 
 # Detailed index statistics
-cc status . --verbose
+cs status . --verbose
 ```
 
 ## 3. Semantic Search - Find Similar Code
 
 Semantic search understands meaning and finds conceptually related code:
 
-```bash
+```shell
 # Find all authentication-related code
-cc --sem "user authentication" .
+cs --sem "user authentication" .
 
 # Find error handling patterns
-cc --sem "error handling" .
+cs --sem "error handling" .
 
 # Find database operations
-cc --sem "database connection" .
+cs --sem "database connection" .
 
 # Find login functionality
-cc --sem "user login" .
+cs --sem "user login" .
 
 # Limit to top 5 most relevant results
-cc --sem "authentication" . --topk 5
+cs --sem "authentication" . --topk 5
 
 # Filter by similarity score threshold (0.0-1.0)
-cc --sem "authentication" . --threshold 0.7
+cs --sem "authentication" . --threshold 0.7
 
 # Show similarity scores in output
-cc --sem "error handling" . --scores
+cs --sem "error handling" . --scores
 
 # Combine threshold and score display
-cc --sem "database" . --threshold 0.6 --scores
+cs --sem "database" . --threshold 0.6 --scores
 
 # Hybrid search with RRF threshold and scores
-cc --hybrid "authentication" . --threshold 0.025 --scores
+cs --hybrid "authentication" . --threshold 0.025 --scores
 ```
 
 ### What Makes This Powerful?
@@ -182,98 +182,99 @@ cc --hybrid "authentication" . --threshold 0.025 --scores
 
 Lexical search uses BM25 ranking for better phrase matching than regex:
 
-```bash
+```shell
 # Full-text search with relevance ranking
-cc --lex "authentication failed" .
+cs --lex "authentication failed" .
 
 # Better for multi-word phrases
-cc --lex "database connection error" .
+cs --lex "database connection error" .
 
 # Find documentation
-cc --lex "error handling components" .
+cs --lex "error handling components" .
 ```
 
 ## 5. Hybrid Search - Best of Both Worlds
 
 Combines regex pattern matching with semantic understanding:
 
-```bash
+```shell
 # Find functions with "auth" that are semantically related to authentication
-cc --hybrid "auth" .
+cs --hybrid "auth" .
 
 # Pattern match + semantic relevance
-cc --hybrid "error" --topk 10 .
+cs --hybrid "error" --topk 10 .
 
 # Filter hybrid results by RRF score threshold  
-cc --hybrid "auth" --threshold 0.02 .
+cs --hybrid "auth" --threshold 0.02 .
 
 # Show scores for hybrid search (RRF scores ~0.01-0.05)
-cc --hybrid "error" --scores .
+cs --hybrid "error" --scores .
 ```
 
 ## 6. JSON Output for Tools/Scripts
 
 Get structured output for integration with other tools:
 
-```bash
+```shell
 # JSON output with relevance scores
-cc --json --sem "authentication" .
+cs --json --sem "authentication" .
 
 # Pipe to jq for processing
-cc --json --sem "error" . | jq '.score'
+cs --json --sem "error" . | jq '.score'
 
 # Get top 3 results as JSON
-cc --json --topk 3 --lex "user login" .
+cs --json --topk 3 --lex "user login" .
 ```
 
 ## 7. Index Management
 
 ### Monitor Index Health
 
-```bash
+```shell
 # Check index status
-cc status .
+cs status .
 
 # Detailed statistics
-cc status . --verbose
+cs status . --verbose
 ```
 
 ### Update Index After Changes
 
-```bash
+```shell
 # Edit a file
 echo "// Added new auth method" >> auth.rs
 
 # Index automatically updates on search, or force update:
-cc index .
+cs index .
 
 # Add single file to index
-cc add auth.rs
+cs add auth.rs
 ```
 
 ### Clean Up Index
 
-```bash
+```shell
 # Remove a file to create orphaned index entries
 rm server.js
 
 # Clean up orphaned entries only
-cc clean . --orphans
+cs clean . --orphans
 
 # Remove entire index (will need to reindex for semantic search)
-cc clean .
+cs clean .
 ```
 
 ## 8. Advanced Examples
 
 ### Find All Error Handling Patterns
 
-```bash
+```shell
 # Semantic search finds diverse error handling approaches
-cc --sem "error handling" . --json | jq -r '.preview'
+cs --sem "error handling" . --json | jq -r '.preview'
 ```
 
 This finds:
+
 - Rust: `Err(AuthError::InvalidCredentials)`
 - Python: `except Exception as e:`
 - JavaScript: `catch (error)`
@@ -281,34 +282,34 @@ This finds:
 
 ### Compare Search Methods
 
-```bash
+```shell
 echo "Searching for 'auth' with different methods:"
 
 echo "=== Regex (exact text matching) ==="
-cc "auth" .
+cs "auth" .
 
 echo "=== Lexical (BM25 ranking) ==="  
-cc --lex "auth" .
+cs --lex "auth" .
 
 echo "=== Semantic (conceptual similarity) ==="
-cc --sem "auth" .
+cs --sem "auth" .
 
 echo "=== Hybrid (regex + semantic) ==="
-cc --hybrid "auth" .
+cs --hybrid "auth" .
 ```
 
 ### Integration with Shell Scripts
 
-```bash
+```shell
 #!/bin/bash
 # Find security-related TODOs
 
 echo "Security TODOs found:"
-cc --sem "security vulnerability" . --json | \
+cs --sem "security vulnerability" . --json | \
     jq -r '"\(.file):\(.span.line_start): \(.preview)"'
 
 echo -e "\nAuthentication issues:"
-cc --hybrid "auth.*TODO" . --json | \
+cs --hybrid "auth.*TODO" . --json | \
     jq -r '"\(.file): \(.preview)"'
 ```
 
@@ -316,7 +317,7 @@ cc --hybrid "auth.*TODO" . --json | \
 
 ### When to Use Each Mode
 
-- **Regex** (`cc "pattern"`): Exact text matching, grep replacement, no index needed
+- **Regex** (`cs "pattern"`): Exact text matching, grep replacement, no index needed
 - **Lexical** (`--lex`): Multi-word phrases, document search, ranked results
 - **Semantic** (`--sem`): Conceptual similarity, find related functionality, code exploration
 - **Hybrid** (`--hybrid`): When you want both exact matches and similar concepts
@@ -324,15 +325,16 @@ cc --hybrid "auth.*TODO" . --json | \
 ### Index Management
 
 - Index updates automatically during search (if >1 minute old)
-- Use `cc status` to monitor index size and health
-- Use `cc clean --orphans` after major file reorganization
-- Use `cc --switch-model <model>` to rebuild the index with a different embedding model
+- Use `cs status` to monitor index size and health
+- Use `cs clean --orphans` after major file reorganization
+- Use `cs --switch-model <model>` to rebuild the index with a different embedding model
 - Add `--force` if you need to rebuild even when the model already matches
-- Index persists in `.cc/` directory (add to `.gitignore`)
+- Index persists in `.cs/` directory (add to `.gitignore`)
 
 ### File Type Support
 
-cc indexes these file types:
+cs indexes these file types:
+
 - Code: `.rs`, `.py`, `.js`, `.ts`, `.go`, `.java`, `.c`, `.cpp`, `.rb`, `.php`, `.swift`, `.kt`
 - Docs: `.md`, `.txt`, `.rst`  
 - Config: `.json`, `.yaml`, `.toml`, `.xml`
@@ -344,23 +346,23 @@ cc indexes these file types:
 2. **Use `--topk`** to limit results when exploring large codebases  
 3. **Use `--threshold`** to filter low-relevance results (semantic/lexical: 0.6-0.8, hybrid RRF: 0.02-0.05)  
 4. **Use `--scores`** to see match quality and fine-tune your threshold
-5. **Combine with shell tools**: `cc --json --sem "query" | jq`
+5. **Combine with shell tools**: `cs --json --sem "query" | jq`
 6. **Index smaller directories** for faster semantic search
-7. **Use `cc status -v`** to monitor index growth over time
+7. **Use `cs status -v`** to monitor index growth over time
 
 ## Troubleshooting
 
-```bash
+```shell
 # No results from semantic search?
-cc status .                    # Check if index exists
-cc index . && cc --sem "query" # Create index first
+cs status .                    # Check if index exists
+cs index . && cs --sem "query" # Create index first
 
 # Index too large?
-cc status . --verbose         # Check size statistics  
-cc clean . --orphans          # Remove orphaned files
+cs status . --verbose         # Check size statistics  
+cs clean . --orphans          # Remove orphaned files
 
 # Stale results?
-cc index .                    # Force reindex
+cs index .                    # Force reindex
 ```
 
 Happy seeking! 🔍

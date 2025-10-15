@@ -679,7 +679,7 @@ Place `.ccignore` in your project root or search directory. See [Configuration R
 
 **Index management:**
 1. **Index once, search many**: First search creates index (~1-2 sec for medium repos)
-2. **Reindex when needed**: Delete `.cc/` directory to rebuild index
+2. **Reindex when needed**: Delete `.cs/` directory to rebuild index
 3. **Exclude large dirs**: Use `.ccignore` for `node_modules`, `target`, etc.
 
 **Search optimization:**
@@ -832,7 +832,7 @@ tput colors
 #    Ensure you're in the right mode (semantic/regex/hybrid)
 
 # 2. Verify index exists
-ls .cc/
+ls .cs/
 # Should show index files; if not, first search creates it
 
 # 3. Try regex mode to confirm file exists
@@ -898,7 +898,7 @@ file path/to/target.txt
 
 ```bash
 # Delete index to force rebuild
-rm -rf .cc/
+rm -rf .cs/
 
 # Re-run search (will rebuild index)
 cc --tui .
@@ -977,7 +977,7 @@ cc --tui src/           # Instead of .
 # Press 'r' for regex mode (no indexing)
 
 # 4. Check index size
-du -sh .cc/
+du -sh .cs/
 # Very large indexes indicate too much is indexed
 ```
 

@@ -1,0 +1,22 @@
+[package]
+name = "cs-ann"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Approximate nearest neighbor search for cc semantic search"
+repository = "https://github.com/lwyBZss8924d/semcs"
+keywords = ["search", "ann", "vector"]
+categories = ["algorithms"]
+
+[dependencies]
+cs-core = { version = "0.6.1", path = "../cs-core" }
+
+anyhow = { workspace = true }
+serde = { workspace = true }
+bincode = { workspace = true }
+# instant-distance = { workspace = true }  # Temporarily disabled
+
+[dev-dependencies]
+tempfile = "3.8"

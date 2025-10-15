@@ -522,6 +522,7 @@ The CI pipeline runs on Ubuntu, Windows, and macOS to ensure cross-platform comp
 - ✅ [0.6.1] AST search mode support
 - ✅ [0.6.1] Hybrid AST search mode support
 
+- 🚧 [COOKING IN PROGRESS] SEMCS Benchmarks: SEMCS-Benchmarks-dataset & SEMCS-bench & SEMCS-bench-agent (benchmarks/) [0.6.2]
 - 🚧 Package manager distributions (brew, npm, apt)
 - 🚧 Enhanced MCP tools (file writing, refactoring assistance)
 - 🚧 VS Code extension

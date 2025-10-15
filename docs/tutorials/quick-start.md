@@ -18,15 +18,15 @@ Install cc and run your first semantic search in 5 minutes.
 
 ---
 
-## Install cc
+## Install cs
 
 ```bash
-cargo install cc-search
+cargo install cs-search
 ```
 
 Verify installation:
 ```bash
-cc --version
+cs --version
 ```
 
 If you don't have Rust installed, install it first:
@@ -42,7 +42,7 @@ Navigate to any codebase and run your first semantic search:
 
 ```bash
 cd ~/projects/your-repo
-cc --sem "error handling" src/
+cs --sem "error handling" src/
 ```
 
 This command:
@@ -90,32 +90,32 @@ Relevance scores:
 
 ```bash
 # Find authentication code
-cc --sem "user authentication" src/
+cs --sem "user authentication" src/
 
 # Find caching logic
-cc --sem "cache implementation" .
+cs --sem "cache implementation" .
 
 # Find async task spawning
-cc --sem "spawn async task" src/
+cs --sem "spawn async task" src/
 ```
 
-Notice: cc finds relevant code even without exact keyword matches!
+Notice: cs finds relevant code even without exact keyword matches!
 
 ---
 
 ## Traditional Grep Still Works
 
-cc is fully grep-compatible:
+cs is fully grep-compatible:
 
 ```bash
 # Find todos
-cc "TODO" src/
+cs "TODO" src/
 
 # Case-insensitive search
-cc -i "fixme" .
+cs -i "fixme" .
 
 # Show line numbers
-cc -n "fn main" src/
+cs -n "fn main" src/
 ```
 
 All your grep muscle memory works!
@@ -124,7 +124,7 @@ All your grep muscle memory works!
 
 ## How It Works
 
-1. **Automatic indexing:** cc analyzed your code and created semantic embeddings
+1. **Automatic indexing:** cs analyzed your code and created semantic embeddings
 2. **Semantic matching:** Found code by meaning, not just text matching
 3. **Ranked results:** Returned the most relevant matches first
 4. **Smart chunking:** Results show complete functions/classes, not just lines
@@ -150,13 +150,13 @@ export PATH="$HOME/.cargo/bin:$PATH"
 **No results:**
 ```bash
 # Check if index exists
-ls .cc/
+ls .cs/
 
 # Try regex search to verify files exist
-cc "fn " src/
+cs "fn " src/
 
 # Lower threshold for more results
-cc --sem "query" --threshold 0.5 src/
+cs --sem "query" --threshold 0.5 src/
 ```
 
 **Slow first search:**

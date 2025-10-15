@@ -18,7 +18,7 @@ Just as **uv** modernized `pip`, **cc** modernizes `grep`: fast, lightweight, ag
 * **Code-Aware Chunking**: Default span segmentation + language-aware chunkers (Python → TypeScript → others).
 * **Rust-First Implementation**: High performance, portable, no runtime deps.
 * **Modular & Extensible**: Pluggable ANN index backends, embedders, and chunkers.
-* **Self-contained**: Sidecar `.cc/` directory at repo root, fully removable, reproducible, idempotent.
+* **Self-contained**: Sidecar `.cs/` directory at repo root, fully removable, reproducible, idempotent.
 
 ---
 
@@ -51,7 +51,7 @@ Just as **uv** modernized `pip`, **cc** modernizes `grep`: fast, lightweight, ag
 
 ### 2. Span Fingerprinting & Indexing
 
-* Sidecar `.cc/` at repo root, mirrors repo layout (`foo.rs` → `.cc/foo.rs.cc`).
+* Sidecar `.cs/` at repo root, mirrors repo layout (`foo.rs` → `.cs/foo.rs.cs`).
 * **File-level hashing** (blake3 or sha256).
 * Lifecycle:
 
@@ -59,7 +59,7 @@ Just as **uv** modernized `pip`, **cc** modernizes `grep`: fast, lightweight, ag
   * `cc --reindex` → force index update before searching.
   * `cc --clean` → wipe sidecar fully (safe to rebuild).
   * Smart incremental updates: hash-based change detection for fast re-indexing.
-* **CI Guidance**: Recommend **regen per build**; `.cc/` is a cache artifact, not checked into VCS.
+* **CI Guidance**: Recommend **regen per build**; `.cs/` is a cache artifact, not checked into VCS.
 * **Concurrency**: atomic replace via `.tmp` + rename, file-level granularity.
 
 ### 3. Code-Aware Chunking
@@ -196,15 +196,15 @@ pub trait AnnIndex {
 ## Cargo Workspace Layout
 
 ```
-cc/
-├── cc-cli/       # end-user binary
-├── cc-core/      # shared core logic
-├── cc-index/     # index builder (sidecars, hashes)
-├── cc-search/    # query engine (BM25 + ANN + RRF fusion)
-├── cc-chunk/     # span segmentation + tree-sitter
-├── cc-embed/     # embedders (fastembed, Candle, API)
-├── cc-ann/       # ANN backends (HNSW, FAISS)
-└── cc-models/    # model registry + config
+semcs/
+├── cs-cli/       # end-user binary
+├── cs-core/      # shared core logic
+├── cs-index/     # index builder (sidecars, hashes)
+├── cs-engine/    # query engine (BM25 + ANN + RRF fusion)
+├── cs-chunk/     # span segmentation + tree-sitter
+├── cs-embed/     # embedders (fastembed, Candle, API)
+├── cs-ann/       # ANN backends (HNSW, FAISS)
+└── cs-models/    # model registry + config
 ```
 
 ---
@@ -216,7 +216,7 @@ cc/
 * ✅ Workspace scaffolding.
 * ✅ Regex-focused CLI with grep parity for core flags (`-n`, `-C/-A/-B`, `-R`, `-i`, `-F`, `-w`, `--no-filename`, `-H`).
 * ✅ Deterministic output ordering and grep-like exit codes.
-* ✅ `.cc/` sidecar spec defined (file-level hash).
+* ✅ `.cs/` sidecar spec defined (file-level hash).
 * ✅ Comprehensive test suite (40+ tests) validates grep parity.
 
 ### **M1 — Lexical Search** ✅ COMPLETED
@@ -273,7 +273,7 @@ cc/
 * ✅ Simple ANN index implemented (HNSW/FAISS deferred for performance optimization).
 * ✅ fastembed integration (feature-gated for CI compatibility).
 * ✅ JSON schema versioning (`--json` flag).
-* ✅ Sidecar `.cc/` is cache-only, not committed to VCS.
+* ✅ Sidecar `.cs/` is cache-only, not committed to VCS.
 * ✅ Hybrid fusion via Reciprocal Rank Fusion (RRF).
 * ✅ File-level hash indexing; reindex on-demand with `--reindex`.
 * ✅ Exclusion patterns with comprehensive defaults (`.git`, `node_modules`, `.venv`, `__pycache__`, etc.).
@@ -311,7 +311,7 @@ cc/
 
 ### 🎯 **Future Considerations** (Post v1.0)
 1. **Performance Optimization**: HNSW or FAISS backends for very large codebases
-2. **Configuration System**: Support `.cc/config.toml` for per-project settings  
+2. **Configuration System**: Support `.cs/config.toml` for per-project settings  
 3. **Language Expansion**: Add Rust, Go, Java tree-sitter support based on demand
 4. **Package Distribution**: Homebrew, cargo install, apt packages for easier installation
 5. **Advanced Features**: Multi-language semantic understanding, IDE integrations

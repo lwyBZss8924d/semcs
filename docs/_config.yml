@@ -18,15 +18,15 @@ search:
 
 # Aux links (top-right)
 aux_links:
-  GitHub: "https://github.com/BeaconBay/cc"
-  "crates.io": "https://crates.io/crates/cc-search"
+  GitHub: "https://github.com/lwyBZss8924d/semcs"
+  "crates.io": "https://crates.io/crates/cc-semantic-code-retrieval"
 
 # Back to top link
 back_to_top: true
 back_to_top_text: "Back to top"
 
 # Footer
-footer_content: "Copyright &copy; 2024 BeaconBay. Apache-2.0 and MIT licenses."
+footer_content: "Copyright &copy; 2024 forked from BeaconBay. Apache-2.0 and MIT licenses."
 
 # Color scheme - custom
 color_scheme: cc

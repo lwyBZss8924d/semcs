@@ -1,0 +1,30 @@
+[package]
+name = "cs-chunk"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Text chunking and parsing for cc semantic search"
+repository = "https://github.com/lwyBZss8924d/semcs"
+keywords = ["parsing", "chunking", "tree-sitter"]
+categories = ["parsing"]
+
+[dependencies]
+cs-core = { version = "0.6.1", path = "../cs-core" }
+cs-embed = { version = "0.6.1", path = "../cs-embed" }
+
+anyhow = { workspace = true }
+serde = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-python = { workspace = true }
+tree-sitter-typescript = { workspace = true }
+tree-sitter-haskell = { workspace = true }
+tree-sitter-rust = { workspace = true }
+tree-sitter-ruby = { workspace = true }
+tree-sitter-go = { workspace = true }
+tree-sitter-c-sharp = { workspace = true }
+tree-sitter-zig = { workspace = true }
+tracing = { workspace = true }
+hf-hub = "0.3"
+tokenizers = { version = "0.22", default-features = false, features = ["onig", "progressbar"] }

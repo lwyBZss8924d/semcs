@@ -4,13 +4,13 @@ title: Home
 nav_order: 1
 ---
 
-# cc
+# cs
 
 **Semantic code search.** Find code by what it does, not just what it says.
 
 ```bash
 cargo install cc-search
-cc --sem "error handling" src/
+cs --sem "error handling" src/
 ```
 
 Ask for "error handling" and find try/catch blocks, Result types, panic handlers—even when those exact words aren't there.
@@ -41,13 +41,13 @@ Ask for "error handling" and find try/catch blocks, Result types, panic handlers
 
 ```bash
 # Search by meaning
-cc --sem "retry logic" src/
+cs --sem "retry logic" src/
 
 # Interactive mode
-cc --tui .
+cs --tui .
 
 # For AI tools
-cc --serve
+cs --serve
 ```
 
 **One minute to install.** Choose your path below.

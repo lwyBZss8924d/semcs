@@ -13,7 +13,7 @@ Connect cc to Claude Desktop and other AI tools using the Model Context Protocol
 
 **Model Context Protocol (MCP)** is a standard protocol that allows AI agents to access external tools.
 
-cc implements MCP, giving AI agents the ability to:
+cs implements MCP, giving AI agents the ability to:
 - Search code semantically
 - Find patterns with regex
 - Combine semantic + keyword search (hybrid)
@@ -24,7 +24,7 @@ cc implements MCP, giving AI agents the ability to:
 
 ## Claude Desktop Setup
 
-### 1. Install cc
+### 1. Install cs
 
 ```bash
 cargo install cc-search
@@ -32,7 +32,7 @@ cargo install cc-search
 
 Verify:
 ```bash
-cc --version
+cs --version
 ```
 
 ### 2. Configure Claude Desktop
@@ -111,7 +111,7 @@ Any MCP-compatible client can connect to cc's MCP server:
 
 ```bash
 # Start server (runs on stdio)
-cc --serve
+cs --serve
 ```
 
 Server accepts JSON-RPC 2.0 messages on stdin and responds on stdout.
@@ -125,7 +125,7 @@ Test MCP server without an AI tool:
 ### Start Server
 
 ```bash
-cc --serve
+cs --serve
 ```
 
 Server runs on stdio, waiting for JSON-RPC messages.
@@ -236,7 +236,7 @@ Force rebuild of semantic index.
 - `force` (optional) - Force reindex even if up-to-date
 
 **Use when:**
-- Files changed outside cc
+- Files changed outside cs
 - Index corruption
 - Major refactoring
 
@@ -287,14 +287,14 @@ Force rebuild of semantic index.
 
 **Check version:**
 ```bash
-cc --version
+cs --version
 ```
 
 Must be 0.5.0+.
 
 **Test server:**
 ```bash
-cc --serve --help
+cs --serve --help
 ```
 
 Should show MCP server options.
@@ -318,7 +318,7 @@ type %APPDATA%\Claude\claude_desktop_config.json
 
 **Test command-line first:**
 ```bash
-cc --sem "your query" /path/to/project
+cs --sem "your query" /path/to/project
 ```
 
 If CLI works but MCP doesn't:

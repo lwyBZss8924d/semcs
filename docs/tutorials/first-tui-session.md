@@ -33,7 +33,7 @@ nav_order: 2
 
 ```bash
 cd ~/projects/your-repo
-cc --tui .
+cs --tui .
 ```
 
 **You'll see:**

@@ -1,6 +1,6 @@
 # Query-Based Chunking Overview
 
-`cc-chunk` now drives language-aware chunk boundaries through Tree-sitter queries instead of handwritten matchers. Each language opts in by providing `queries/<language>/tags.scm` with captures that describe the constructs we care about (functions, struct/enum definitions, modules, etc.).
+`cs-chunk` now drives language-aware chunk boundaries through Tree-sitter queries instead of handwritten matchers. Each language opts in by providing `queries/<language>/tags.scm` with captures that describe the constructs we care about (functions, struct/enum definitions, modules, etc.).
 
 ## Capture Conventions
 
@@ -12,7 +12,7 @@
   - `module`, `impl`, `mod`, `namespace` → `ChunkType::Module`
 - Non-matching captures are ignored by the refinement pipeline.
 
-See `cc-chunk/queries/rust/tags.scm` for an example.
+See `cs-chunk/queries/rust/tags.scm` for an example.
 
 ### Current Query Coverage
 

@@ -1,0 +1,30 @@
+[package]
+name = "cs-embed"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Text embedding providers for cc semantic search"
+repository = "https://github.com/lwyBZss8924d/semcs"
+keywords = ["embedding", "nlp", "semantic"]
+categories = ["science"]
+
+[dependencies]
+cs-core = { version = "0.6.1", path = "../cs-core" }
+
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+
+fastembed = { workspace = true, optional = true }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], optional = true }
+
+[dev-dependencies]
+serial_test = "2.0"
+
+[features]
+default = ["fastembed"]
+fastembed = ["dep:fastembed"]
+jina-api = ["dep:reqwest"]

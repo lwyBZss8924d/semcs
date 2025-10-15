@@ -1,18 +1,11 @@
----
-layout: default
-title: Installation Guide
-parent: Tutorials
-nav_order: 3
----
-
-# Installation
+# (cs) Installation
 
 ## Quick Install
 
 The fastest way to get started:
 
-```bash
-cargo install cc-search
+```shell
+cargo install cs-search
 ```
 
 That's it! You're ready to search.
@@ -21,23 +14,25 @@ That's it! You're ready to search.
 
 ### From crates.io (Recommended)
 
-```bash
+```shell
 # Install latest stable version
-cargo install cc-search
+cargo install cs-search
 
 # Update to latest version
-cargo install cc-search --force
+cargo install cs-search --force
 
 # Install specific version
-cargo install cc-search --version 0.5.3
+cargo install cs-search --version 0.5.3
 ```
 
 **Requirements:**
+
 - Rust 1.70 or later
 - Cargo (comes with Rust)
 
 **Install Rust** (if needed):
-```bash
+
+```shell
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
@@ -45,20 +40,21 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 For latest features or development:
 
-```bash
+```shell
 # Clone repository
-git clone https://github.com/BeaconBay/cc
-cd cc
+git clone https://github.com/lwyBZss8924d/semcs
+cd cs
 
 # Install from source
-cargo install --path cc-cli
+cargo install --path cs-cli
 
 # Or just build (doesn't install)
 cargo build --release
-./target/release/cc --version
+./target/release/cs --version
 ```
 
 **Benefits:**
+
 - Latest features before official release
 - Can modify and customize
 - Contribute improvements
@@ -67,24 +63,24 @@ cargo build --release
 
 **Coming Soon:**
 
-```bash
+```shell
 # Homebrew (macOS/Linux) - In development
-brew install cc-search
+brew install cs-search
 
 # APT (Debian/Ubuntu) - In development
-apt install cc-search
+apt install cs-search
 
 # DNF/YUM (Fedora/RHEL) - In development
-dnf install cc-search
+dnf install cs-search
 
 # Scoop (Windows) - In development
-scoop install cc-search
+scoop install cs-search
 
 # Chocolatey (Windows) - In development
-choco install cc-search
+choco install cs-search
 ```
 
-For now, use `cargo install cc-search` on all platforms.
+For now, use `cargo install cs-search` on all platforms.
 
 ## Platform-Specific Instructions
 
@@ -92,29 +88,30 @@ For now, use `cargo install cc-search` on all platforms.
 
 #### Using Cargo (Recommended)
 
-```bash
+```shell
 # Install Rust if needed
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 
 # Install cc
-cargo install cc-search
+cargo install cs-search
 
 # Verify installation
-cc --version
+cs --version
 ```
 
 #### Using Homebrew (Coming Soon)
 
-```bash
+```shell
 # Not yet available - use cargo for now
-brew install cc-search
+brew install cs-search
 ```
 
 **Troubleshooting:**
 
 If you get permission errors:
-```bash
+
+```shell
 # Ensure cargo bin is in PATH
 echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.zshrc
 source ~/.zshrc
@@ -124,13 +121,13 @@ source ~/.zshrc
 
 #### Using Cargo (Works on all distros)
 
-```bash
+```shell
 # Install Rust if needed
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 
 # Install cc
-cargo install cc-search
+cargo install cs-search
 
 # Verify installation
 cc --version
@@ -138,30 +135,31 @@ cc --version
 
 #### Debian/Ubuntu (Coming Soon)
 
-```bash
+```shell
 # Not yet available - use cargo for now
 sudo apt update
-sudo apt install cc-search
+sudo apt install cs-search
 ```
 
 #### Fedora/RHEL (Coming Soon)
 
-```bash
+```shell
 # Not yet available - use cargo for now
-sudo dnf install cc-search
+sudo dnf install cs-search
 ```
 
 #### Arch Linux (Coming Soon)
 
-```bash
+```shell
 # Not yet available - use cargo for now
-yay -S cc-search
+yay -S cs-search
 ```
 
 **Troubleshooting:**
 
 If you get linker errors:
-```bash
+
+```shell
 # Ubuntu/Debian
 sudo apt install build-essential
 
@@ -174,41 +172,43 @@ sudo pacman -S base-devel
 
 ### Windows
 
-#### Using Cargo (Recommended)
+#### Windows Using Cargo (Recommended)
 
 ```powershell
 # Install Rust if needed
 # Download and run: https://rustup.rs/
 
 # Install cc
-cargo install cc-search
+cargo install cs-search
 
 # Verify installation
 cc --version
 ```
 
-#### Using Scoop (Coming Soon)
+#### Windows Using Scoop (Coming Soon)
 
 ```powershell
 # Not yet available - use cargo for now
-scoop install cc-search
+scoop install cs-search
 ```
 
-#### Using Chocolatey (Coming Soon)
+#### Windows Using Chocolatey (Coming Soon)
 
 ```powershell
 # Not yet available - use cargo for now
-choco install cc-search
+choco install cs-search
 ```
 
 **Troubleshooting:**
 
 If you get Visual Studio errors:
+
 1. Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/)
 2. Or install full Visual Studio with C++ support
 3. Restart terminal after installation
 
 **PATH Issues:**
+
 ```powershell
 # Add cargo bin to PATH manually
 $env:PATH += ";$env:USERPROFILE\.cargo\bin"
@@ -221,13 +221,13 @@ Add-Content $PROFILE "`n`$env:PATH += `";`$env:USERPROFILE\.cargo\bin`""
 
 ```bash
 # Check version
-cc --version
+cs --version
 
 # Test basic search
-cc "test" .
+cs "test" .
 
 # Test semantic search
-cc --sem "error handling" .
+cs --sem "error handling" .
 ```
 
 If these work, you're all set!
@@ -238,31 +238,31 @@ If these work, you're all set!
 
 ```bash
 # Update to latest version
-cargo install cc-search --force
+cargo install cs-search --force
 
 # Check new version
-cc --version
+cs --version
 ```
 
 ### Update from source
 
 ```bash
 # Pull latest changes
-cd /path/to/cc
+cd /path/to/cs
 git pull
 
 # Rebuild and install
-cargo install --path cc-cli --force
+cargo install --path cs-cli --force
 ```
 
 ## Uninstalling
 
 ```bash
 # Remove cc binary
-cargo uninstall cc-search
+cargo uninstall cs-search
 
 # Remove index data (optional)
-rm -rf .cc/  # In each repository where you used cc
+rm -rf .cs/  # In each repository where you used cs
 ```
 
 ## System Requirements
@@ -283,7 +283,7 @@ rm -rf .cc/  # In each repository where you used cc
 
 ### Index Size Estimates
 
-Typical `.cc/` index sizes:
+Typical `.cs/` index sizes:
 
 | Repository Size | Index Size | Indexing Time |
 |-----------------|------------|---------------|
@@ -307,29 +307,29 @@ Generate completions for your shell:
 
 ```bash
 # Bash
-cc --generate-completions bash > ~/.local/share/bash-completion/completions/cc
+cs --generate-completions bash > ~/.local/share/bash-completion/completions/cs
 
 # Zsh
-cc --generate-completions zsh > ~/.zfunc/_ck
+cs --generate-completions zsh > ~/.zfunc/_cs
 
 # Fish
-cc --generate-completions fish > ~/.config/fish/completions/cc.fish
+cs --generate-completions fish > ~/.config/fish/completions/cs.fish
 
 # PowerShell
-cc --generate-completions powershell > cc.ps1
+cs --generate-completions powershell > cs.ps1
 ```
 
 #### Environment Variables
 
 ```bash
 # Change embedding model
-export CC_MODEL=large
+export CS_MODEL=large
 
 # Custom index location
-export CC_INDEX_PATH=/custom/path
+export CS_INDEX_PATH=/custom/path
 
 # Adjust worker threads
-export CC_WORKERS=8
+export CS_WORKERS=8
 ```
 
 See [Advanced Usage](advanced-usage.html) for details.
@@ -340,7 +340,7 @@ Customize what files cc indexes:
 
 ```bash
 # Create .ccignore in repository root
-cat > .ccignore <<EOF
+cat > .csignore <<EOF
 # Exclude generated files
 *.generated.ts
 dist/
@@ -358,16 +358,17 @@ EOF
 
 Syntax matches `.gitignore` (glob patterns, `!` for negation).
 
-See [Advanced Usage](advanced-usage.html#ccignore-patterns) for details.
+See [Advanced Usage](advanced-usage.html#csignore-patterns) for details.
 
 ## Troubleshooting
 
 ### Command not found
 
-**Problem:** `cc: command not found`
+**Problem:** `cs: command not found`
 
 **Solution:**
-```bash
+
+```shell
 # Check cargo bin is in PATH
 echo $PATH | grep cargo
 
@@ -383,9 +384,10 @@ source ~/.bashrc
 **Problem:** Permission errors during installation
 
 **Solution:**
-```bash
+
+```shell
 # Don't use sudo with cargo
-cargo install cc-search  # Without sudo
+cargo install cs-search  # Without sudo
 
 # If you accidentally used sudo, fix ownership
 sudo chown -R $USER:$USER ~/.cargo
@@ -396,7 +398,8 @@ sudo chown -R $USER:$USER ~/.cargo
 **Problem:** Cannot find linker / compiler errors
 
 **Solution:**
-```bash
+
+```shell
 # Ubuntu/Debian
 sudo apt install build-essential
 
@@ -414,6 +417,7 @@ xcode-select --install
 **Explanation:** First install compiles from source (~2-5 minutes).
 
 **Tips:**
+
 - Subsequent updates are faster
 - Use `--locked` flag to avoid dependency resolution
 - Pre-built binaries coming soon
@@ -423,33 +427,35 @@ xcode-select --install
 **Problem:** Multiple cc versions installed
 
 **Solution:**
-```bash
+
+```shell
 # Check which cc is being used
-which cc
+which cs
 
 # Uninstall all versions
-cargo uninstall cc-search
+cargo uninstall cs-search
 
 # Reinstall latest
-cargo install cc-search
+cargo install cs-search
 
 # Verify
-cc --version
+cs --version
 ```
 
 ## Next Steps
 
 ✅ **Installation complete!** Here's what to do next:
 
-1. **Quick test:** `cc --sem "error handling" .`
-2. **Try TUI mode:** `cc --tui .`
+1. **Quick test:** `cs --sem "error handling" .`
+2. **Try TUI mode:** `cs --tui .`
 3. **Learn search modes:** [Search Modes Guide](search-modes.html)
 4. **Setup AI integration:** [AI Integration Guide](ai-integration.html)
 5. **Explore advanced features:** [Advanced Usage](advanced-usage.html)
 
 ## Getting Help
 
-- **Documentation:** [beaconbay.github.io/cc](https://beaconbay.github.io/cc) (you are here!)
-- **GitHub Issues:** [Report bugs / request features](https://github.com/BeaconBay/cc/issues)
-- **Examples:** [EXAMPLES.md](https://github.com/BeaconBay/cc/blob/main/EXAMPLES.md)
-- **Changelog:** [CHANGELOG.md](https://github.com/BeaconBay/cc/blob/main/CHANGELOG.md)
+- **sorce fork from cs:** [BeaconBay/ck](https://github.com/BeaconBay/ck)
+- **Documentation:** [lwyBZss8924d.github.io/cc](https://github.com/lwyBZss8924d/semcs) (you are here!)
+- **GitHub Issues:** [Report bugs / request features](https://github.com/lwyBZss8924d/semcs/issues)
+- **Examples:** [EXAMPLES.md](https://github.com/lwyBZss8924d/semcs/blob/main/EXAMPLES.md)
+- **Changelog:** [CHANGELOG.md](https://github.com/lwyBZss8924d/semcs/blob/main/CHANGELOG.md)

@@ -136,7 +136,7 @@ Vector: [0.23, -0.45, 0.67, 0.12, -0.89, ...] (768 dimensions)
 
 ### Local Models
 
-cc uses **local embedding models** that run entirely on your machine:
+cs uses **local embedding models** that run entirely on your machine:
 
 **Benefits:**
 - **Privacy:** Your code never leaves your system
@@ -174,7 +174,7 @@ All map to similar semantic vectors for "error handling" concepts.
 ### 1. Query Processing
 
 ```bash
-cc --sem "error handling" src/
+cs --sem "error handling" src/
 ```
 
 **Steps:**

@@ -6,13 +6,13 @@ The cc TUI provides an interactive search interface with real-time results, mult
 
 ```bash
 # Launch TUI in current directory
-cc --tui
+cs --tui
 
 # Launch with initial query
-cc --tui "error handling"
+cs --tui "error handling"
 
 # Launch in specific directory
-cc --tui --path /path/to/code
+cs --tui --path /path/to/code
 ```
 
 ## Keyboard Shortcuts
@@ -200,32 +200,32 @@ The TUI maintains a history of your last 20 searches:
 ### No search results
 - Check search mode (Tab to cycle)
 - Try broader query terms
-- Verify files are indexed: `cc --status .`
+- Verify files are indexed: `cs --status .`
 
 ### Slow performance
 - First search builds index (one-time cost)
 - Large result sets: Add threshold with `--threshold 0.7`
-- Check index size: `du -sh .cc/`
+- Check index size: `du -sh .cs/`
 
 ## Examples
 
 ### Find authentication code
 ```bash
-cc --tui "authentication"
+cs --tui "authentication"
 # Press Tab to cycle to Regex mode
 # Type: "login|auth|credentials"
 ```
 
 ### Review error handling
 ```bash
-cc --tui "error handling"
+cs --tui "error handling"
 # Use Ctrl+Space to select multiple files
 # Press Enter to open all in editor
 ```
 
 ### Explore code structure
 ```bash
-cc --tui "database"
+cs --tui "database"
 # Press Ctrl+V to switch to Chunks mode
 # Press Ctrl+F for full-file view
 # Use PageDown to explore
@@ -233,7 +233,7 @@ cc --tui "database"
 
 ## Architecture
 
-The TUI is implemented in the `cc-tui` crate:
+The TUI is implemented in the `cs-tui` crate:
 - **app.rs** (988 lines): Main event loop and state management
 - **preview.rs** (658 lines): Preview rendering (heatmap, syntax, chunks)
 - **chunks.rs** (428 lines): Chunk display and metadata

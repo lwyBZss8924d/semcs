@@ -1,0 +1,20 @@
+[package]
+name = "cs-models"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Model registry and configuration for cc semantic search"
+repository = "https://github.com/lwyBZss8924d/semcs"
+keywords = ["models", "config", "registry"]
+categories = ["config"]
+
+[dependencies]
+cs-core = { version = "0.6.1", path = "../cs-core" }
+
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+directories = { workspace = true }

@@ -7,14 +7,14 @@ nav_order: 1
 
 # Search Modes
 
-cc supports four search modes, each optimized for different use cases.
+cs supports four search modes, each optimized for different use cases.
 
 ## Semantic Search (`--sem`)
 
 Find code by meaning using local embeddings. Defaults to top 10 results with threshold ≥0.6.
 
 ```bash
-cc --sem "error handling" src/
+cs --sem "error handling" src/
 ```
 
 **What it finds:**
@@ -48,22 +48,22 @@ cc --sem "error handling" src/
 
 ```bash
 # Find authentication-related code
-cc --sem "user authentication" src/
+cs --sem "user authentication" src/
 
 # Find async task spawning patterns
-cc --sem "spawn async task" .
+cs --sem "spawn async task" .
 
 # Find configuration loading logic
-cc --sem "load config from file" src/
+cs --sem "load config from file" src/
 
 # Find retry/resilience patterns
-cc --sem "retry with backoff" .
+cs --sem "retry with backoff" .
 
 # Find database query code
-cc --sem "database query execution" src/
+cs --sem "database query execution" src/
 
 # Find logging implementations
-cc --sem "structured logging" src/
+cs --sem "structured logging" src/
 ```
 
 ### Understanding Scores
@@ -80,7 +80,7 @@ Results are ranked by semantic similarity:
 
 ```bash
 # Only show highly relevant matches
-cc --sem "error handling" --threshold 0.75 src/
+cs --sem "error handling" --threshold 0.75 src/
 ```
 
 ### Chunking Strategy
@@ -107,8 +107,8 @@ See [Language Support](language-support.html) for chunking details per language.
 BM25 full-text search with ranking. Automatically indexes before running.
 
 ```bash
-cc --lex "user authentication" src/
-cc --lex "http client request" .
+cs --lex "user authentication" src/
+cs --lex "http client request" .
 ```
 
 **What it finds:**
@@ -135,9 +135,9 @@ cc --lex "http client request" .
 Traditional grep-style pattern matching. No indexing required.
 
 ```bash
-cc "TODO" src/
-cc "fn \w+_test" src/
-cc -i "fixme" src/
+cs "TODO" src/
+cs "fn \w+_test" src/
+cs -i "fixme" src/
 ```
 
 **What it finds:**
@@ -168,45 +168,45 @@ cc -i "fixme" src/
 
 ### Grep Compatibility
 
-cc is designed as a drop-in grep replacement:
+cs is designed as a drop-in grep replacement:
 
 ```bash
 # Standard grep patterns work
-cc "pattern" file.txt
-cc -r "pattern" directory/
-cc -i "case-insensitive" .
-cc -n "show line numbers" file.rs
+cs "pattern" file.txt
+cs -r "pattern" directory/
+cs -i "case-insensitive" .
+cs -n "show line numbers" file.rs
 
 # Extended grep features
-cc -R "recursive" .
-cc -v "invert match" file.txt
-cc -l "files with matches" src/
-cc -c "count matches" .
+cs -R "recursive" .
+cs -v "invert match" file.txt
+cs -l "files with matches" src/
+cs -c "count matches" .
 ```
 
 ### Examples
 
 ```bash
 # Find todos
-cc "TODO" src/
+cs "TODO" src/
 
 # Find function definitions
-cc "^fn " src/lib.rs
+cs "^fn " src/lib.rs
 
 # Case-insensitive search
-cc -i "fixme" .
+cs -i "fixme" .
 
 # Find test functions
-cc "fn test_\w+" tests/
+cs "fn test_\w+" tests/
 
 # Find specific imports
-cc "^use std::" src/
+cs "^use std::" src/
 
 # Count occurrences
-cc -c "unwrap()" src/
+cs -c "unwrap()" src/
 
 # List files containing pattern
-cc -l "async fn" src/
+cs -l "async fn" src/
 ```
 
 ## Hybrid Search (`--hybrid`)
@@ -214,9 +214,9 @@ cc -l "async fn" src/
 Combines regex and semantic results using Reciprocal Rank Fusion.
 
 ```bash
-cc --hybrid "timeout" src/
-cc --hybrid "error" --topk 10 .
-cc --hybrid "bug" --threshold 0.02 .  # RRF score threshold
+cs --hybrid "timeout" src/
+cs --hybrid "error" --topk 10 .
+cs --hybrid "bug" --threshold 0.02 .  # RRF score threshold
 ```
 
 **What it finds:**
@@ -247,16 +247,16 @@ cc --hybrid "bug" --threshold 0.02 .  # RRF score threshold
 
 ```bash
 # Find timeout-related code (ranked by relevance)
-cc --hybrid "timeout" src/
+cs --hybrid "timeout" src/
 
 # Find error handling that mentions "retry"
-cc --hybrid "retry" .
+cs --hybrid "retry" .
 
 # Find config code mentioning "env"
-cc --hybrid "env" src/
+cs --hybrid "env" src/
 
 # Find logging with "error" level
-cc --hybrid "error" --sem "logging" src/
+cs --hybrid "error" --sem "logging" src/
 ```
 
 ### Combining with Semantic Queries
@@ -266,7 +266,7 @@ You can provide both a semantic query and keywords:
 ```bash
 # Semantic: "authentication"
 # Keyword filter: "token"
-cc --hybrid "token" --sem "authentication" src/
+cs --hybrid "token" --sem "authentication" src/
 ```
 
 This finds authentication-related code that mentions "token".
@@ -291,14 +291,14 @@ Do you know the exact text/pattern?
 
 | Task | Mode | Example |
 |------|------|---------|
-| Find todos | Regex | `cc "TODO" src/` |
-| Find error handling | Semantic | `cc --sem "error handling" .` |
-| Find timeout code | Hybrid | `cc --hybrid "timeout" src/` |
-| Find test functions | Regex | `cc "fn test_" tests/` |
-| Learn retry patterns | Semantic | `cc --sem "retry with exponential backoff" .` |
-| Find specific type | Regex | `cc "struct Config" src/` |
-| Find caching logic | Semantic | `cc --sem "cache implementation" .` |
-| Find println debugging | Hybrid | `cc --hybrid "println" --sem "debugging" .` |
+| Find todos | Regex | `cs "TODO" src/` |
+| Find error handling | Semantic | `cs --sem "error handling" .` |
+| Find timeout code | Hybrid | `cs --hybrid "timeout" src/` |
+| Find test functions | Regex | `cs "fn test_" tests/` |
+| Learn retry patterns | Semantic | `cs --sem "retry with exponential backoff" .` |
+| Find specific type | Regex | `cs "struct Config" src/` |
+| Find caching logic | Semantic | `cs --sem "cache implementation" .` |
+| Find println debugging | Hybrid | `cs --hybrid "println" --sem "debugging" .` |
 
 ## Performance Characteristics
 
@@ -308,7 +308,7 @@ Do you know the exact text/pattern?
 - First search creates an index (~1-2 seconds for medium repos)
 - Subsequent searches are instant (uses cached index)
 - Delta updates on file changes (very fast)
-- Index stored in `.cc/` directory
+- Index stored in `.cs/` directory
 
 **Regex:**
 - No indexing required
@@ -325,7 +325,7 @@ Do you know the exact text/pattern?
 
 ### Index Size
 
-Typical index sizes (in `.cc/` directory):
+Typical index sizes (in `.cs/` directory):
 
 - **Small repo** (1k files): ~10-50MB
 - **Medium repo** (10k files): ~100-500MB
@@ -341,10 +341,10 @@ Control minimum score for semantic results:
 
 ```bash
 # Only show results > 0.75 relevance
-cc --sem "error handling" --threshold 0.75 src/
+cs --sem "error handling" --threshold 0.75 src/
 
 # Show more results (lower threshold)
-cc --sem "authentication" --threshold 0.5 src/
+cs --sem "authentication" --threshold 0.5 src/
 ```
 
 ### Top-K Results
@@ -353,7 +353,7 @@ Limit number of results:
 
 ```bash
 # Show only top 10 most relevant results
-cc --sem "caching" --topk 10 src/
+cs --sem "caching" --topk 10 src/
 ```
 
 ### Model Selection
@@ -362,10 +362,10 @@ Choose embedding model (impacts speed vs accuracy):
 
 ```bash
 # Fast, smaller model (default)
-cc --sem "pattern" .
+cs --sem "pattern" .
 
 # Larger, more accurate model
-cc --sem "pattern" --model large .
+cs --sem "pattern" --model large .
 ```
 
 See [Advanced Usage](advanced-usage.html) for model details.
@@ -395,13 +395,13 @@ You can use different modes in sequence:
 
 ```bash
 # 1. Broad semantic search to understand patterns
-cc --sem "authentication" . | less
+cs --sem "authentication" . | less
 
 # 2. Narrow with hybrid to find specific implementation
-cc --hybrid "jwt" --sem "authentication" src/
+cs --hybrid "jwt" --sem "authentication" src/
 
 # 3. Exact regex to find all uses
-cc "verify_jwt" src/
+cs "verify_jwt" src/
 ```
 
 ### Iterative Refinement
@@ -410,13 +410,13 @@ Start broad, narrow down:
 
 ```bash
 # Too broad?
-cc --sem "error" .
+cs --sem "error" .
 
 # Add keyword filtering
-cc --hybrid "error" --sem "network requests" src/
+cs --hybrid "error" --sem "network requests" src/
 
 # Or increase threshold
-cc --sem "network errors" --threshold 0.8 src/
+cs --sem "network errors" --threshold 0.8 src/
 ```
 
 ## See Also

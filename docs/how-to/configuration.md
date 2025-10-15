@@ -17,10 +17,10 @@ nav_order: 6
 
 ---
 
-**Goal:** Customize cc's behavior with configuration files, environment variables, and filtering options.
+**Goal:** Customize cs's behavior with configuration files, environment variables, and filtering options.
 
 **You'll learn:**
-- .ccignore file configuration
+- .csignore file configuration
 - Environment variables
 - Model selection
 - Performance tuning
@@ -28,14 +28,14 @@ nav_order: 6
 
 ---
 
-## .ccignore Files
+## .csignore Files
 
-### Creating .ccignore
+### Creating .csignore
 
-Create a `.ccignore` file in your repository root to control what files cc indexes:
+Create a `.csignore` file in your repository root to control what files cc indexes:
 
 ```bash
-# .ccignore
+# .csignore
 # Exclude build artifacts
 build/
 dist/
@@ -76,7 +76,7 @@ examples/data/
 !Cargo.toml
 ```
 
-### .ccignore Syntax
+### .csignore Syntax
 
 **Pattern matching:**
 - `*` - Matches any characters
@@ -108,12 +108,12 @@ dist/
 *_test.*
 ```
 
-### Global .ccignore
+### Global .csignore
 
 Create a global ignore file:
 
 ```bash
-# ~/.ccignore
+# ~/.csignore
 # Global exclusions
 .DS_Store
 Thumbs.db
@@ -124,7 +124,7 @@ Thumbs.db
 
 Set environment variable:
 ```bash
-export CC_GLOBAL_IGNORE="$HOME/.ccignore"
+export CS_GLOBAL_IGNORE="$HOME/.csignore"
 ```
 
 ---
@@ -135,50 +135,50 @@ export CC_GLOBAL_IGNORE="$HOME/.ccignore"
 
 ```bash
 # Embedding model selection
-export CC_MODEL=default          # default, large
-export CC_MODEL_PATH=/path/to/model  # Custom model path
+export CS_MODEL=default          # default, large
+export CS_MODEL_PATH=/path/to/model  # Custom model path
 
 # Model parameters
-export CC_CHUNK_SIZE=512         # Chunk size for embeddings
-export CC_BATCH_SIZE=32          # Batch size for processing
+export CS_CHUNK_SIZE=512         # Chunk size for embeddings
+export CS_BATCH_SIZE=32          # Batch size for processing
 ```
 
 ### Index Configuration
 
 ```bash
 # Index location
-export CC_INDEX_PATH=/custom/path  # Default: .cc/
+export CS_INDEX_PATH=/custom/path  # Default: .cs/
 
 # Index management
-export CC_WORKERS=8              # Worker threads (default: CPU cores)
-export CC_MEMORY_LIMIT=2GB       # Memory limit
-export CC_CACHE_SIZE=1GB         # Cache size
+export CS_WORKERS=8              # Worker threads (default: CPU cores)
+export CS_MEMORY_LIMIT=2GB       # Memory limit
+export CS_CACHE_SIZE=1GB         # Cache size
 ```
 
 ### Performance Configuration
 
 ```bash
 # Search performance
-export CC_SEARCH_THREADS=4       # Search threads
-export CC_MAX_RESULTS=1000       # Maximum results
-export CC_TIMEOUT=30             # Search timeout (seconds)
+export CS_SEARCH_THREADS=4       # Search threads
+export CS_MAX_RESULTS=1000       # Maximum results
+export CS_TIMEOUT=30             # Search timeout (seconds)
 
 # Indexing performance
-export CC_INDEX_THREADS=8        # Indexing threads
-export CC_INDEX_BATCH_SIZE=100   # Indexing batch size
+export CS_INDEX_THREADS=8        # Indexing threads
+export CS_INDEX_BATCH_SIZE=100   # Indexing batch size
 ```
 
 ### Output Configuration
 
 ```bash
 # Output format
-export CC_NO_COLOR=1             # Disable colored output
-export CC_JSON_OUTPUT=1          # JSON output
-export CC_VERBOSE=1              # Verbose logging
+export CS_NO_COLOR=1             # Disable colored output
+export CS_JSON_OUTPUT=1          # JSON output
+export CS_VERBOSE=1              # Verbose logging
 
 # Debug options
-export CC_DEBUG=1                # Debug mode
-export CC_LOG_LEVEL=info         # Log level (debug, info, warn, error)
+export CS_DEBUG=1                # Debug mode
+export CS_LOG_LEVEL=info         # Log level (debug, info, warn, error)
 ```
 
 ---
@@ -204,19 +204,19 @@ export CC_LOG_LEVEL=info         # Log level (debug, info, warn, error)
 **Command line:**
 ```bash
 # Use default model
-cc --sem "pattern" .
+cs --sem "pattern" .
 
 # Use large model
-cc --sem "pattern" --model large .
+cs --sem "pattern" --model large .
 
 # Use custom model
-cc --sem "pattern" --model-path /path/to/model .
+cs --sem "pattern" --model-path /path/to/model .
 ```
 
 **Environment variable:**
 ```bash
-export CC_MODEL=large
-cc --sem "pattern" .
+export CS_MODEL=large
+cs --sem "pattern" .
 ```
 
 ### Model Performance
@@ -235,28 +235,28 @@ cc --sem "pattern" .
 **Worker threads:**
 ```bash
 # Use all CPU cores (default)
-export CC_WORKERS=8
+export CS_WORKERS=8
 
 # Reduce for memory-constrained systems
-export CC_WORKERS=4
+export CS_WORKERS=4
 ```
 
 **Chunk size:**
 ```bash
 # Larger chunks = fewer embeddings, faster indexing
-export CC_CHUNK_SIZE=1024
+export CS_CHUNK_SIZE=1024
 
 # Smaller chunks = more embeddings, better accuracy
-export CC_CHUNK_SIZE=256
+export CS_CHUNK_SIZE=256
 ```
 
 **Batch size:**
 ```bash
 # Larger batches = faster processing, more memory
-export CC_BATCH_SIZE=64
+export CS_BATCH_SIZE=64
 
 # Smaller batches = less memory, slower processing
-export CC_BATCH_SIZE=16
+export CS_BATCH_SIZE=16
 ```
 
 ### Search Performance
@@ -264,19 +264,19 @@ export CC_BATCH_SIZE=16
 **Result limits:**
 ```bash
 # Limit results for faster search
-cc --sem "pattern" --topk 50 .
+cs --sem "pattern" --topk 50 .
 
 # Use thresholds to filter results
-cc --sem "pattern" --threshold 0.8 .
+cs --sem "pattern" --threshold 0.8 .
 ```
 
 **Memory usage:**
 ```bash
 # Limit memory usage
-export CC_MEMORY_LIMIT=1GB
+export CS_MEMORY_LIMIT=1GB
 
 # Adjust cache size
-export CC_CACHE_SIZE=512MB
+export CS_CACHE_SIZE=512MB
 ```
 
 ---
@@ -287,7 +287,7 @@ export CC_CACHE_SIZE=512MB
 
 **Default location:**
 ```
-.cc/
+.cs/
 ├── index.bin
 ├── embeddings.bin
 ├── metadata.json
@@ -296,21 +296,21 @@ export CC_CACHE_SIZE=512MB
 
 **Custom location:**
 ```bash
-export CC_INDEX_PATH=/custom/path
+export CS_INDEX_PATH=/custom/path
 ```
 
 ### Index Operations
 
 **Check index status:**
 ```bash
-ls -la .cc/
-du -sh .cc/
+ls -la .cs/
+du -sh .cs/
 ```
 
 **Force reindex:**
 ```bash
-rm -rf .cc/
-cc --sem "test" .  # Rebuilds index
+rm -rf .cs/
+cs --sem "test" .  # Rebuilds index
 ```
 
 **Incremental updates:**
@@ -326,7 +326,7 @@ cc --sem "test" .  # Rebuilds index
 - **Large repo (100k files):** 1-5GB
 
 **Optimization strategies:**
-- Use .ccignore to exclude unnecessary files
+- Use .csignore to exclude unnecessary files
 - Reduce chunk size for smaller indexes
 - Use default model instead of large model
 
@@ -348,22 +348,22 @@ cc --sem "test" .  # Rebuilds index
 
 **Higher precision:**
 ```bash
-cc --sem "pattern" --threshold 0.8 .
+cs --sem "pattern" --threshold 0.8 .
 ```
 
 **More results:**
 ```bash
-cc --sem "pattern" --topk 200 .
+cs --sem "pattern" --topk 200 .
 ```
 
 **More context:**
 ```bash
-cc --sem "pattern" --context 5 .
+cs --sem "pattern" --context 5 .
 ```
 
 **Shorter snippets:**
 ```bash
-cc --sem "pattern" --snippet-length 200 .
+cs --sem "pattern" --snippet-length 200 .
 ```
 
 ---
@@ -372,7 +372,7 @@ cc --sem "pattern" --snippet-length 200 .
 
 ### Supported Languages
 
-cc supports 15+ programming languages:
+cs supports 15+ programming languages:
 - Rust, JavaScript, TypeScript, Python, Go, Java, C++, C#
 - Ruby, PHP, Swift, Kotlin, Scala, Haskell, Zig
 
@@ -387,7 +387,7 @@ cc supports 15+ programming languages:
 **Custom chunking (future):**
 ```bash
 # Custom chunking rules
-export CC_CHUNKING_RULES=/path/to/rules.json
+export CS_CHUNKING_RULES=/path/to/rules.json
 ```
 
 ---
@@ -424,19 +424,46 @@ patterns = [
 
 ### Global Configuration
 
-**Create `~/.config/cc/config.toml`:**
+**Create `~/.config/cs/config.toml`:**
 ```toml
-[model]
-default_model = "default"
-model_cache_dir = "~/.cache/cc/models"
+# Model configuration
+index_model = "jina-v4"
+query_model = "jina-code-1.5b"
 
-[index]
-default_workers = 4
-default_memory_limit = "1GB"
+# Search defaults
+default_topk = 10
+default_threshold = 0.6
+default_search_mode = "regex"
 
-[search]
-default_format = "human"
-enable_colors = true
+# Output formatting
+default_output_format = "text"
+show_scores_default = false
+line_numbers_default = false
+
+# Reranking
+rerank_enabled = false
+rerank_model = "jina"
+
+# Other preferences
+quiet_mode = false
+```
+
+**Using the config command:**
+```bash
+# Initialize config with defaults
+cs --config init
+
+# View all settings
+cs --config list
+
+# Get specific setting
+cs --config get index-model
+
+# Set a value
+cs --config set index-model jina-v4
+
+# Show config file path
+cs --config path
 ```
 
 ---
@@ -448,38 +475,38 @@ enable_colors = true
 **Model not found:**
 ```bash
 # Check model path
-echo $CC_MODEL_PATH
+echo $CS_MODEL_PATH
 
 # Download model
-cc --download-model large
+cs --download-model large
 ```
 
 **Index corruption:**
 ```bash
 # Remove corrupted index
-rm -rf .cc/
+rm -rf .cs/
 
 # Rebuild index
-cc --sem "test" .
+cs --sem "test" .
 ```
 
 **Memory issues:**
 ```bash
 # Reduce workers
-export CC_WORKERS=2
+export CS_WORKERS=2
 
 # Reduce memory limit
-export CC_MEMORY_LIMIT=512MB
+export CS_MEMORY_LIMIT=512MB
 ```
 
 **Performance issues:**
 ```bash
 # Check system resources
-top -p $(pgrep cc)
+top -p $(pgrep cs)
 
-# Optimize .ccignore
+# Optimize .csignore
 # Reduce chunk size
-export CC_CHUNK_SIZE=256
+export CS_CHUNK_SIZE=256
 ```
 
 ### Configuration Validation
@@ -487,16 +514,16 @@ export CC_CHUNK_SIZE=256
 **Test configuration:**
 ```bash
 # Test with debug output
-CC_DEBUG=1 cc --sem "test" .
+CS_DEBUG=1 cs --sem "test" .
 
 # Check configuration
-cc --config-check
+cs --config-check
 ```
 
-**Validate .ccignore:**
+**Validate .csignore:**
 ```bash
 # Test ignore patterns
-cc --test-ignore .ccignore
+cs --test-ignore .csignore
 ```
 
 ---
@@ -506,19 +533,19 @@ cc --test-ignore .ccignore
 ### Configuration Management
 
 **Version control:**
-- Commit `.ccignore` to repository
-- Don't commit `.cc/` directory
+- Commit `.csignore` to repository
+- Don't commit `.cs/` directory
 - Document environment variables
 
 **Team coordination:**
 - Share configuration files
 - Document custom settings
-- Use consistent .ccignore patterns
+- Use consistent .csignore patterns
 
 ### Performance Optimization
 
 **For large codebases:**
-- Use .ccignore to exclude build artifacts
+- Use .csignore to exclude build artifacts
 - Reduce chunk size for memory efficiency
 - Use default model for speed
 
@@ -530,7 +557,7 @@ cc --test-ignore .ccignore
 ### Security Considerations
 
 **Sensitive files:**
-- Add sensitive files to .ccignore
+- Add sensitive files to .csignore
 - Use global ignore for system files
 - Review configuration before sharing
 

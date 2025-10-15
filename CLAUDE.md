@@ -1,7 +1,7 @@
 # Claude Development Guide
 
-This file contains project-specific instructions for Claude and other AI agents working on the cc codebase.
-Whenever you actually use cc and it does something unexpected, jot it down in a file could UNEXPECTED.md - supply what you ran, what you expected to happen, what happened instead.
+This file contains project-specific instructions for Claude and other AI agents working on the cs codebase.
+Whenever you actually use cs and it does something unexpected, jot it down in a file could UNEXPECTED.md - supply what you ran, what you expected to happen, what happened instead.
 
 
 ## Release Process
@@ -35,7 +35,7 @@ When bumping versions:
 
 1. **Update workspace version**: `Cargo.toml` (workspace level)
 2. **Update ALL crate versions**: Use find/replace across all `Cargo.toml` files
-   ```bash
+   ```shell
    find . -name "Cargo.toml" -exec sed -i '' 's/version = "OLD"/version = "NEW"/g' {} \;
    ```
 3. **Update documentation versions**: Check `PRD.txt` and other docs

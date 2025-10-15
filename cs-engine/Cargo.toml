@@ -1,0 +1,33 @@
+[package]
+name = "cs-engine"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Search engine implementation for cc semantic search"
+repository = "https://github.com/lwyBZss8924d/semcs"
+keywords = ["search", "engine", "semantic"]
+categories = ["algorithms"]
+
+[dependencies]
+cs-core = { version = "0.6.1", path = "../cs-core" }
+cs-index = { version = "0.6.1", path = "../cs-index" }
+cs-embed = { version = "0.6.1", path = "../cs-embed" }
+cs-ann = { version = "0.6.1", path = "../cs-ann" }
+cs-chunk = { version = "0.6.1", path = "../cs-chunk" }
+cs-models = { version = "0.6.1", path = "../cs-models" }
+serde_json = { workspace = true }
+
+anyhow = { workspace = true }
+serde = { workspace = true }
+regex = { workspace = true }
+tantivy = { workspace = true }
+tokio = { workspace = true }
+rayon = { workspace = true }
+walkdir = { workspace = true }
+tracing = { workspace = true }
+globset = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.8"
