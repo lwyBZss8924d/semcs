@@ -10,9 +10,9 @@ forked from [BeaconBay/cs](https://github.com/BeaconBay/ck)
 
 ```shell
 # Install from crates.io
-cargo install cc-search
+cargo install cs-search
 
-# Just search — cc builds and updates indexes automatically
+# Just search — cs builds and updates indexes automatically
 cs --sem "error handling" src/
 cs --sem "authentication logic" src/
 cs --sem "database connection pooling" src/
@@ -122,7 +122,7 @@ cs -i "warning" *.log              # Case-insensitive
 cs -n -A 3 -B 1 "error" src/       # Line numbers + context
 cs -l "error" src/                  # List files with matches only
 cs -L "TODO" src/                   # List files without matches
-cc -R --exclude "*.test.js" "bug"  # Recursive with exclusions
+cs -R --exclude "*.test.js" "bug"  # Recursive with exclusions
 ```
 
 ### 🎯 **Hybrid Search**
@@ -199,7 +199,7 @@ Perfect structured output for LLMs, scripts, and automation:
 # JSONL format - one JSON object per line (recommended for agents)
 cs --jsonl --sem "error handling" src/
 cs --jsonl --no-snippet "function" .        # Metadata only
-cc --jsonl --topk 5 --threshold 0.7 "auth"  # High-confidence results
+cs --jsonl --topk 5 --threshold 0.7 "auth"  # High-confidence results
 
 # Traditional JSON (single array)
 cs --json --sem "error handling" src/ | jq '.file'
@@ -297,14 +297,14 @@ cs --status .
 # Clean up and rebuild / switch models
 cs --clean .
 cs --switch-model nomic-v1.5 .
-cc --switch-model nomic-v1.5 --force .     # Force rebuild
+cs --switch-model nomic-v1.5 --force .     # Force rebuild
 
 # Add single file to index
 cs --add new_file.rs
 
 # File inspection (analyze chunking and token usage)
 cs --inspect src/main.rs
-cc --inspect --model bge-small src/main.rs  # Test different models
+cs --inspect --model bge-small src/main.rs  # Test different models
 ```
 
 **Interrupting Operations:** Indexing can be safely interrupted with Ctrl+C. The partial index is saved, and the next operation will resume from where it stopped, only processing new or changed files.
@@ -325,7 +325,7 @@ cc --inspect --model bge-small src/main.rs  # Test different models
 
 **Smart Binary Detection:** Uses ripgrep-style content analysis, automatically indexing any text file while correctly excluding binary files.
 
-**Unsupported File Types:** Text files with unrecognized extensions (like `.org`, `.adoc`, etc.) are automatically indexed as plain text. cc detects text vs binary based on file contents, not extensions.
+**Unsupported File Types:** Text files with unrecognized extensions (like `.org`, `.adoc`, etc.) are automatically indexed as plain text. cs detects text vs binary based on file contents, not extensions.
 
 ## 🏗 Installation
 
@@ -339,7 +339,7 @@ cargo install cs-search
 
 ```shell
 git clone https://github.com/lwyBZss8924d/semcs
-cd cc
+cd cs
 cargo install --path cs-cli
 ```
 
@@ -554,6 +554,58 @@ A: Models are cached in platform-specific directories:
 - Linux/macOS: `~/.cache/cs/models/`
 - Windows: `%LOCALAPPDATA%\cs\cache\models\`
 - Fallback: `.cs_models/models/` in current directory
+
+## 📚 Project History
+
+**semcs** (Semantic Code Search) is an independent fork that evolved from the original `ck` project with significant enhancements and new capabilities:
+
+### Evolution Timeline
+
+- **ck** ([BeaconBay/ck](https://github.com/BeaconBay/ck)) - Original semantic code search tool (v0.5.3)
+  - Foundation: Hybrid semantic + lexical search
+  - Core features: FastEmbed integration, tree-sitter chunking, grep compatibility
+
+- **cc** ([lwyBZss8924d/cc](https://github.com/lwyBZss8924d/cc)) - First fork with initial enhancements
+  - Renamed from `ck` to `cc`
+  - Enhanced MCP integration and indexing improvements
+
+- **semcs** (current repository) - Independent project with major feature additions
+  - Renamed from `cc` to `semcs` for clarity and uniqueness
+  - Significant architectural improvements and new capabilities
+
+### Major Additions Since Fork (v0.6.0+)
+
+#### v0.6.1 (Latest)
+
+- 🤖 **Jina AI Integration**: Full API support for embeddings (`jina-embeddings-v4`, `jina-code-embeddings-1.5b`) and reranking (`jina-reranker-v2`)
+- 🌳 **AST Structural Search**: Pattern-based code search using ast-grep with metavariable support
+- ⚙️ **Configuration System**: User-level config files for persistent model preferences (`~/.config/cs/cs.config`)
+- 🔄 **Enhanced Hybrid Mode**: Automatic 3-way fusion (Regex + Semantic + AST) with RRF ranking
+
+#### v0.6.0
+
+- 🔌 **MCP Server**: Full Model Context Protocol implementation for AI agent integration
+- 📄 **Pagination Support**: Cursor-based pagination with session management (1-200 results per page)
+- 📊 **Visual Enhancements**: Color-coded heatmaps, Unicode box drawing, RGB gradient highlighting
+- 🛡️ **Robust Error Handling**: Mixed line endings support, graceful fallbacks, stale index recovery
+
+#### Architecture Improvements
+
+- Zero compilation warnings, comprehensive test coverage
+- Cross-platform support (macOS, Linux, Windows)
+- Memory-efficient streaming for large files
+- Modular design with pluggable backends (ANN, embedders, chunkers)
+
+### Why Fork?
+
+The project has diverged significantly from the original `ck` to focus on:
+
+1. **AI Agent Integration**: Deep MCP protocol support for seamless AI tooling
+2. **Multiple Search Paradigms**: Combining regex, semantic, and AST-based approaches
+3. **API-First Design**: Support for both local and cloud-based embedding models
+4. **Developer Experience**: Enhanced configuration, better error messages, visual feedback
+
+We maintain immense respect for the original `ck` project and acknowledge its foundational contributions. The fork allows us to explore new directions while maintaining compatibility where it matters.
 
 ## 📄 License
 
