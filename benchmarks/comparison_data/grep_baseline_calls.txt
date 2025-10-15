@@ -1,0 +1,82 @@
+# Traditional grep/glob Baseline: Tool Calls Required
+
+## Scenario 1: Error Handling Audit
+Call 1: grep -r "Result<" . --include="*.rs" | wc -l
+Call 2: grep -r "?" . --include="*.rs" | wc -l
+Call 3: grep -r "unwrap()" . --include="*.rs" | head -20
+Call 4: grep -r "expect(" . --include="*.rs" | head -20
+Call 5: grep -r "match.*Err" . --include="*.rs" | head -20
+Call 6: grep -r "if let Err" . --include="*.rs" | head -20
+Call 7: grep -r "anyhow::" . --include="*.rs" | head -20
+Call 8: Manual correlation and filtering
+
+Total: 8 calls
+Estimated context: ~100,000 tokens
+
+## Scenario 2: Configuration System Trace
+Call 1: find . -name "*.toml"
+Call 2: find . -name "*config*"
+Call 3: grep -r "config" . --include="*.rs" | wc -l
+Call 4: grep -r "struct.*Config" . --include="*.rs" | head -30
+Call 5: grep -r "pub struct.*Config" . --include="*.rs"
+Call 6: grep -r "impl.*Config" . --include="*.rs"
+Call 7: grep -r "load.*config" . -i --include="*.rs"
+Call 8: grep -r "toml::from_str" . --include="*.rs"
+Call 9: grep -r "serde" . --include="*.rs"
+Call 10: grep -r "rerank_enabled" . --include="*.rs"
+Call 11: grep -r "rerank_model" . --include="*.rs"
+Call 12: grep -r "index_model" . --include="*.rs"
+
+Total: 12 calls
+Estimated context: ~80,000 tokens
+
+## Scenario 3: API Integration Location
+Call 1: find . -name "*jina*"
+Call 2: grep -r "JINA_API_KEY" .
+Call 3: grep -r "reqwest::Client" .
+Call 4: grep -r "embeddings" . -i
+Call 5: grep -r "rerank" . -i
+Call 6: grep -r "jina-embeddings-v4" .
+Call 7: grep -r "jina-code" .
+Call 8: grep -r "jina-reranker" .
+Call 9: grep -r "api.jina.ai" .
+Call 10: Manual correlation
+
+Total: 10 calls
+Estimated context: ~90,000 tokens
+
+## Scenario 4: Cross-Language Refactor Preparation
+# Rust side
+Call 1: grep -r "config" cs-cli/src/ --include="*.rs"
+Call 2: grep -r "Config" cs-models/src/ --include="*.rs"
+Call 3: grep -r "toml" . --include="*.rs"
+Call 4: grep -r "serde" . --include="*.rs"
+Call 5-8: grep for each config field (4 calls)
+
+# TypeScript side
+Call 9: grep -r "config" cs-vscode/src/ --include="*.ts"
+Call 10: grep -r "interface.*Config" cs-vscode/ --include="*.ts"
+Call 11: grep -r "readFile" cs-vscode/ --include="*.ts"
+Call 12: grep -r "writeFile" cs-vscode/ --include="*.ts"
+Call 13-15: grep for patterns (3 calls)
+
+Total: 15+ calls
+Estimated context: ~95,000 tokens
+
+## Scenario 5: Recursive Navigation (Architecture Understanding)
+Call 1: grep -r "fn main" cs-cli/src/main.rs
+Call 2: grep -r "async fn.*search" cs-cli/src/main.rs
+Call 3: grep -r "SearchOptions" . --include="*.rs"
+Call 4: grep -r "SearchMode" . --include="*.rs"
+Call 5: grep -r "semantic_search" . --include="*.rs"
+Call 6: grep -r "Embedder" . --include="*.rs"
+Call 7-20: Multiple iterations of guessing and backtracking
+
+Total: 20+ calls (many failed attempts)
+Estimated context: ~150,000 tokens
+Notes: Frequent dead ends, manual correlation across files
+
+## Summary
+Total calls across all scenarios: 65+ calls
+Total estimated context: ~515,000 tokens
+Average per scenario: 13 calls, ~103,000 tokens

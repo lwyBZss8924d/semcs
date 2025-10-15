@@ -1,0 +1,47 @@
+# Python virtual environment (managed by uv)
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# uv
+.uv/
+
+# Test results and data
+automation/results/*.json
+automation/results/*.txt
+real_world/results/*.json
+real_world/results/*.txt
+quantitative/results/*.json
+quantitative/results/*.txt
+results/
+
+# Datasets (may be large)
+quantitative/datasets/*.json
+quantitative/datasets/*.jsonl
+real_world/datasets/*.json
+
+# Coverage reports
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
