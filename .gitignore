@@ -2,9 +2,10 @@
 target/
 **/*.rs.bk
 
-# cc index files
+# Old cc index files (deprecated, use .cs/)
 .cc/
 .ccignore
+
 # IDE
 .vscode/
 .idea/
@@ -32,9 +33,9 @@ Thumbs.db
 *.key
 *.pem
 
-# cs index files (updated for cs rename)
-.cs/
-.csignore
+# NOTE: .cs/ index directory is NOT ignored - it serves as a demo index
+# for users to experience cs semantic search immediately after cloning
+# .csignore is kept for user-specific ignore patterns
 
 # Build/development artifacts
 .claude/

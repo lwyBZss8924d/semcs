@@ -1,0 +1,1173 @@
+{
+  "version": "0.1.0",
+  "created": 1760521351,
+  "updated": 1760528829,
+  "files": {
+    "./examples/code/sample.rb": {
+      "path": "./examples/code/sample.rb",
+      "hash": "6243f32cf94d95c6109afd53eb54e558913c64f7ecc824b490e1ebcc19a71016",
+      "last_modified": 1760329203,
+      "size": 629
+    },
+    "./examples/TEST_JINA_API.md": {
+      "path": "./examples/TEST_JINA_API.md",
+      "hash": "4067f4b7e0c7036d5975da0433442d3191ee9c70060e28ed00b76e1d5f8379f5",
+      "last_modified": 1760505913,
+      "size": 6607
+    },
+    "./cs-vscode/install-cursor.sh": {
+      "path": "./cs-vscode/install-cursor.sh",
+      "hash": "09c1a46fcc4fdd56367b4dcfb83e2e29cfe7b7a1e169ca64049a2372dfa846f6",
+      "last_modified": 1760329203,
+      "size": 781
+    },
+    "./cs-cli/src/mcp/session.rs": {
+      "path": "./cs-cli/src/mcp/session.rs",
+      "hash": "83bc93bb7961573726e3d87f3e7c7088371757278e4bbe0e159cbc842976e864",
+      "last_modified": 1760509088,
+      "size": 18566
+    },
+    "./LICENSE-APACHE": {
+      "path": "./LICENSE-APACHE",
+      "hash": "dd74ba6165a2f343649a7d77e10f210617406cdb9ea7549da2744a4a931275c8",
+      "last_modified": 1760329203,
+      "size": 10172
+    },
+    "./vscode_prd.md": {
+      "path": "./vscode_prd.md",
+      "hash": "ada813af2b5fcde46f2be62e714939721ae18f3a9e8cfb5470616bed28e13619",
+      "last_modified": 1760512645,
+      "size": 7390
+    },
+    "./RENAME_COMPLETE.md": {
+      "path": "./RENAME_COMPLETE.md",
+      "hash": "cd528e748c9f653896c643637fb295fb338e627aefdf554a06f0d43a9308a0e3",
+      "last_modified": 1760510682,
+      "size": 4985
+    },
+    "./cs-models/src/user_config.rs": {
+      "path": "./cs-models/src/user_config.rs",
+      "hash": "4d508bd228b0872d90eb208ef1d893f193dfcecca583899f5d6c767f2877e64b",
+      "last_modified": 1760517126,
+      "size": 9875
+    },
+    "./QUICK_TEST_COMMANDS.md": {
+      "path": "./QUICK_TEST_COMMANDS.md",
+      "hash": "1d5aa12488fb743e45107697b366f15bf6a014d404da6e0d0ba605f929acad99",
+      "last_modified": 1760511519,
+      "size": 6325
+    },
+    "./examples/code/api_client.js": {
+      "path": "./examples/code/api_client.js",
+      "hash": "cd6cb1d42729c66c1497cb7b98e8c32e687bdf6eeaeb20d5b841375e5fb25f61",
+      "last_modified": 1760329203,
+      "size": 9586
+    },
+    "./docs/index.md": {
+      "path": "./docs/index.md",
+      "hash": "195f2d284bf28f37448a59fad75bc6a6f3c2dc295ded27bd6183ecfe4ac61068",
+      "last_modified": 1760509122,
+      "size": 6195
+    },
+    "./examples/text_samples/wiki_articles/Mathematics.txt": {
+      "path": "./examples/text_samples/wiki_articles/Mathematics.txt",
+      "hash": "af4489043402f1570cec88d795fde66117dec340c841e261efcba08b47a3d994",
+      "last_modified": 1760329203,
+      "size": 2591
+    },
+    "./cs-tui/src/events.rs": {
+      "path": "./cs-tui/src/events.rs",
+      "hash": "59c35582ecb6b05486507c74d6b52625b15c85ffaa78b3dfba33eaae618d7df6",
+      "last_modified": 1760509088,
+      "size": 510
+    },
+    "./examples/text_samples/wiki_articles/JavaScript.txt": {
+      "path": "./examples/text_samples/wiki_articles/JavaScript.txt",
+      "hash": "eca5af493151e20348656ea9ca20eb6fdb2341c500428b77cc4d30d6f15fbfa7",
+      "last_modified": 1760329203,
+      "size": 1225
+    },
+    "./CHANGELOG.md": {
+      "path": "./CHANGELOG.md",
+      "hash": "e4c65ea63dafd6bc8cf71344d7423614e59f36dd882bdbbdf669f02b2221cd38",
+      "last_modified": 1760526947,
+      "size": 24065
+    },
+    "./cs-chunk/src/lib.rs": {
+      "path": "./cs-chunk/src/lib.rs",
+      "hash": "d43d622314ae9cf40ce13351157e7a88d37ed85076ea5cf41538e1508f4b2a55",
+      "last_modified": 1760509090,
+      "size": 74582
+    },
+    "./cs-engine/src/semantic_v3.rs": {
+      "path": "./cs-engine/src/semantic_v3.rs",
+      "hash": "e9a7937f010ddfc3bbdb25c97b33e663e042aa3dfc826b037bc84c70c0b3a579",
+      "last_modified": 1760513444,
+      "size": 12003
+    },
+    "./docs/tutorials/jina-models/jina-api-v9.txt": {
+      "path": "./docs/tutorials/jina-models/jina-api-v9.txt",
+      "hash": "367a73767627eb3dc5a79c222505bb94584e9f2589bebc1712c629d310714e5d",
+      "last_modified": 1760333829,
+      "size": 37615
+    },
+    "./docs/reference/cli.md": {
+      "path": "./docs/reference/cli.md",
+      "hash": "e58c29bf303a573085c4ec0baced0e0ae265433e803bdbabb7fe1877b5f4f43c",
+      "last_modified": 1760329203,
+      "size": 14239
+    },
+    "./examples/code/large_function.py": {
+      "path": "./examples/code/large_function.py",
+      "hash": "9c7525b804f2e3a3d2efa9f68d84ada3722479e35406f93bf033978713a7b449",
+      "last_modified": 1760329203,
+      "size": 12004
+    },
+    "./docs/_sass/color_schemes/cc.scss": {
+      "path": "./docs/_sass/color_schemes/cc.scss",
+      "hash": "c2ad3c2d24d532872b112bf5eadda088f2c86f0a37b087db84f6058a36ce7f33",
+      "last_modified": 1760329203,
+      "size": 14179
+    },
+    "./docs/how-to/large-codebases.md": {
+      "path": "./docs/how-to/large-codebases.md",
+      "hash": "86d123c9aa6587add307688ddd28f03f2597f47aab50a6d7806ea6880e8140e9",
+      "last_modified": 1760514585,
+      "size": 8412
+    },
+    "./cs-index/Cargo.toml": {
+      "path": "./cs-index/Cargo.toml",
+      "hash": "63d675e6c51704e43274dc762b7eb379bc7143cb2f80e7fe4e9e5ca62674d66e",
+      "last_modified": 1760515500,
+      "size": 1046
+    },
+    "./examples/text_samples/wiki_articles/Music.txt": {
+      "path": "./examples/text_samples/wiki_articles/Music.txt",
+      "hash": "2212096bc147eeec6907e807870b5190a05ae4d5cd70f37df2fe7f5c07a4ae89",
+      "last_modified": 1760329203,
+      "size": 1990
+    },
+    "./examples/text_samples/fixtures/demo7.txt": {
+      "path": "./examples/text_samples/fixtures/demo7.txt",
+      "hash": "3c535aad2ff24606cee05d1637a270ff5e87c73d47aa758d8ede027fc0780404",
+      "last_modified": 1760329203,
+      "size": 134
+    },
+    "./examples/text_samples/wiki_articles/Algorithm.txt": {
+      "path": "./examples/text_samples/wiki_articles/Algorithm.txt",
+      "hash": "9ab6a9a82595e025e6eb258af12b5de040c1b0ec8ab32951df8e526df3bf72f1",
+      "last_modified": 1760329203,
+      "size": 1373
+    },
+    "./cs-chunk/queries/csharp/tags.scm": {
+      "path": "./cs-chunk/queries/csharp/tags.scm",
+      "hash": "e59213feb1943b8e6ee0e49fa3fe2fd352d51f3a69e26b96cbcd1fab3d41037a",
+      "last_modified": 1760329203,
+      "size": 185
+    },
+    "./examples/text_samples/wiki_articles/Biology.txt": {
+      "path": "./examples/text_samples/wiki_articles/Biology.txt",
+      "hash": "7c2eca8f716ee16a2d01238e6ae87ef6288437619c52b25cb21615182c28039e",
+      "last_modified": 1760329203,
+      "size": 2093
+    },
+    "./cs-index/src/lib.rs": {
+      "path": "./cs-index/src/lib.rs",
+      "hash": "60eab3eecaa2938886bf354e6857f82d6d638c67e6489fea322ce0323d598248",
+      "last_modified": 1760513444,
+      "size": 74187
+    },
+    "./docs/tutorials/jina_api_usage.md": {
+      "path": "./docs/tutorials/jina_api_usage.md",
+      "hash": "b6c370d4cbeb18dcab063294787117aa342a81cb0694375585f22f8d8979d566",
+      "last_modified": 1760512221,
+      "size": 6992
+    },
+    "./docs/tutorials/index.md": {
+      "path": "./docs/tutorials/index.md",
+      "hash": "b6026fa8daadb1abd9b04380676ac235ef86d730d5151af1149cae2c4c873952",
+      "last_modified": 1760329203,
+      "size": 6111
+    },
+    "./docs/api-issue-jina-code-embeddings-1.5b/JINA_API_BUG_STATUS_2025.md": {
+      "path": "./docs/api-issue-jina-code-embeddings-1.5b/JINA_API_BUG_STATUS_2025.md",
+      "hash": "5007cc43224471ceecda980b76590f79a8f557cd9b1fd8f10498e29be1b9af37",
+      "last_modified": 1760509121,
+      "size": 3333
+    },
+    "./docs/api-issue-jina-code-embeddings-1.5b/JINA_API_ISSUE_VERIFIED.md": {
+      "path": "./docs/api-issue-jina-code-embeddings-1.5b/JINA_API_ISSUE_VERIFIED.md",
+      "hash": "0218d56dd79df9dfecfbb95f5ef68bf1bec01d9e8e6ee88e29aae3752317c894",
+      "last_modified": 1760509121,
+      "size": 8925
+    },
+    "./cs-embed/Cargo.toml": {
+      "path": "./cs-embed/Cargo.toml",
+      "hash": "df084c8a3105c10ab5cba340e5d01e3a622024d8cb28cf707a3f1187cd8e6033",
+      "last_modified": 1760515500,
+      "size": 802
+    },
+    "./docs/tutorials/jina-models/modelcard-jina-code-embeddings-1.5b.md": {
+      "path": "./docs/tutorials/jina-models/modelcard-jina-code-embeddings-1.5b.md",
+      "hash": "b75faeb86babd726ab9640595638735b17d013e3e469ef4f760b08fe4821525c",
+      "last_modified": 1760509122,
+      "size": 9386
+    },
+    "./cs-chunk/queries/haskell/tags.scm": {
+      "path": "./cs-chunk/queries/haskell/tags.scm",
+      "hash": "519acee9843a47e4965da30e024c577b5882947476ef04234f873ea451e3a3d8",
+      "last_modified": 1760329203,
+      "size": 239
+    },
+    "./cs-tui/src/state.rs": {
+      "path": "./cs-tui/src/state.rs",
+      "hash": "50a9876a53c46bfe745d3c77752edc1c4da5a614b0d8a78857e7c7001d9f1874",
+      "last_modified": 1760509088,
+      "size": 1557
+    },
+    "./FINAL_RENAME_SUMMARY.md": {
+      "path": "./FINAL_RENAME_SUMMARY.md",
+      "hash": "40cc846d6fbd6cb12796fbeac2bbe3e2466f8da9e0648d32199ebad98f23445b",
+      "last_modified": 1760512965,
+      "size": 7769
+    },
+    "./examples/text_samples/wiki_articles/Physics.txt": {
+      "path": "./examples/text_samples/wiki_articles/Physics.txt",
+      "hash": "c0d2a51edeee96709f656e43614cd508a058dd1eb92faeca133b27fec97c5234",
+      "last_modified": 1760329203,
+      "size": 1436
+    },
+    "./README.md": {
+      "path": "./README.md",
+      "hash": "b416acfdafb2109e1213bd5a9e275c333f73a768d1dc4c76de67a0960ade4e1f",
+      "last_modified": 1760515038,
+      "size": 23107
+    },
+    "./cs-cli/src/mcp/errors.rs": {
+      "path": "./cs-cli/src/mcp/errors.rs",
+      "hash": "24ebc52e7d71554037e8299b71b2f6fa747e50bf27b48340e9d2ec3771cc5933",
+      "last_modified": 1760509088,
+      "size": 1122
+    },
+    "./UNEXPECTED.md": {
+      "path": "./UNEXPECTED.md",
+      "hash": "a1e9e89b8487e9a6c7d920479aad957bcaa900e6ba9cea27be2d47da2c9b9a70",
+      "last_modified": 1760339605,
+      "size": 3012
+    },
+    "./docs/explanation/semantic-search.md": {
+      "path": "./docs/explanation/semantic-search.md",
+      "hash": "059a9c019ce76a5aed02149634840a3f10f177e787ec6516f768d24ef6121753",
+      "last_modified": 1760509121,
+      "size": 11151
+    },
+    "./examples/haskell_sample.hs": {
+      "path": "./examples/haskell_sample.hs",
+      "hash": "ac88fd61208486996455a1e6ee263b729ae2e63f817d1f5d6bf851e54ce3caf9",
+      "last_modified": 1760329203,
+      "size": 3806
+    },
+    "./cs-tui/src/lib.rs": {
+      "path": "./cs-tui/src/lib.rs",
+      "hash": "df61dd782e40969e5f773e2063356cab12bf416ac6eba3813ac745dc886ed51b",
+      "last_modified": 1760509088,
+      "size": 986
+    },
+    "./CLAUDE.md": {
+      "path": "./CLAUDE.md",
+      "hash": "85099a57a7138c7c6dddca6c51430896d4d991a6fb5f93c7aa19502bf66fa709",
+      "last_modified": 1760514260,
+      "size": 2820
+    },
+    "./examples/text_samples/wiki_articles/Geography.txt": {
+      "path": "./examples/text_samples/wiki_articles/Geography.txt",
+      "hash": "cb7656ce77cc5cc41fea97e70601306add258aa9016bdb88d6d5a731b22170ca",
+      "last_modified": 1760329203,
+      "size": 2024
+    },
+    "./monitor_index.sh": {
+      "path": "./monitor_index.sh",
+      "hash": "dc745dfd4d613b76a4b00fa4ca928556aacbcc6f04b47ab1c3a204dd827c84bd",
+      "last_modified": 1760520395,
+      "size": 2273
+    },
+    "./examples/text_samples/fixtures/demo9.txt": {
+      "path": "./examples/text_samples/fixtures/demo9.txt",
+      "hash": "8294fc388f5b2bb4f125db5b88d21685c88109cc94c7e761658702e378ef2090",
+      "last_modified": 1760329203,
+      "size": 134
+    },
+    "./cs-cli/tests/integration_tests.rs": {
+      "path": "./cs-cli/tests/integration_tests.rs",
+      "hash": "ff325a394d67eb60781db641bd34bba7f287ee3ef59d9690a93814777ea02215",
+      "last_modified": 1760512231,
+      "size": 24852
+    },
+    "./cs-cli/src/lib.rs": {
+      "path": "./cs-cli/src/lib.rs",
+      "hash": "d4b708df12904d104f354a31ea822c5891c1a9de4488d3a3c9cc1cd3745452ce",
+      "last_modified": 1760509088,
+      "size": 288
+    },
+    "./cs-chunk/queries/rust/tags.scm": {
+      "path": "./cs-chunk/queries/rust/tags.scm",
+      "hash": "b6bb7525b31d85e901584b4e31068673a6387ad71f45e59166510554199916fe",
+      "last_modified": 1760329203,
+      "size": 438
+    },
+    "./cs-core/Cargo.toml": {
+      "path": "./cs-core/Cargo.toml",
+      "hash": "0a11bbc7232297eea7722095199fd652c4a72d28bb3ce096952ac78cccdf304f",
+      "last_modified": 1760515500,
+      "size": 622
+    },
+    "./cs-chunk/queries/zig/tags.scm": {
+      "path": "./cs-chunk/queries/zig/tags.scm",
+      "hash": "1843b07e443417a696532cbcbb9e1b1e4ddd304ca3a623d197b571069011c881",
+      "last_modified": 1760329203,
+      "size": 353
+    },
+    "./TEST_v0.6.1.md": {
+      "path": "./TEST_v0.6.1.md",
+      "hash": "f3e40615aff352b2388b5cf78f10b43fc9489da8b5affb5d91a88a1176b2a915",
+      "last_modified": 1760511632,
+      "size": 9920
+    },
+    "./cs-core/src/heatmap.rs": {
+      "path": "./cs-core/src/heatmap.rs",
+      "hash": "cbd856b91bccbd31d24e7cd5843a55c351f408765775cfa6009174b4d2bf8eb4",
+      "last_modified": 1760509089,
+      "size": 7041
+    },
+    "./docs/explanation/mcp-dead-code-intent.md": {
+      "path": "./docs/explanation/mcp-dead-code-intent.md",
+      "hash": "36b211efb637b1151c5abfc2c67d9ac875164c7140b0e8f19d0fd8a4cb226e0c",
+      "last_modified": 1760509121,
+      "size": 3516
+    },
+    "./examples/pdf/2310.03714.pdf": {
+      "path": "./examples/pdf/2310.03714.pdf",
+      "hash": "83facd467e876a1b33c43f43d731557ff6919d202c20454dae3fe58eabaf5799",
+      "last_modified": 1760329203,
+      "size": 460814
+    },
+    "./docs/how-to/agent-workflows.md": {
+      "path": "./docs/how-to/agent-workflows.md",
+      "hash": "aa06da0c372df0a43a2547828204e0605a15d179ad3883205d7548d69ca7858d",
+      "last_modified": 1760509121,
+      "size": 24815
+    },
+    "./cs-cli/src/progress.rs": {
+      "path": "./cs-cli/src/progress.rs",
+      "hash": "edbeb0f60452fada9f4d99a10e02d9f06630de45fca621c59d577e12b369c203",
+      "last_modified": 1760509088,
+      "size": 9912
+    },
+    "./cs-cli/src/mcp/mod.rs": {
+      "path": "./cs-cli/src/mcp/mod.rs",
+      "hash": "2078ca3904b3ffbb8b3aef4b2a35e376b3aee4f946d839e0603bc0cc7be08d9f",
+      "last_modified": 1760509088,
+      "size": 108
+    },
+    "./examples/text_samples/wiki_articles/Literature.txt": {
+      "path": "./examples/text_samples/wiki_articles/Literature.txt",
+      "hash": "87e34090b562356959e87a9646015d31cb7694eaa3f3accb615a3c9b6e75040e",
+      "last_modified": 1760329203,
+      "size": 1406
+    },
+    "./cs-core/src/lib.rs": {
+      "path": "./cs-core/src/lib.rs",
+      "hash": "69a8cfc622fc86e267f870ce8b3cc20f440bcef242535f6b06dd22fd5e514e45",
+      "last_modified": 1760515048,
+      "size": 44586
+    },
+    "./PRD.txt": {
+      "path": "./PRD.txt",
+      "hash": "87e30f7bb153dbb53218c98cae90266e4ea0890fe0e0f8364d78a4e3ee77dad8",
+      "last_modified": 1760514427,
+      "size": 13412
+    },
+    "./docs/api-issue-jina-code-embeddings-1.5b/JINA_CODE_API_BUG_REPORT.md": {
+      "path": "./docs/api-issue-jina-code-embeddings-1.5b/JINA_CODE_API_BUG_REPORT.md",
+      "hash": "5f65801373c3793be44ad42f208c1f48d042c1aef19d3537b4a516d7bacaa69a",
+      "last_modified": 1760509121,
+      "size": 12827
+    },
+    "./Cargo.toml": {
+      "path": "./Cargo.toml",
+      "hash": "2cc0056993366fe12500c65dcbc1a20406d422e101a489427bd31f044478de3f",
+      "last_modified": 1760515500,
+      "size": 1393
+    },
+    "./docs/reference/tui.md": {
+      "path": "./docs/reference/tui.md",
+      "hash": "c15dcf2d6e4ca04f5eb32762b589577d1ba6be5f269d9004692986e0232f3999",
+      "last_modified": 1760514629,
+      "size": 31919
+    },
+    "./cs-cli/Cargo.toml": {
+      "path": "./cs-cli/Cargo.toml",
+      "hash": "d76848b0322d1ad5922052d0175832d3a39d82b6f5795a168a540e82b9c16aef",
+      "last_modified": 1760515500,
+      "size": 2025
+    },
+    "./cs-vscode/GETTING_STARTED.md": {
+      "path": "./cs-vscode/GETTING_STARTED.md",
+      "hash": "76915b628e0510149c7466bcffa1430ed342d5a966b2150bf9a5f5320f8e79d0",
+      "last_modified": 1760512740,
+      "size": 4405
+    },
+    "./build_after_rename_v2.sh": {
+      "path": "./build_after_rename_v2.sh",
+      "hash": "922aae3909b8cd62fbe2214a1a39528c3ce24322e0599e244d31c5a8688e1679",
+      "last_modified": 1760510316,
+      "size": 2882
+    },
+    "./LICENSE-MIT": {
+      "path": "./LICENSE-MIT",
+      "hash": "e125c4fa76bcc46bfba573ede20080e709c2baf709528414f0dabbee149d6da8",
+      "last_modified": 1760329203,
+      "size": 1068
+    },
+    "./cs-chunk/queries/javascript/tags.scm": {
+      "path": "./cs-chunk/queries/javascript/tags.scm",
+      "hash": "7a8229d61355468309101b20c7645a0ae315f3adcb9d5634e8f7ed3fe1f710c0",
+      "last_modified": 1760329203,
+      "size": 561
+    },
+    "./cs-cli/src/mcp/context.rs": {
+      "path": "./cs-cli/src/mcp/context.rs",
+      "hash": "4b37d0f72632b705e1fa92dcd160be6dfe2920a172b14a522343212f9af0a9dc",
+      "last_modified": 1760509088,
+      "size": 3892
+    },
+    "./cs-tui/src/app.rs": {
+      "path": "./cs-tui/src/app.rs",
+      "hash": "9e3de5d66413fa50629ad691f6184bdaa740901f726be4a45788d3a812e4ec17",
+      "last_modified": 1760514528,
+      "size": 37953
+    },
+    "./cs-chunk/examples/debug_chunks.rs": {
+      "path": "./cs-chunk/examples/debug_chunks.rs",
+      "hash": "2f48994b68e4147f012e306184afe2ce7f11fbab2604de2ad0e4a9df8cfcbf56",
+      "last_modified": 1760509090,
+      "size": 7582
+    },
+    "./cs-cli/src/path_utils.rs": {
+      "path": "./cs-cli/src/path_utils.rs",
+      "hash": "e07fa9b51fdc0a59262eddb5a464d715ea31e9615a0271e054d0a260ef5b7e3f",
+      "last_modified": 1760509088,
+      "size": 10905
+    },
+    "./rename_cc_to_cs.sh": {
+      "path": "./rename_cc_to_cs.sh",
+      "hash": "ea6c3df3e42704abe1f39ee57eba3704b72836603497f3f7857e29fa0edd5e1a",
+      "last_modified": 1760508546,
+      "size": 4567
+    },
+    "./cs-vscode/LICENSE-MIT": {
+      "path": "./cs-vscode/LICENSE-MIT",
+      "hash": "e125c4fa76bcc46bfba573ede20080e709c2baf709528414f0dabbee149d6da8",
+      "last_modified": 1760329203,
+      "size": 1068
+    },
+    "./cs-vscode/src/types.ts": {
+      "path": "./cs-vscode/src/types.ts",
+      "hash": "7180e8f3652e645998f6cbf5b4472a553afb5b873b36e5368caa3cd739bdb7a3",
+      "last_modified": 1760329203,
+      "size": 1791
+    },
+    "./docs/how-to/configuration.md": {
+      "path": "./docs/how-to/configuration.md",
+      "hash": "364e2eb60f924c1c6702697783cc1d92049150c5e557d81efbab4f6940ba571e",
+      "last_modified": 1760526956,
+      "size": 9666
+    },
+    "./check_index.sh": {
+      "path": "./check_index.sh",
+      "hash": "04cb0b95e04daf622f1ab67c284febf804cf7c985a5eb5e6210947cfbeb85e8b",
+      "last_modified": 1760521240,
+      "size": 2174
+    },
+    "./RENAME_STATUS.md": {
+      "path": "./RENAME_STATUS.md",
+      "hash": "4515567b6726cbe4037209ef70e56c2b82342c7b9dd4d01541cd6c7f2cbc0b79",
+      "last_modified": 1760510137,
+      "size": 5277
+    },
+    "./fix_naming_conflict.sh": {
+      "path": "./fix_naming_conflict.sh",
+      "hash": "73821a63124f0f86967b4981f71ea988dd6420720b866e683dfdfa3fdd0bf0ec",
+      "last_modified": 1760508403,
+      "size": 2387
+    },
+    "./RENAME_PLAN.md": {
+      "path": "./RENAME_PLAN.md",
+      "hash": "3b5833ddf56ba868ad853436c3fb639dfec323d8cc74100e55f6940528e878f7",
+      "last_modified": 1760509121,
+      "size": 4056
+    },
+    "./docs/tutorials/TEST_JINA_API.md": {
+      "path": "./docs/tutorials/TEST_JINA_API.md",
+      "hash": "89c3ca862bc052eb104a5378ccc4e5c1b6745a43c768207a9721ee39ab2dd58d",
+      "last_modified": 1760332036,
+      "size": 6592
+    },
+    "./EXAMPLES.md": {
+      "path": "./EXAMPLES.md",
+      "hash": "bae89e176f5363ce713ba1dbc405cdf2ab3edd019e8e496af5a36ad6e1620e8e",
+      "last_modified": 1760513258,
+      "size": 9212
+    },
+    "./cs-tui/src/config.rs": {
+      "path": "./cs-tui/src/config.rs",
+      "hash": "7b80bb5714904d2577b31e7e3f4b270d6e229f5c9aa7b75999ac057918948b84",
+      "last_modified": 1760510550,
+      "size": 2559
+    },
+    "./cs-chunk/src/query_chunker.rs": {
+      "path": "./cs-chunk/src/query_chunker.rs",
+      "hash": "cd53a19dd298e35424e9717dc6ffcb2754c7259dfd53c9a59ce8d92ecefd4d42",
+      "last_modified": 1760509090,
+      "size": 11096
+    },
+    "./cs-embed/examples/list_models.rs": {
+      "path": "./cs-embed/examples/list_models.rs",
+      "hash": "d767e6a01f79a0b30c080751a5b0cef0df2994f87250d45acdb3bd08e91e0104",
+      "last_modified": 1760509090,
+      "size": 1574
+    },
+    "./examples/text_samples/wiki_articles/Statistics.txt": {
+      "path": "./examples/text_samples/wiki_articles/Statistics.txt",
+      "hash": "ed020b2e1a5360e23fbd30148c6948830c1eb71bc4358901f2de52d0b95f0928",
+      "last_modified": 1760329203,
+      "size": 3509
+    },
+    "./cs-embed/src/jina_api.rs": {
+      "path": "./cs-embed/src/jina_api.rs",
+      "hash": "6fcf5a2e121e8a8a20066aef2fff43065136d210b83c31a0d4f853adee506367",
+      "last_modified": 1760509090,
+      "size": 14492
+    },
+    "./cs-vscode/LICENSE-APACHE": {
+      "path": "./cs-vscode/LICENSE-APACHE",
+      "hash": "dd74ba6165a2f343649a7d77e10f210617406cdb9ea7549da2744a4a931275c8",
+      "last_modified": 1760329203,
+      "size": 10172
+    },
+    "./docs/assets/js/copy-enhancement.js": {
+      "path": "./docs/assets/js/copy-enhancement.js",
+      "hash": "1b8ab0c9dd33a543f0daaf1e5a08799a3088e9147078ee3e5eeef50247cdbce8",
+      "last_modified": 1760329203,
+      "size": 3654
+    },
+    "./docs/explanation/query-based-chunking.md": {
+      "path": "./docs/explanation/query-based-chunking.md",
+      "hash": "ed1d2f532d9006f3f1a62a4c731dfb9e3b3ce7690e2e14454390791745cb212e",
+      "last_modified": 1760509121,
+      "size": 2704
+    },
+    "./examples/text_samples/wiki_articles/Chemistry.txt": {
+      "path": "./examples/text_samples/wiki_articles/Chemistry.txt",
+      "hash": "bb0425beda0f18ede557a744d47cf57eac43912903f74715fc7ba91168522be7",
+      "last_modified": 1760329203,
+      "size": 1443
+    },
+    "./examples/code/sample.rs": {
+      "path": "./examples/code/sample.rs",
+      "hash": "2c1fae999d218585b9cbd150056c5e34449a3f1afe9f576e864f2729d08998fe",
+      "last_modified": 1760509089,
+      "size": 694
+    },
+    "./docs/tutorials/JINA_API_INTEGRATION.md": {
+      "path": "./docs/tutorials/JINA_API_INTEGRATION.md",
+      "hash": "b9d7bf8e4178faac76276bba877584b463508270641cab25dd6e2b2f68f7ef4d",
+      "last_modified": 1760514629,
+      "size": 7891
+    },
+    "./Cargo.lock": {
+      "path": "./Cargo.lock",
+      "hash": "0ceceb6c0cbaeabc3c4a1bb1f0c256f3470431efad847acec3985eca51b77a56",
+      "last_modified": 1760515503,
+      "size": 136678
+    },
+    "./docs/tutorials/installation.md": {
+      "path": "./docs/tutorials/installation.md",
+      "hash": "bcb1ab4cd649a8bc9cce695abd2dee20f2436f8df737e670f045796baa72c3e3",
+      "last_modified": 1760514629,
+      "size": 8468
+    },
+    "./SESSION_SUMMARY_2025-10-15.md": {
+      "path": "./SESSION_SUMMARY_2025-10-15.md",
+      "hash": "f986291394bbb97d2e891ffa589937b17b4dc896aa4c949d6152a2f71d68f20f",
+      "last_modified": 1760527030,
+      "size": 12589
+    },
+    "./cs-embed/examples/test_nomic.rs": {
+      "path": "./cs-embed/examples/test_nomic.rs",
+      "hash": "55cb72fddd10a08bc172f9a961ad3e5fee78acff80fab2ee3cd448c522374ffe",
+      "last_modified": 1760509090,
+      "size": 2429
+    },
+    "./docs/explanation/search-modes.md": {
+      "path": "./docs/explanation/search-modes.md",
+      "hash": "8699656c451c3d68d98685d93acfe596456e4ea752c3894bb13f6d0b51040392",
+      "last_modified": 1760514629,
+      "size": 9579
+    },
+    "./examples/text_samples/wiki_articles/Rust_programming_language.txt": {
+      "path": "./examples/text_samples/wiki_articles/Rust_programming_language.txt",
+      "hash": "15c767a4f8908db49182cace242e3a5d5b7d251787d9669e8994588693c43e6e",
+      "last_modified": 1760329203,
+      "size": 1422
+    },
+    "./cs-tui/src/chunks.rs": {
+      "path": "./cs-tui/src/chunks.rs",
+      "hash": "b44b085238872f90c288b7bdcc3a5a800bbfba70f77145522bea294db550ebbc",
+      "last_modified": 1760509088,
+      "size": 14871
+    },
+    "./cs-tui/src/commands.rs": {
+      "path": "./cs-tui/src/commands.rs",
+      "hash": "28a440add5528ac990d68fae10a11679dc33eb1c3918516e5440730687246eac",
+      "last_modified": 1760513363,
+      "size": 14274
+    },
+    "./docs/explanation/mcp-pagination-design.md": {
+      "path": "./docs/explanation/mcp-pagination-design.md",
+      "hash": "565778c2c62255ad6226c945acb9b4f5b72c4c18515dc155682c661dd3f39363",
+      "last_modified": 1760509121,
+      "size": 6312
+    },
+    "./cs-tui/src/rendering.rs": {
+      "path": "./cs-tui/src/rendering.rs",
+      "hash": "1a032dc2d4f333ebf16cdd3bb8957e0a534278a6848df72c235faef8e3de236b",
+      "last_modified": 1760509088,
+      "size": 7142
+    },
+    "./examples/code/user_service.go": {
+      "path": "./examples/code/user_service.go",
+      "hash": "fa912422b6ebf1496a502f4e8307b8d5291cd5c800bf10c0024566cbc46bd73e",
+      "last_modified": 1760329203,
+      "size": 2109
+    },
+    "./cs-vscode/package-lock.json": {
+      "path": "./cs-vscode/package-lock.json",
+      "hash": "bbcefdc2de4c8b48150a851b3ff55c539d3da8bbe0512533cc8c4c84ae67c5ff",
+      "last_modified": 1760329203,
+      "size": 143664
+    },
+    "./docs/api-bug-jina-code-embeddings-1.5b/JINA_API_BUG_STATUS_2025.md": {
+      "path": "./docs/api-bug-jina-code-embeddings-1.5b/JINA_API_BUG_STATUS_2025.md",
+      "hash": "93084cac0dbce7e71a9a35cd75db30647e8c2c22bb073ea94a7efe1da5f93f56",
+      "last_modified": 1760509121,
+      "size": 3332
+    },
+    "./docs/reference/mcp-api.md": {
+      "path": "./docs/reference/mcp-api.md",
+      "hash": "e185d53638bc34d761cd351409e8086f34e4c77d63062a0622f02dc6cdac3236",
+      "last_modified": 1760329203,
+      "size": 7690
+    },
+    "./cs-cli/src/mcp/tools/mod.rs": {
+      "path": "./cs-cli/src/mcp/tools/mod.rs",
+      "hash": "620c0f6c2c0981dfab41e563d87c9df9fe4611917c37b3f5a4be2c2cc9e594b3",
+      "last_modified": 1760509088,
+      "size": 53
+    },
+    "./examples/pdf/2212.10496.pdf": {
+      "path": "./examples/pdf/2212.10496.pdf",
+      "hash": "f75677a02ae5423ed69ff21dd75aeff645d84fe7f01f07d5416e8ee916b33265",
+      "last_modified": 1760329203,
+      "size": 424964
+    },
+    "./examples/text_samples/wiki_articles/Python_programming_language.txt": {
+      "path": "./examples/text_samples/wiki_articles/Python_programming_language.txt",
+      "hash": "ff3c236f8e7358c6e18ed90a8c8b7cb44a0138c5162371302ac11cc0964c330d",
+      "last_modified": 1760329203,
+      "size": 1016
+    },
+    "./docs/api-bug-jina-code-embeddings-1.5b/JINA_API_ISSUE_VERIFIED.md": {
+      "path": "./docs/api-bug-jina-code-embeddings-1.5b/JINA_API_ISSUE_VERIFIED.md",
+      "hash": "0218d56dd79df9dfecfbb95f5ef68bf1bec01d9e8e6ee88e29aae3752317c894",
+      "last_modified": 1760509121,
+      "size": 8925
+    },
+    "./cs-chunk/queries/go/tags.scm": {
+      "path": "./cs-chunk/queries/go/tags.scm",
+      "hash": "b19941dd9e7939aa066711c5d73abf7ca6c2b3761ce628aaa8baee674d821b93",
+      "last_modified": 1760329203,
+      "size": 309
+    },
+    "./cs-embed/src/lib.rs": {
+      "path": "./cs-embed/src/lib.rs",
+      "hash": "09805492ac826b73dceb3d2e28fe18fd15c72a66402f522d587af98964f10390",
+      "last_modified": 1760513444,
+      "size": 13258
+    },
+    "./examples/text_samples/fixtures/demo10.txt": {
+      "path": "./examples/text_samples/fixtures/demo10.txt",
+      "hash": "b17308eb3f9f0b9766ebdce37cb09aa0e4f3a966ff342752242a115241370a39",
+      "last_modified": 1760329203,
+      "size": 135
+    },
+    "./cs-ann/Cargo.toml": {
+      "path": "./cs-ann/Cargo.toml",
+      "hash": "9d78cab6fc383af1200715735800fc456791ba79ff2ab8d6889f21f55b3407cb",
+      "last_modified": 1760515500,
+      "size": 613
+    },
+    "./examples/text_samples/fixtures/demo6.txt": {
+      "path": "./examples/text_samples/fixtures/demo6.txt",
+      "hash": "330ad15e53a8e40c25831d4acb9511661ef22f540c3c6ddfeeb6fafd0b94651a",
+      "last_modified": 1760329203,
+      "size": 134
+    },
+    "./cs-ann/src/lib.rs": {
+      "path": "./cs-ann/src/lib.rs",
+      "hash": "914dec6567fa15d8c48ec3d1f2c24330590ddf38cfa396042aa06c2ebfa8fc48",
+      "last_modified": 1760509089,
+      "size": 12295
+    },
+    "./examples/code/depth_test.rs": {
+      "path": "./examples/code/depth_test.rs",
+      "hash": "e3a7a5fab92a0a3b0a0266b35deda1728fe79ef8c0ec8ae378113442b37bf8cd",
+      "last_modified": 1760509089,
+      "size": 722
+    },
+    "./cs-vscode/package.json": {
+      "path": "./cs-vscode/package.json",
+      "hash": "4b333fc5e8f5103441ad3569482503c0f3d6b5ffce350468819368c979c0bab3",
+      "last_modified": 1760514490,
+      "size": 4017
+    },
+    "./POST_MIGRATION_GUIDE.md": {
+      "path": "./POST_MIGRATION_GUIDE.md",
+      "hash": "f4cdb49f5d29e0f219488803730078cb6155fd9a5ef1ea010afe975e93ca71bb",
+      "last_modified": 1760527347,
+      "size": 12559
+    },
+    "./cs-vscode/tsconfig.json": {
+      "path": "./cs-vscode/tsconfig.json",
+      "hash": "f5cb50386565a474c32da1e7623c2e385f6598add8eebccae1611a99e31b38a0",
+      "last_modified": 1760329203,
+      "size": 368
+    },
+    "./cs-engine/Cargo.toml": {
+      "path": "./cs-engine/Cargo.toml",
+      "hash": "7980ef0d2bb4e427eb41749216dcd117eb59ca118cefd12e2ac2d5a6597c6217",
+      "last_modified": 1760515500,
+      "size": 1036
+    },
+    "./examples/text_samples/wiki_articles/Machine_learning.txt": {
+      "path": "./examples/text_samples/wiki_articles/Machine_learning.txt",
+      "hash": "25eaedc0c93efe84ba301e5f7872ac2046a59ced0b62ba01d68eefeccc3d0fc6",
+      "last_modified": 1760329203,
+      "size": 1074
+    },
+    "./examples/text_samples/wiki_articles/Computer_science.txt": {
+      "path": "./examples/text_samples/wiki_articles/Computer_science.txt",
+      "hash": "8974249bc0b70e0acc6e926d71a162d90a3cb2261f25bd006244a7a53358b0de",
+      "last_modified": 1760329203,
+      "size": 1880
+    },
+    "./cs-tui/Cargo.toml": {
+      "path": "./cs-tui/Cargo.toml",
+      "hash": "01367b3c0df1ac0a5a01bc1346cc1654cbe315f527bc141c2188a6302d3a4799",
+      "last_modified": 1760515500,
+      "size": 841
+    },
+    "./docs/how-to/find-patterns.md": {
+      "path": "./docs/how-to/find-patterns.md",
+      "hash": "07bd2b48a7a97b8233ae92488cbbb372c3d6fb387fe3474f3fbb225a69c2d10f",
+      "last_modified": 1760509122,
+      "size": 7275
+    },
+    "./docs/how-to/setup-mcp-server.md": {
+      "path": "./docs/how-to/setup-mcp-server.md",
+      "hash": "365e0f23e5880810a16ae57295a0990b74cac2b300570a7f027a2535b4598cd0",
+      "last_modified": 1760509121,
+      "size": 6984
+    },
+    "./cs-tui/src/utils.rs": {
+      "path": "./cs-tui/src/utils.rs",
+      "hash": "be4c78bb191b48fe2e27c0ddd3685d8663d363dfa978e1989a4dca67657cc02c",
+      "last_modified": 1760512231,
+      "size": 1835
+    },
+    "./cs-cli/src/mcp_server.rs": {
+      "path": "./cs-cli/src/mcp_server.rs",
+      "hash": "6b3b0dd36ecc98be3b4e3d72ae9167f86a8a461f49f2051a736905c76e3dec4b",
+      "last_modified": 1760514527,
+      "size": 71746
+    },
+    "./install.sh": {
+      "path": "./install.sh",
+      "hash": "2852030fd5d3d431020b05e961b14d1822178d9f0956612e1c47fcadab7f6b33",
+      "last_modified": 1760508091,
+      "size": 1915
+    },
+    "./cs-engine/src/ast_search.rs": {
+      "path": "./cs-engine/src/ast_search.rs",
+      "hash": "2fc63e52a18570bad73a0336c202238c40e8eea8e257fcbba0923f7dfa21dd74",
+      "last_modified": 1760509089,
+      "size": 8439
+    },
+    "./start_index.sh": {
+      "path": "./start_index.sh",
+      "hash": "f4e6de2d9ee08ab23c0445b73b8ec3bdc56d69084fea3528676f374a1a17700d",
+      "last_modified": 1760521240,
+      "size": 3201
+    },
+    "./docs/reference/index.md": {
+      "path": "./docs/reference/index.md",
+      "hash": "98cfb7f6d1c7e7dae264823751b6ebe83ddaf86b7c344f41d9342de1f09b9117",
+      "last_modified": 1760329203,
+      "size": 10312
+    },
+    "./cs-chunk/queries/python/tags.scm": {
+      "path": "./cs-chunk/queries/python/tags.scm",
+      "hash": "72b57cc46cb6958acee7b6d13a5d396a91c3ff122d80972cd41aca6c5e149031",
+      "last_modified": 1760329203,
+      "size": 181
+    },
+    "./cs-embed/src/jina_api_reranker.rs": {
+      "path": "./cs-embed/src/jina_api_reranker.rs",
+      "hash": "0ecf2ec2870152f6eaa75af25ad8b1db7a3a32dcd54b36c2962fa2944156e035",
+      "last_modified": 1760509090,
+      "size": 9278
+    },
+    "./cs-vscode/src/extension.ts": {
+      "path": "./cs-vscode/src/extension.ts",
+      "hash": "2001ff0f1253b08903c021e897a489427ec2828c8c90596a5ca3e73156d76f8d",
+      "last_modified": 1760510958,
+      "size": 4498
+    },
+    "./docs/tutorials/quick-start.md": {
+      "path": "./docs/tutorials/quick-start.md",
+      "hash": "08c55297740d607bcf01d7a02b1e0da4eef90dfb7d49be5a46bcdc0f8f5d9d99",
+      "last_modified": 1760515049,
+      "size": 3240
+    },
+    "./examples/text_samples/wiki_articles/Art.txt": {
+      "path": "./examples/text_samples/wiki_articles/Art.txt",
+      "hash": "fc096d59bc5f09988a975a3af76fb444645d0897160dbc64d1b79aad0d974d4c",
+      "last_modified": 1760329203,
+      "size": 1264
+    },
+    "./docs/tutorials/jina-models/api-jina-reanker.md": {
+      "path": "./docs/tutorials/jina-models/api-jina-reanker.md",
+      "hash": "81763fc102b838d4ad5a6f8451ce480e4549ee3fa86147b108113c4339c38316",
+      "last_modified": 1760495899,
+      "size": 6593
+    },
+    "./examples/text_samples/fixtures/demo5.txt": {
+      "path": "./examples/text_samples/fixtures/demo5.txt",
+      "hash": "80fb76891090349c4e532a76962583e43ccfb8f34cdeb1d183053a0386a138a8",
+      "last_modified": 1760329203,
+      "size": 134
+    },
+    "./cs-vscode/resources/cs-icon.svg": {
+      "path": "./cs-vscode/resources/cs-icon.svg",
+      "hash": "63fafc3c28cad86ace2a87e949fe298d5c2ccb31d16678564ca2782bbc65a244",
+      "last_modified": 1760329203,
+      "size": 246
+    },
+    "./examples/text_samples/fixtures/demo3.txt": {
+      "path": "./examples/text_samples/fixtures/demo3.txt",
+      "hash": "8b2f3c18d918bbad66cbe11fdb4bcace8e62464cbd6b71fdc75c147502096157",
+      "last_modified": 1760329203,
+      "size": 134
+    },
+    "./cs-vscode/LICENSE": {
+      "path": "./cs-vscode/LICENSE",
+      "hash": "3b7d53bbf9587c9c50b563df4fcc0e3a39195358644ddedc7ca8a63be0b988f7",
+      "last_modified": 1760329203,
+      "size": 210
+    },
+    "./examples/code/full_section_demo.py": {
+      "path": "./examples/code/full_section_demo.py",
+      "hash": "e028c66f3321adca9706d0bd846208fb0874964a5992cab64f3288474fa32baf",
+      "last_modified": 1760329203,
+      "size": 8042
+    },
+    "./examples/text_samples/wiki_articles/Data_science.txt": {
+      "path": "./examples/text_samples/wiki_articles/Data_science.txt",
+      "hash": "f6f52bd87649286690e224f227e3ec2856eeaf1a02ed6e5068319efce0666eda",
+      "last_modified": 1760329203,
+      "size": 1385
+    },
+    "./docs/how-to/index.md": {
+      "path": "./docs/how-to/index.md",
+      "hash": "bd551d3f6e0de8f207d14d89ffd63fb838f4639e63a6e38e1778e6d337ed625a",
+      "last_modified": 1760509121,
+      "size": 8832
+    },
+    "./examples/text_samples/fixtures/demo4.txt": {
+      "path": "./examples/text_samples/fixtures/demo4.txt",
+      "hash": "78e72ed3f3dcfe3afcea96351e638caa0ff5972fc06f1d64f969cc0a5da6f67a",
+      "last_modified": 1760329203,
+      "size": 134
+    },
+    "./cs-vscode/webview/styles.css": {
+      "path": "./cs-vscode/webview/styles.css",
+      "hash": "3bac4604cc3df323f29437328e3177ce27feeca8f46fa84314523d664655b4b9",
+      "last_modified": 1760329203,
+      "size": 15155
+    },
+    "./build_after_rename.sh": {
+      "path": "./build_after_rename.sh",
+      "hash": "2b8414e2c2866f5eaaf9d99247799ddd329fe82fac6f767ccdd0fd25be408e43",
+      "last_modified": 1760510088,
+      "size": 2654
+    },
+    "./cs-cli/tests/mcp_tests.rs": {
+      "path": "./cs-cli/tests/mcp_tests.rs",
+      "hash": "00bec33bd46e85c05733c1c7b9a1355b18fbdfe6e5d34a81fb163b1d3a9fa98c",
+      "last_modified": 1760509088,
+      "size": 13051
+    },
+    "./test_config.sh": {
+      "path": "./test_config.sh",
+      "hash": "84bc88a2dea4e3784a6c6b5fc6e43723e40e3297603a17d29cc85e59ce7786b0",
+      "last_modified": 1760527105,
+      "size": 8009
+    },
+    "./cs-chunk/Cargo.toml": {
+      "path": "./cs-chunk/Cargo.toml",
+      "hash": "bcfb482956faf9f25afbd455814994f97c5309ac4e6be5231f542d8fc3694e79",
+      "last_modified": 1760515500,
+      "size": 1042
+    },
+    "./cs-embed/src/tokenizer.rs": {
+      "path": "./cs-embed/src/tokenizer.rs",
+      "hash": "417a43b5f87ce05c0fdb6e011fa05f2150376d7036c6310720bebd94a4a50b93",
+      "last_modified": 1760509090,
+      "size": 5627
+    },
+    "./docs/how-to/editor-integration.md": {
+      "path": "./docs/how-to/editor-integration.md",
+      "hash": "5230b7ccb042a1797cad5c33a4d642b99cfa9367785a1e465855622d69320432",
+      "last_modified": 1760509121,
+      "size": 9602
+    },
+    "./docs/_config.yml": {
+      "path": "./docs/_config.yml",
+      "hash": "6b70af8353e90aebdfaa13fd00bc076e6c380f0d7e85314d93654b4dcfc983ef",
+      "last_modified": 1760510958,
+      "size": 1772
+    },
+    "./docs/tutorials/first-tui-session.md": {
+      "path": "./docs/tutorials/first-tui-session.md",
+      "hash": "879a9432ef25845a97ac0a43c77d6ba50fde08bcdad021c189722f70fe3ce941",
+      "last_modified": 1760509122,
+      "size": 8083
+    },
+    "./examples/code/web_server.rs": {
+      "path": "./examples/code/web_server.rs",
+      "hash": "cb05954e37604f672692441d1d3cd09c45bdf0dba4f6b1813aa05fabcb1ea73d",
+      "last_modified": 1760509089,
+      "size": 6731
+    },
+    "./cs-embed/src/reranker.rs": {
+      "path": "./cs-embed/src/reranker.rs",
+      "hash": "c773a12a71b0c3dee453dd81dcc4f6757ea5871e671aebd60c8a7eb3d4e2617d",
+      "last_modified": 1760513444,
+      "size": 10838
+    },
+    "./cs-chunk/queries/typescript/tags.scm": {
+      "path": "./cs-chunk/queries/typescript/tags.scm",
+      "hash": "0af433df2cdb9bd184efca7969589f084c8513a34c609d949dd116ed20dd7795",
+      "last_modified": 1760329203,
+      "size": 548
+    },
+    "./cs-engine/src/lib.rs": {
+      "path": "./cs-engine/src/lib.rs",
+      "hash": "17ea1535bd810146c27ffbf54d9551c53748e7b80e9de60b28ea62f955a67a1d",
+      "last_modified": 1760512759,
+      "size": 60951
+    },
+    "./cs-vscode/src/mcpAdapter.ts": {
+      "path": "./cs-vscode/src/mcpAdapter.ts",
+      "hash": "81f1dffac3a051e51dc1baa1b17aed3a0cd9007b69bf23e9c04530ee70d315b8",
+      "last_modified": 1760329203,
+      "size": 13187
+    },
+    "./CONFIG_QUICK_REFERENCE.md": {
+      "path": "./CONFIG_QUICK_REFERENCE.md",
+      "hash": "337b178de4da2084d6737cba6858be92467c2a123e7b9d1671675722650075f5",
+      "last_modified": 1760527071,
+      "size": 7058
+    },
+    "./TUI.md": {
+      "path": "./TUI.md",
+      "hash": "e2854f8d95e89304e9c038270fa61157c26e96b4ddbd7aa406bb7e4fbc56cfe3",
+      "last_modified": 1760514629,
+      "size": 6789
+    },
+    "./examples/text_samples/wiki_articles/Artificial_intelligence.txt": {
+      "path": "./examples/text_samples/wiki_articles/Artificial_intelligence.txt",
+      "hash": "74de6f903be1e4d88c1d19201e05cdca5a1473b77aef4840eec659960ac920a8",
+      "last_modified": 1760329203,
+      "size": 2828
+    },
+    "./docs/explanation/index.md": {
+      "path": "./docs/explanation/index.md",
+      "hash": "1196f7158d6b618d62f444baed29502bfd8b0337c153b7c047ea85f438103b35",
+      "last_modified": 1760509121,
+      "size": 13510
+    },
+    "./examples/text_samples/wiki_articles/History.txt": {
+      "path": "./examples/text_samples/wiki_articles/History.txt",
+      "hash": "48a5ccd1e8b198424a0bb472e75e12cfddf777642d1fc40664fec9525c226aa3",
+      "last_modified": 1760329203,
+      "size": 2088
+    },
+    "./examples/text_samples/fixtures/demo8.txt": {
+      "path": "./examples/text_samples/fixtures/demo8.txt",
+      "hash": "0ea70852215b567c6f2e93e04e19a5123ce4ce69c08f32fb3a9d750b46b6c584",
+      "last_modified": 1760329203,
+      "size": 134
+    },
+    "./cs-models/Cargo.toml": {
+      "path": "./cs-models/Cargo.toml",
+      "hash": "1e0b61e803e52ffbe92462816a8a450d4fc217833c4d2e689c63818f4515b95b",
+      "last_modified": 1760515500,
+      "size": 577
+    },
+    "./docs/tutorials/jina-models/modelcard-jina-reranker-v3.md": {
+      "path": "./docs/tutorials/jina-models/modelcard-jina-reranker-v3.md",
+      "hash": "72dae8980050a311d19ae6c8a86d48dc1c575d143d3dfd0b2c6da3aad9b29b41",
+      "last_modified": 1760505974,
+      "size": 6167
+    },
+    "./cs-cli/src/main.rs": {
+      "path": "./cs-cli/src/main.rs",
+      "hash": "24ff93c2477d44f1bedd2e746c4cd160e9fdd3c715b5aebe27f4f965ed60e24f",
+      "last_modified": 1760519878,
+      "size": 75630
+    },
+    "./examples/quick_demo.sh": {
+      "path": "./examples/quick_demo.sh",
+      "hash": "5a80fee0920a3b7d2593a7036d2477b1196a11af3c29119acc4113b4cad62576",
+      "last_modified": 1760329203,
+      "size": 4401
+    },
+    "./cs-vscode/src/cliAdapter.ts": {
+      "path": "./cs-vscode/src/cliAdapter.ts",
+      "hash": "c054f91cfe9d3f45dc23ef6c0cbb8a1eb1284b78cb665eb67a7ae745aa77fd61",
+      "last_modified": 1760329203,
+      "size": 10008
+    },
+    "./examples/text_samples/fixtures/demo1.txt": {
+      "path": "./examples/text_samples/fixtures/demo1.txt",
+      "hash": "4e8fa7edb9f80f5bda2ac76ecbf9a563711671155ca8c11c4673f4bad9788558",
+      "last_modified": 1760329203,
+      "size": 144
+    },
+    "./cs-tui/src/colors.rs": {
+      "path": "./cs-tui/src/colors.rs",
+      "hash": "5c523bfa616823d8b6a92a4089fae4e3054748323732c5724d30e2841903fe15",
+      "last_modified": 1760509088,
+      "size": 1332
+    },
+    "./cs-models/src/lib.rs": {
+      "path": "./cs-models/src/lib.rs",
+      "hash": "0a8400b76494f40f7bece25cb7d4a32b8fe4dac580f9fea5125bdfe70dc13038",
+      "last_modified": 1760509088,
+      "size": 6156
+    },
+    "./setup_cs.sh": {
+      "path": "./setup_cs.sh",
+      "hash": "81ec96a28e85f303c7a1d5837823a61383131d3420ebec8b6f3fd18d071b8158",
+      "last_modified": 1760516578,
+      "size": 2980
+    },
+    "./cs-embed/examples/test_reranking.rs": {
+      "path": "./cs-embed/examples/test_reranking.rs",
+      "hash": "0b7cf6d6815bc94f6ec3f9482d000ff903848239c4907a19008739c4cf2e12ca",
+      "last_modified": 1760509090,
+      "size": 1708
+    },
+    "./cs-cli/src/mcp/cache.rs": {
+      "path": "./cs-cli/src/mcp/cache.rs",
+      "hash": "229b48e4381689f63a0bf8c6b5291a930109cc74fd4649eb95f19cf5a7c06791",
+      "last_modified": 1760509088,
+      "size": 1901
+    },
+    "./docs/api-issue-jina-code-embeddings-1.5b/JINA_API_ISSUE_REPORT.md": {
+      "path": "./docs/api-issue-jina-code-embeddings-1.5b/JINA_API_ISSUE_REPORT.md",
+      "hash": "3c1a2e966e8d1b47ab184f33c8441c68603959d4128efa32526335f267ea1856",
+      "last_modified": 1760509121,
+      "size": 11252
+    },
+    "./cs-chunk/queries/ruby/tags.scm": {
+      "path": "./cs-chunk/queries/ruby/tags.scm",
+      "hash": "a563dce4f729e3bd0e0854117350f54fa6ded205d4214d1dc4d55cabc1ec1429",
+      "last_modified": 1760329203,
+      "size": 139
+    },
+    "./cs-vscode/src/searchPanel.ts": {
+      "path": "./cs-vscode/src/searchPanel.ts",
+      "hash": "9728ad01813fad4bbc34c16de023048c2697a9ed0118e419215aff0fcccf9462",
+      "last_modified": 1760329203,
+      "size": 16201
+    },
+    "./examples/text_samples/wiki_articles/Philosophy.txt": {
+      "path": "./examples/text_samples/wiki_articles/Philosophy.txt",
+      "hash": "f7c685d4381590075dcec4045408f8acb22e29ca14654697159080b0a4044b2f",
+      "last_modified": 1760329203,
+      "size": 2364
+    },
+    "./examples/README.md": {
+      "path": "./examples/README.md",
+      "hash": "7f429d3a706735b86f003bbc7b5df8815eae8f4c5dd21aef0ff66d08d586685d",
+      "last_modified": 1760329203,
+      "size": 4826
+    },
+    "./migrate_to_cs.sh": {
+      "path": "./migrate_to_cs.sh",
+      "hash": "f078c1ae3b41229eed444800ab838cae7363123ddd6bd502b4b76eab94d970a8",
+      "last_modified": 1760513625,
+      "size": 2616
+    },
+    "./examples/text_samples/fixtures/demo2.txt": {
+      "path": "./examples/text_samples/fixtures/demo2.txt",
+      "hash": "8ea0921af78ce4ce4d427ac6f8796d76867b2ef45368dac2f307e711f6d6ea8c",
+      "last_modified": 1760329203,
+      "size": 134
+    },
+    "./docs/tutorials/jina-models/api-jina-embeddings.md": {
+      "path": "./docs/tutorials/jina-models/api-jina-embeddings.md",
+      "hash": "7925a1c67049b1a2ad847bd68a797960bc62e6f76612f3f9a73ca6363bf999d5",
+      "last_modified": 1760495304,
+      "size": 11395
+    },
+    "./cs-tui/src/preview.rs": {
+      "path": "./cs-tui/src/preview.rs",
+      "hash": "f79bf9ad8efa2a6e02c0ed79ca7aea1dc2a7f7fde381c4edc936699a4787167a",
+      "last_modified": 1760513363,
+      "size": 20904
+    },
+    "./cs-vscode/webview/main.js": {
+      "path": "./cs-vscode/webview/main.js",
+      "hash": "e4bd4c3dad65d55de7fc217b4477467d689cf24dbbaa824c26d36f871c26d1c4",
+      "last_modified": 1760329203,
+      "size": 34240
+    },
+    "./cs-vscode/README.md": {
+      "path": "./cs-vscode/README.md",
+      "hash": "4080db581fd52fccaed64917c4d6aedb27026e0b0abfc9f1c9c3fb9354498c95",
+      "last_modified": 1760515041,
+      "size": 3700
+    },
+    "./examples/text_samples/wiki_articles/Database.txt": {
+      "path": "./examples/text_samples/wiki_articles/Database.txt",
+      "hash": "595addce89032fa541d1a900d210702d54e79914c5ebe8c380864529f4385ea7",
+      "last_modified": 1760329203,
+      "size": 2103
+    }
+  },
+  "embedding_model": "jina-embeddings-v4",
+  "embedding_dimensions": 1536
+}
