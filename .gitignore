@@ -25,3 +25,35 @@ Thumbs.db
 # MCP config files (user-specific)
 .mcp.json
 *mcp_config*.json
+
+# Environment variables and secrets
+.env
+.env.*
+*.key
+*.pem
+
+# cs index files (updated for cs rename)
+.cs/
+.csignore
+
+# Build/development artifacts
+.claude/
+.cursor/
+.cursorignore
+.cursorindexingignore
+.specstory/
+
+# Test/development scripts
+check_index.sh
+monitor_index.sh
+setup_cs.sh
+start_index.sh
+test_config.sh
+install.sh
+
+# Temporary documentation
+*_SUMMARY.md
+*_QUICK_REFERENCE.md
+*_BEST_PRACTICES.md
+*_COMMANDS.md
+TEST_*.md
